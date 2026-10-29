@@ -1,0 +1,628 @@
+{
+  "name": "Texprove WF0 - Company discovery",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 7 * * 1"
+            }
+          ]
+        }
+      },
+      "id": "c6a5b0ca-35e3-49b5-8a8f-0c2abc10c1a0",
+      "name": "Monday 07:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -96,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM",
+          "cachedResultName": "demoSheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Leads"
+        },
+        "options": {}
+      },
+      "id": "fcbf5377-f216-4e61-85d8-f561bf6e2315",
+      "name": "Get Existing Leads",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        224,
+        240
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xLTp24saWARCuZou",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Edit this list to steer discovery. One item per brief; the suggested queries guide Claude's web searches (Turkish and English).\nconst briefs = [\n  { segment: 'Knitwear', brief: 'Turkish knitwear (örme) manufacturers exporting to EU brands', queries: ['Türkiye örme konfeksiyon ihracatçı firma Avrupa', 'Turkish knitwear manufacturer exporting to Europe EU brands', 'İHKİB örme hazır giyim ihracat ödülü firma listesi'] },\n  { segment: 'Woven apparel', brief: 'Turkish woven apparel and shirt manufacturers producing for European retailers', queries: ['Türkiye dokuma gömlek üreticisi ihracat Avrupa', 'Turkish woven garment shirt manufacturer export Europe retailers', 'İHKİB dokuma konfeksiyon ihracat şampiyonları firma'] },\n  { segment: 'Denim', brief: 'Turkish denim and jeans manufacturers supplying EU brands', queries: ['Türkiye denim jean üreticisi Avrupa ihracat', 'Turkish denim jeans manufacturer supplying European brands', 'Denim Première Vision Istanbul Turkish denim exhibitor'] },\n  { segment: 'Home textile', brief: 'Turkish home textile exporters (towels, bedding) selling to the EU', queries: ['Denizli havlu bornoz ihracatçı firma Avrupa', 'Turkish home textile towel bedding manufacturer export Europe', 'Bursa ev tekstili ihracatçı üretici Avrupa'] },\n  { segment: 'Fabric mill', brief: 'Turkish fabric mills with OEKO-TEX, GOTS or GRS certification exporting to Europe', queries: ['Türkiye kumaş üreticisi GOTS OEKO-TEX ihracat Avrupa', 'Turkish fabric mill GOTS GRS certified exporting to Europe', 'Texworld Paris Turkish fabric mill exhibitor'] },\n  { segment: 'Sportswear', brief: 'Turkish sportswear and activewear manufacturers for EU brands', queries: ['Türkiye spor giyim activewear üreticisi ihracat Avrupa', 'Turkish sportswear activewear manufacturer for European brands', 'İzmir activewear manufacturer export EU'] },\n];\n\nconst existing = $input.all().map(i => i.json).filter(r => r && (r['Company'] || r['Website']));\nconst knownNames = existing.map(r => String(r['Company'] || '').trim()).filter(Boolean);\nconst excludeText = knownNames.slice(0, 200).join('; ') || '(none)';\nconst runDate = new Date().toISOString().slice(0, 10);\n\nreturn briefs.map((b, i) => ({ json: { brief_no: i + 1, segment: b.segment, brief: b.brief, queries_text: b.queries.map((q, k) => `${k + 1}. ${q}`).join('\\n'), exclude: excludeText, run_date: runDate } }));"
+      },
+      "id": "bb4e96b1-c835-417e-b027-2774c7507cbf",
+      "name": "Build Search Plan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        464,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const minConfidence = 60;\nconst maxNewPerRun = 25;\n\nfunction domainOf(url) {\n  return String(url || '').toLowerCase().replace(/^https?:\\/\\//, '').replace(/^www\\./, '').split('/')[0].split(':')[0].trim();\n}\nfunction norm(name) {\n  return String(name || '').toLowerCase().replace(/\\b(a\\.?ş\\.?|a\\.?s\\.?|ltd\\.?|şti\\.?|sti\\.?|san\\.?|tic\\.?|ve|tekstil|textile|textiles|konfeksiyon)\\b/g, ' ').replace(/[^a-z0-9çğıöşü]+/g, ' ').trim();\n}\n\nconst existing = $('Get Existing Leads').all().map(i => i.json).filter(r => r && (r['Company'] || r['Website']));\nconst seenDomains = new Set(existing.map(r => domainOf(r['Website'])).filter(Boolean));\nconst seenNames = new Set(existing.map(r => norm(r['Company'])).filter(Boolean));\nlet maxId = 0;\nfor (const r of existing) {\n  const m = /^L0*(\\d+)$/i.exec(String(r['Lead ID'] || '').trim());\n  if (m) maxId = Math.max(maxId, Number(m[1]));\n}\n\nconst today = new Date().toISOString().slice(0, 10);\nconst out = [];\nconst skipped = { noSource: 0, lowConfidence: 0, duplicate: 0 };\nfor (const item of $input.all()) {\n  const c = item.json || {};\n  const domain = domainOf(c.website);\n  const name = norm(c.company);\n  if (!c.source_url || !domain || !name) { skipped.noSource++; continue; }\n  if (Number(c.confidence || 0) < minConfidence) { skipped.lowConfidence++; continue; }\n  if (seenDomains.has(domain) || seenNames.has(name)) { skipped.duplicate++; continue; }\n  if (out.length >= maxNewPerRun) break;\n  seenDomains.add(domain);\n  seenNames.add(name);\n  maxId++;\n  out.push({ json: {\n    'Lead ID': 'L' + String(maxId).padStart(3, '0'),\n    'Company': String(c.company).trim(),\n    'Website': String(c.website).trim(),\n    'Country': 'Turkey',\n    'Segment': String(c.segment || '').trim(),\n    'Source URL': String(c.source_url).trim(),\n    'Source Date': today,\n    'Confidence': String(Math.round(Number(c.confidence))),\n    'Research Notes': 'EU evidence: ' + String(c.eu_evidence || '').trim(),\n    'Stage': 'New',\n    'Last Updated': new Date().toISOString(),\n    skipped_summary: JSON.stringify(skipped),\n  } });\n}\nreturn out;"
+      },
+      "id": "f43d3616-5d59-48fa-950b-2d8676df2528",
+      "name": "Dedupe and Assign IDs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM",
+          "cachedResultName": "demoSheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Leads"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Lead ID": "={{ $json[\"Lead ID\"] }}",
+            "Company": "={{ $json.Company }}",
+            "Website": "={{ $json.Website }}",
+            "Country": "={{ $json.Country }}",
+            "Segment": "={{ $json.Segment }}",
+            "Source URL": "={{ $json[\"Source URL\"] }}",
+            "Source Date": "={{ $json[\"Source Date\"] }}",
+            "Confidence": "={{ $json.Confidence }}",
+            "Research Notes": "={{ $json[\"Research Notes\"] }}",
+            "Stage": "={{ $json.Stage }}",
+            "Last Updated": "={{ $json[\"Last Updated\"] }}"
+          },
+          "schema": [
+            {
+              "id": "Lead ID",
+              "displayName": "Lead ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Company",
+              "displayName": "Company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Website",
+              "displayName": "Website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Country",
+              "displayName": "Country",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Segment",
+              "displayName": "Segment",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Source URL",
+              "displayName": "Source URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Source Date",
+              "displayName": "Source Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Confidence",
+              "displayName": "Confidence",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Research Notes",
+              "displayName": "Research Notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Stage",
+              "displayName": "Stage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Last Updated",
+              "displayName": "Last Updated",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            }
+          ]
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "id": "2c2cc730-6550-4c04-9418-f229b8a1288a",
+      "name": "Append New Leads",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1424,
+        272
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xLTp24saWARCuZou",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "69aa9a67-e496-4510-8841-c584cdc2bcb2",
+      "name": "Manual Test",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -128,
+        368
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 1. Plan the searches\nRuns Monday 07:00 (Europe/Istanbul) or manually. Reads every existing lead (for duplicate checks and the next Lead ID), then builds one search brief per segment. Edit the briefs in \"Build Search Plan\" to steer discovery.",
+        "height": 224,
+        "width": 400,
+        "color": 4
+      },
+      "id": "a551976c-2048-4599-9421-78ffea316b09",
+      "name": "Sticky Note 549e4111",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        192,
+        -144
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 2. Find companies (Claude web search, one call per brief)\n\"Find Companies with Claude\" is the Anthropic node (Claude Sonnet 4.6) with Claude's built-in web search on (max 10 searches per brief). For each brief it runs the suggested Turkish and English searches, opens the company sites, and answers with a JSON list of up to 8 Turkish manufacturers with website, source URL, EU export evidence and a confidence score. If the call fails (credits exhausted, rate limit, outage), the error output runs the same call on \"... (account 2)\" with the second Anthropic credential. \"Parse Companies\" turns either reply into one item per company.",
+        "height": 300,
+        "width": 460,
+        "color": 5
+      },
+      "id": "7931bab6-62c1-4555-9cb3-cc2886c1a52f",
+      "name": "Sticky Note dce98e96",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        680,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 3. Save as New leads\nDrops companies without a source, below 60 confidence, or already in the sheet (by website domain or name). Assigns the next Lead ID and appends rows with Stage = New, so WF1 picks them up at 08:00. Each company is also appended to the Log tab (decision log).\n\nThe Leads tab needs three extra columns: Source URL, Source Date, Confidence. The sheet needs a Log tab: Timestamp | Workflow | Lead ID | Company | Step | Input | Output | Reason.",
+        "height": 224,
+        "width": 400,
+        "color": 6
+      },
+      "id": "41823b16-7994-42ee-a94d-c3cd7674a141",
+      "name": "Sticky Note c3a0b2ec",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1168,
+        -96
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "demoSheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk",
+          "mode": "list",
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "schema": [
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Timestamp",
+              "id": "Timestamp",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Workflow",
+              "id": "Workflow",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Lead ID",
+              "id": "Lead ID",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Company",
+              "id": "Company",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Step",
+              "id": "Step",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Input",
+              "id": "Input",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Output",
+              "id": "Output",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Reason",
+              "id": "Reason",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "Company": "={{ $json.Company }}",
+            "Input": "={{ 'Source: ' + $json['Source URL'] }}",
+            "Lead ID": "={{ $json['Lead ID'] }}",
+            "Output": "={{ 'Website ' + $json.Website + '; segment ' + $json.Segment + '; confidence ' + $json.Confidence + '; ' + String($json['Research Notes'] || '').slice(0, 500) }}",
+            "Reason": "={{ 'Confidence >= 60 and not already in sheet; added as Stage = New. Skipped this run: ' + $json.skipped_summary }}",
+            "Step": "Company found",
+            "Timestamp": "={{ $now.toISO() }}",
+            "Workflow": "WF0 Company discovery"
+          }
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "id": "06d15aca-d192-4fe4-bd90-4f417e28012d",
+      "name": "Log Discovery",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1424,
+        528
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xLTp24saWARCuZou",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "1072c95d-220d-4e2a-857f-81778bd27c81",
+      "name": "Find Companies with Claude",
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        704,
+        240
+      ],
+      "parameters": {
+        "messages": {
+          "values": [
+            {
+              "content": "=Today is {{ $json.run_date }}.\nSegment: {{ $json.segment }}\nBrief: {{ $json.brief }}\nSuggested searches (run these first, then follow up on promising companies):\n{{ $json.queries_text }}\n\nAlready in our sheet, skip these companies: {{ $json.exclude }}\n\nFind up to 8 companies and return only the JSON object.",
+              "role": "user"
+            }
+          ]
+        },
+        "modelId": {
+          "__rl": true,
+          "cachedResultName": "Claude Sonnet 5.5",
+          "mode": "list",
+          "value": "claude-sonnet-5-5"
+        },
+        "operation": "message",
+        "options": {
+          "includeMergedResponse": true,
+          "maxTokens": 8192,
+          "maxToolsIterations": 15,
+          "maxUses": 10,
+          "system": "You find candidate companies for Texprove, a Digital Product Passport SaaS for textile and apparel exporters to the EU. Use web search (at most 10 searches) to find textile or apparel MANUFACTURERS or EXPORTERS based in Turkey (Türkiye) that sell to European buyers, in the given segment. Start with the suggested searches, then open the company's own website to confirm it is a Turkish manufacturer and to find its EU export evidence.\n\nExclude: brands and retailers (buyers), sourcing agents, directories and marketplaces (europages, kompass, alibaba, foursource, made-in-turkey), associations, fairs, news and magazine sites, job sites, LinkedIn pages, PDFs, and companies outside Turkey. Skip companies named in the skip list.\n\nFor each company give: company (official name), website (the company's own homepage as https://domain; skip the company if you cannot find its own site), source_url (the page where you saw the EU export evidence), eu_evidence (one sentence quoting or closely paraphrasing what the page says about exports to Europe, EU countries or European customers; never record order volumes, prices or buyer names), confidence (0 to 100: 90 or more when EU markets, EU countries or European brands are named as customers; 60 to 89 when it shows exporting in general without EU specifics; below 60 when the EU link is only implied), segment (one of Knitwear, Woven apparel, Denim, Home textile, Fabric mill, Yarn, Sportswear, Technical textile, Other).\n\nRespond with ONLY a JSON object, no markdown fences, no commentary: {\"companies\": [ ... ]}. Return an empty array if nothing qualifies.",
+          "webSearch": true
+        },
+        "resource": "text",
+        "simplify": true
+      },
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "anthropicApi": {
+          "id": "JXZ5NOJvJ6mIjWyY",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "id": "398707e3-eccf-424f-b845-374a16e0f95d",
+      "name": "Parse Companies",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        944,
+        240
+      ],
+      "parameters": {
+        "jsCode": "// One item per company found, in the shape Dedupe expects. Replies without JSON are skipped. Input can come from the main Claude node or the account-2 fallback, so the segment comes from Claude's answer.\nfunction strings(v, acc) {\n  if (typeof v === 'string') acc.push(v);\n  else if (Array.isArray(v)) v.forEach(x => strings(x, acc));\n  else if (v && typeof v === 'object') Object.values(v).forEach(x => strings(x, acc));\n  return acc;\n}\nfunction extract(text) {\n  const s = text.indexOf('{'); const e = text.lastIndexOf('}');\n  if (s < 0 || e <= s) return null;\n  for (let end = e; end > s; end = text.lastIndexOf('}', end - 1)) {\n    try { const o = JSON.parse(text.slice(s, end + 1)); if (o && Array.isArray(o.companies)) return o; } catch (err) { /* try a shorter slice */ }\n  }\n  return null;\n}\nconst out = [];\n$input.all().forEach((item) => {\n  const body = item.json || {};\n  const texts = strings(body, []).filter(t => t.includes('\"companies\"'));\n  let parsed = null;\n  for (const t of texts) { parsed = extract(t); if (parsed) break; }\n  if (!parsed) return;\n  for (const c of parsed.companies) {\n    if (!c || typeof c !== 'object') continue;\n    out.push({ json: {\n      company: String(c.company || '').trim(),\n      website: String(c.website || '').trim(),\n      segment: String(c.segment || '').trim(),\n      eu_evidence: String(c.eu_evidence || '').trim(),\n      source_url: String(c.source_url || '').trim(),\n      confidence: Number(c.confidence || 0),\n    } });\n  }\n});\nreturn out.filter(i => i.json.company && i.json.website);"
+      }
+    },
+    {
+      "id": "83c7119f-3f3f-4012-b503-44b84f886e2c",
+      "name": "Find Companies with Claude (account 2)",
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        704,
+        480
+      ],
+      "parameters": {
+        "messages": {
+          "values": [
+            {
+              "content": "=Today is {{ $('Build Search Plan').item.json.run_date }}.\nSegment: {{ $('Build Search Plan').item.json.segment }}\nBrief: {{ $('Build Search Plan').item.json.brief }}\nSuggested searches (run these first, then follow up on promising companies):\n{{ $('Build Search Plan').item.json.queries_text }}\n\nAlready in our sheet, skip these companies: {{ $('Build Search Plan').item.json.exclude }}\n\nFind up to 8 companies and return only the JSON object.",
+              "role": "user"
+            }
+          ]
+        },
+        "modelId": {
+          "__rl": true,
+          "cachedResultName": "Claude Sonnet 4.6",
+          "mode": "list",
+          "value": "claude-sonnet-4-6"
+        },
+        "operation": "message",
+        "options": {
+          "includeMergedResponse": true,
+          "maxTokens": 8192,
+          "maxToolsIterations": 15,
+          "maxUses": 10,
+          "system": "You find candidate companies for Texprove, a Digital Product Passport SaaS for textile and apparel exporters to the EU. Use web search (at most 10 searches) to find textile or apparel MANUFACTURERS or EXPORTERS based in Turkey (Türkiye) that sell to European buyers, in the given segment. Start with the suggested searches, then open the company's own website to confirm it is a Turkish manufacturer and to find its EU export evidence.\n\nExclude: brands and retailers (buyers), sourcing agents, directories and marketplaces (europages, kompass, alibaba, foursource, made-in-turkey), associations, fairs, news and magazine sites, job sites, LinkedIn pages, PDFs, and companies outside Turkey. Skip companies named in the skip list.\n\nFor each company give: company (official name), website (the company's own homepage as https://domain; skip the company if you cannot find its own site), source_url (the page where you saw the EU export evidence), eu_evidence (one sentence quoting or closely paraphrasing what the page says about exports to Europe, EU countries or European customers; never record order volumes, prices or buyer names), confidence (0 to 100: 90 or more when EU markets, EU countries or European brands are named as customers; 60 to 89 when it shows exporting in general without EU specifics; below 60 when the EU link is only implied), segment (one of Knitwear, Woven apparel, Denim, Home textile, Fabric mill, Yarn, Sportswear, Technical textile, Other).\n\nRespond with ONLY a JSON object, no markdown fences, no commentary: {\"companies\": [ ... ]}. Return an empty array if nothing qualifies.",
+          "webSearch": true
+        },
+        "resource": "text",
+        "simplify": true
+      },
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "anthropicApi": {
+          "id": "JXZ5NOJvJ6mIjWyY",
+          "name": "Anthropic account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Monday 07:00": {
+      "main": [
+        [
+          {
+            "node": "Get Existing Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Existing Leads": {
+      "main": [
+        [
+          {
+            "node": "Build Search Plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dedupe and Assign IDs": {
+      "main": [
+        [
+          {
+            "node": "Append New Leads",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Discovery",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Test": {
+      "main": [
+        [
+          {
+            "node": "Get Existing Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Search Plan": {
+      "main": [
+        [
+          {
+            "node": "Find Companies with Claude",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Companies with Claude": {
+      "main": [
+        [
+          {
+            "node": "Parse Companies",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Find Companies with Claude (account 2)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Companies": {
+      "main": [
+        [
+          {
+            "node": "Dedupe and Assign IDs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Companies with Claude (account 2)": {
+      "main": [
+        [
+          {
+            "node": "Parse Companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "timezone": "Europe/Istanbul",
+    "binaryMode": "separate"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

@@ -1,0 +1,2180 @@
+{
+  "name": "Texprove WF5 - Follow-ups",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 11 * * 1-5"
+            }
+          ]
+        }
+      },
+      "id": "cbfe3743-5eea-490c-b7b6-93ce4cc1ba96",
+      "name": "Weekdays 11:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM",
+          "mode": "list",
+          "cachedResultName": "demoSheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Leads"
+        },
+        "options": {}
+      },
+      "id": "cfdb7192-af9d-4fb2-bd66-798b392f9c16",
+      "name": "Get Leads",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        448,
+        240
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xLTp24saWARCuZou",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "9657aa73-b1af-4345-81ec-326c0102c370",
+      "name": "Manual Test",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "due",
+              "leftValue": "={{ ['Sent','Follow-up 1','Follow-up 2'].includes($json.Stage) && $json['Opt-out'] !== 'Yes' && !!$json['Next Follow-up Date'] && String($json['Next Follow-up Date']).slice(0, 10) <= $today.toFormat('yyyy-MM-dd') && !!$json['Gmail Thread ID'] }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": true
+            },
+            {
+              "id": "nosupp",
+              "leftValue": "={{ (() => { const e = String($json.Email || '').toLowerCase().trim(); const d = e.includes('@') ? e.split('@')[1] : ''; return !$('Read Suppression').all().some(i => { const se = String(i.json.Email || '').toLowerCase().trim(); const sd = String(i.json.Domain || '').toLowerCase().replace(/^@/, '').trim(); return (se && se === e) || (sd && d && (d === sd || d.endsWith('.' + sd))); }); })() }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": true
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "2b07c328-5089-4dc7-9fdf-377d919d1342",
+      "name": "Follow-up due?",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        672,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "maxItems": 15
+      },
+      "id": "a2a4686a-92fb-4ee6-9398-4ace41cd0752",
+      "name": "Limit 15",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        800,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "thread",
+        "operation": "get",
+        "threadId": "={{ $json['Gmail Thread ID'] }}",
+        "options": {
+          "returnOnlyMessages": false
+        }
+      },
+      "id": "77e3904d-e339-40b1-9e62-f103f687eb85",
+      "name": "Get Thread",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1120,
+        32
+      ],
+      "webhookId": "1144ae3e-c816-449a-ad1c-d0418d2a9dc6",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "e4PwwBoziWhyHRLW",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "rep",
+              "leftValue": "={{ ($json.messages || []).some(m => !(m.labels || m.labelIds || []).some(l => (l.id || l) === 'SENT')) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "077958ac-236c-4300-81b8-9930eb6b18ed",
+      "name": "Lead replied?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1344,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "de871a96-5c4f-4c79-ba40-f9825e9c4b51",
+      "name": "Loop Over Follow-ups",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        896,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Write follow-up number {{ Number($('Loop Over Follow-ups').item.json['Follow-up Count'] || 0) + 1 }} of 3 to {{ $('Loop Over Follow-ups').item.json['Contact Name'] }} at {{ $('Loop Over Follow-ups').item.json.Company }}, replying in the same thread as this original email:\n{{ $('Loop Over Follow-ups').item.json['Draft Body'] }}\n\nSame language as the original. Max 60 words.\nFollow-up 1: short nudge with one new useful fact about EU textile DPP deadlines.\nFollow-up 2: offer a one-page summary of what DPP means for their product line.\nFollow-up 3: polite last note saying you will not write again.\nNever mention the company's customers, buyers, the brands or retailers it supplies, order volumes, quantities, prices, capacities, margins or revenue, even if public.\nKeep the signature and opt-out line from the original.{{ $('Decide Follow-up Action').item.json.fu_edit_notes ? '\\n\\nThe manager reviewed this previous draft and asked for changes. Previous draft:\\n' + $('Decide Follow-up Action').item.json.fu_previous_draft + '\\n\\nManager notes (follow them exactly):\\n' + $('Decide Follow-up Action').item.json.fu_edit_notes : '' }}\nReturn JSON: body.",
+        "hasOutputParser": true,
+        "needsFallback": true,
+        "batching": {}
+      },
+      "id": "9e0f31bb-732f-4b5c-9714-0b68ca8d5c85",
+      "name": "Write Follow-up",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1904,
+        -208
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "claude-sonnet-5-5",
+          "cachedResultName": "Claude Sonnet 5.5"
+        },
+        "options": {}
+      },
+      "id": "063f7e8f-8684-4eae-93ba-383906490c05",
+      "name": "Claude Sonnet 5.5",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.6,
+      "position": [
+        1856,
+        -16
+      ],
+      "credentials": {
+        "anthropicApi": {
+          "id": "JXZ5NOJvJ6mIjWyY",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\"type\":\"object\",\"properties\":{\"body\":{\"type\":\"string\"}},\"required\":[\"body\"]}"
+      },
+      "id": "1fb40eac-f5a8-4264-b1cd-c777994b43c6",
+      "name": "Follow-up JSON",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        2112,
+        -16
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "appToken",
+        "resource": "engagement",
+        "type": "email",
+        "metadata": {
+          "subject": "=Re: {{ $('Loop Over Follow-ups').item.json.Subject }}",
+          "toEmail": [
+            "={{ $('Loop Over Follow-ups').item.json.Email }}"
+          ]
+        },
+        "additionalFields": {
+          "associations": {
+            "contactIds": "={{ $('Loop Over Follow-ups').item.json['HubSpot Contact ID'] }}"
+          }
+        }
+      },
+      "id": "906a33e4-8291-492c-933c-be2491fd0adb",
+      "name": "HubSpot Log Follow-up",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2.2,
+      "position": [
+        2496,
+        112
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "hubspotAppToken": {
+          "id": "bz7tvbTzcKKP4L3N",
+          "name": "HubSpot Service Key account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM",
+          "mode": "list",
+          "cachedResultName": "demoSheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Leads"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "Lead ID"
+          ],
+          "value": {
+            "Lead ID": "={{ $('Loop Over Follow-ups').item.json['Lead ID'] }}",
+            "Follow-up Count": "={{ String(Number($('Loop Over Follow-ups').item.json['Follow-up Count'] || 0) + 1) }}",
+            "Stage": "={{ 'Follow-up ' + (Number($('Loop Over Follow-ups').item.json['Follow-up Count'] || 0) + 1) }}",
+            "Next Follow-up Date": "={{ Number($('Loop Over Follow-ups').item.json['Follow-up Count'] || 0) >= 2 ? '' : DateTime.fromISO(String($('Loop Over Follow-ups').item.json['Sent At'])).plus({ days: (Number($('Loop Over Follow-ups').item.json['Follow-up Count'] || 0) + 1) * 10 }).toFormat('yyyy-MM-dd') }}",
+            "Last Updated": "={{ $now.toISO() }}",
+            "Follow-up Draft": ""
+          },
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": true,
+              "display": true,
+              "displayName": "Lead ID",
+              "id": "Lead ID",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Follow-up Count",
+              "id": "Follow-up Count",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Stage",
+              "id": "Stage",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Next Follow-up Date",
+              "id": "Next Follow-up Date",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Last Updated",
+              "id": "Last Updated",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Follow-up Draft",
+              "id": "Follow-up Draft",
+              "required": false,
+              "type": "string"
+            }
+          ]
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "id": "0ebed220-ecc0-4031-ae49-cab67b36e9e8",
+      "name": "Update Follow-up Row",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2720,
+        128
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xLTp24saWARCuZou",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "close",
+              "leftValue": "={{ $json.Stage === 'Follow-up 3' && !$json['Next Follow-up Date'] && $json['Opt-out'] !== 'Yes' && DateTime.fromISO(String($json['Last Updated'] || $json['Sent At'])) <= $now.minus({ days: 7 }) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "d88e0381-ba55-4c72-b1d2-173cab5192fe",
+      "name": "Ready to close?",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        672,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM",
+          "mode": "list",
+          "cachedResultName": "demoSheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Leads"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "Lead ID"
+          ],
+          "value": {
+            "Lead ID": "={{ $json['Lead ID'] }}",
+            "Stage": "Closed - No reply",
+            "Last Updated": "={{ $now.toISO() }}"
+          },
+          "schema": [
+            {
+              "id": "Lead ID",
+              "displayName": "Lead ID",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Stage",
+              "displayName": "Stage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Last Updated",
+              "displayName": "Last Updated",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8b6f7492-5ee2-46b7-a881-04cf23f7aa6c",
+      "name": "Close No Reply",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        672,
+        352
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xLTp24saWARCuZou",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Follow-ups (with Nil's approval)\nDaily: for up to 15 due leads (Stage Sent / Follow-up 1 / Follow-up 2, Next Follow-up Date reached, not on the Suppression tab, no reply in the Gmail thread):\n- No draft yet, or Approved = Edit: the model writes the follow-up, \"Check Follow-up\" screens it (buyers, money, quantities, hype), and the clean text goes to the Leads column \"Follow-up Draft\" with Approved = Pending. Blocked text goes to the Log tab and is retried next run.\n- Approved = Yes: the draft is sent in the original Gmail thread, logged in HubSpot, the next follow-up is scheduled (+10 / +20 days from Sent At) and the draft column is cleared.\n- Approved = No: draft cleared, no further follow-up scheduled.\n- Approved = Pending: wait.\nAfter the loop, Nil gets one summary (email, WhatsApp, Telegram). Separately closes leads still on Follow-up 3 with no reply for 7 days. Everything is appended to the Log tab.",
+        "height": 180,
+        "width": 400
+      },
+      "id": "10b67ca6-576a-4302-ac5e-8ad9f03f3939",
+      "name": "Note: Follow-ups",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "demoSheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk",
+          "mode": "list",
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "schema": [
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Timestamp",
+              "id": "Timestamp",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Workflow",
+              "id": "Workflow",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Lead ID",
+              "id": "Lead ID",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Company",
+              "id": "Company",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Step",
+              "id": "Step",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Input",
+              "id": "Input",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Output",
+              "id": "Output",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Reason",
+              "id": "Reason",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "Company": "={{ $('Loop Over Follow-ups').item.json.Company }}",
+            "Input": "={{ 'Thread ' + $('Loop Over Follow-ups').item.json['Gmail Thread ID'] + '; due ' + $('Loop Over Follow-ups').item.json['Next Follow-up Date'] }}",
+            "Lead ID": "={{ $('Loop Over Follow-ups').item.json['Lead ID'] }}",
+            "Output": "={{ String($('Loop Over Follow-ups').item.json['Follow-up Draft'] || '').slice(0, 2500) }}",
+            "Reason": "Approved by Nil (Approved = Yes); due date reached and no reply in the thread",
+            "Step": "={{ 'Follow-up ' + (Number($('Loop Over Follow-ups').item.json['Follow-up Count'] || 0) + 1) + ' sent' }}",
+            "Timestamp": "={{ $now.toISO() }}",
+            "Workflow": "WF5 Follow-ups"
+          }
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "id": "114ffec4-34e3-48f7-a454-95bb0d17988e",
+      "name": "Log Follow-up",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2928,
+        112
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xLTp24saWARCuZou",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "demoSheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk",
+          "mode": "list",
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "schema": [
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Timestamp",
+              "id": "Timestamp",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Workflow",
+              "id": "Workflow",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Lead ID",
+              "id": "Lead ID",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Company",
+              "id": "Company",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Step",
+              "id": "Step",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Input",
+              "id": "Input",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Output",
+              "id": "Output",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Reason",
+              "id": "Reason",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "Company": "={{ $json.Company }}",
+            "Input": "={{ 'Stage ' + $json.Stage + '; last updated ' + $json['Last Updated'] }}",
+            "Lead ID": "={{ $json['Lead ID'] }}",
+            "Output": "Stage set to Closed - No reply",
+            "Reason": "No reply 7 days after follow-up 3",
+            "Step": "Closed - No reply",
+            "Timestamp": "={{ $now.toISO() }}",
+            "Workflow": "WF5 Follow-ups"
+          }
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "id": "119baf8c-fab9-417c-9cd7-8032ea3443e3",
+      "name": "Log Close",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        672,
+        560
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xLTp24saWARCuZou",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "demoSheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk",
+          "mode": "list",
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Suppression"
+        },
+        "options": {}
+      },
+      "id": "8b40e0c2-32a6-47af-81d8-00b2365a5a09",
+      "name": "Read Suppression",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        224,
+        128
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xLTp24saWARCuZou",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Plain-code check of the follow-up text before it is sent. Blocked follow-ups are not sent and are written to the Log tab.\nconst body = String($input.item.json.output?.body || '');\nconst reasons = [];\nif (!body.trim()) reasons.push('Body is empty');\nconst words = body.trim().split(/\\s+/).length;\nif (words > 160) reasons.push('Too long (' + words + ' words)');\nconst banned = ['garanti', 'guaranteed', '%100', '100%', 'ücretsiz', 'free trial', 'son şans', 'last chance'];\nconst hits = banned.filter(b => body.toLowerCase().includes(b));\nif (hits.length) reasons.push('Hype wording: ' + hits.join(', '));\nfor (const r of sensitiveIssues(body)) reasons.push(r);\n\nreturn { json: {\n  ...$input.item.json,\n  fu_check_status: reasons.length ? 'Blocked' : 'OK',\n  fu_check_notes: reasons.join('; '),\n} };\n\n// Trade-secret rule (Nil's compliance plan): no buyer names, order volumes, prices, capacities or margins in outreach text.\nfunction sensitiveIssues(text) {\n  const t = String(text || '');\n  const low = t.toLowerCase();\n  const issues = [];\n  const buyers = ['zara', 'inditex', 'h&m', 'hennes', 'primark', 'c&a', 'mango', 'marks & spencer', 'm&s', 'tesco', 'lidl', 'aldi', 'decathlon', 'hugo boss', 'adidas', 'puma', 'nike', 'esprit', 's.oliver', 'tom tailor', 'bestseller', 'zalando', 'about you', 'otto', 'benetton', 'diesel', \"levi's\", 'levis', 'kiabi', 'celio', 'promod', 'etam', 'carrefour', 'auchan', 'tchibo', 'takko', 'ernsting', 'peek & cloppenburg', 'hunkemöller', 'we fashion', 'jack & jones', 'vero moda', 'pepe jeans', 'desigual', 'el corte ingl', 'cortefiel', 'mayoral', 'g-star', 'scotch & soda', 'zeeman', 'matalan', 'river island', 'new look', 'boohoo', 'asos', 'sinsay', 'cropp', 'mohito', 'pull&bear', 'pull & bear', 'bershka', 'stradivarius', 'massimo dutti', 'oysho', 'ikea', 'jysk', 'armani', 'gucci', 'prada', 'burberry', 'ralph lauren', 'tommy hilfiger', 'calvin klein', 'uniqlo', 'lacoste', 'superdry', 'jd sports', 'intersport', 'engelbert strauss', 'koton', 'defacto', 'lc waikiki'];\n  // Whole-word match only: \"zara\" must not fire inside \"yazarak\", nor \"otto\" inside \"cotton\".\n  const esc = (s) => s.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');\n  const wordHit = (name) => new RegExp('(^|[^a-z0-9çğıöşüâîû])' + esc(name) + '(?=$|[^a-z0-9çğıöşüâîû])').test(low);\n  const named = buyers.filter(wordHit);\n  if (named.length) issues.push('Names a buyer or brand: ' + named.join(', '));\n  if (/(€|£|₺|\\$|\\b(eur|usd|gbp|tl)\\b)/i.test(t)) issues.push('Mentions money or prices');\n  if (/\\b\\d[\\d.,]*\\s*(adet|parça|ton|tons|tonnes|kg|metre|meters|pcs|pieces|units|orders|order|sipariş)\\b/i.test(t)) issues.push('Mentions order volumes or quantities');\n  const words = ['sipariş hacmi', 'sipariş adedi', 'order volume', 'order quantity', 'minimum order', 'moq', 'fiyat', 'price', 'birim fiyat', 'tedarikçisi', 'supplier of', 'supplies to', 'supplier to', 'müşteriniz', 'your customer', 'your client', 'your buyer', 'alıcınız', 'customer list', 'müşteri listesi', 'kapasite', 'capacity', 'marj', 'margin', 'ciro', 'revenue', 'turnover'];\n  const hits = words.filter(w => low.includes(w));\n  if (hits.length) issues.push('Commercially sensitive wording: ' + hits.join(', '));\n  return issues;\n}\n"
+      },
+      "id": "f8d41112-d6ec-4f6a-915d-b16397a5684b",
+      "name": "Check Follow-up",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2112,
+        -208
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "clean",
+              "leftValue": "={{ $json.fu_check_status }}",
+              "operator": {
+                "operation": "equals",
+                "type": "string"
+              },
+              "rightValue": "OK"
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      },
+      "id": "b6b20e59-d7af-4285-8aac-a3d18ed68c0a",
+      "name": "Follow-up clean?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2304,
+        -208
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "demoSheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk",
+          "mode": "list",
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "schema": [
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Timestamp",
+              "id": "Timestamp",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Workflow",
+              "id": "Workflow",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Lead ID",
+              "id": "Lead ID",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Company",
+              "id": "Company",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Step",
+              "id": "Step",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Input",
+              "id": "Input",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Output",
+              "id": "Output",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Reason",
+              "id": "Reason",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "Company": "={{ $('Loop Over Follow-ups').item.json.Company }}",
+            "Input": "={{ 'Thread ' + $('Loop Over Follow-ups').item.json['Gmail Thread ID'] }}",
+            "Lead ID": "={{ $('Loop Over Follow-ups').item.json['Lead ID'] }}",
+            "Output": "={{ String($json.output?.body || '').slice(0, 2500) }}",
+            "Reason": "={{ 'Not sent: ' + $json.fu_check_notes + '. Will be rewritten and retried on the next run.' }}",
+            "Step": "={{ 'Follow-up ' + (Number($('Loop Over Follow-ups').item.json['Follow-up Count'] || 0) + 1) + ' blocked' }}",
+            "Timestamp": "={{ $now.toISO() }}",
+            "Workflow": "WF5 Follow-ups"
+          }
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "id": "91170075-6ace-4159-81e0-31d2d2a21c1c",
+      "name": "Log Follow-up Blocked",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2512,
+        -400
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xLTp24saWARCuZou",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "cachedResultName": "Claude Sonnet 5.5",
+          "mode": "list",
+          "value": "claude-sonnet-5-5"
+        },
+        "options": {}
+      },
+      "id": "e0404a0f-c6d4-49d8-93ef-4802e3b0ca9f",
+      "name": "Claude Sonnet 5.5 (account 2)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.6,
+      "position": [
+        1984,
+        -16
+      ],
+      "notes": "Fallback model: used only when the first Anthropic account errors (credits exhausted, rate limit, outage). Point this node at the second Anthropic credential.",
+      "credentials": {
+        "anthropicApi": {
+          "id": "JXZ5NOJvJ6mIjWyY",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ 'https://gmail.googleapis.com/gmail/v1/users/me/messages/' + $('Get Thread').first().json.messages[0].id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "gmailOAuth2",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "format",
+              "value": "metadata"
+            },
+            {
+              "name": "metadataHeaders",
+              "value": "Message-ID"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "1004ca71-31e8-4f2c-a449-9c31797ea555",
+      "name": "Get Original Message-ID",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1920,
+        112
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "e4PwwBoziWhyHRLW",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Builds an RFC 2822 reply that Gmail keeps in the original thread (threadId + Re: subject + In-Reply-To/References).\n// The text sent is the draft Nil approved in the Leads column \"Follow-up Draft\".\nconst meta = $input.item.json;\nconst headers = (meta.payload && meta.payload.headers) || [];\nconst msgId = (headers.find(h => String(h.name).toLowerCase() === 'message-id') || {}).value || '';\nconst thread = $('Get Thread').first().json;\nconst original = (thread.messages || [])[0] || {};\nconst to = original.To || $('Loop Over Follow-ups').item.json.Email;\nlet subject = String(original.Subject || $('Loop Over Follow-ups').item.json.Subject || '');\nif (!/^re:/i.test(subject)) subject = 'Re: ' + subject;\nconst body = String($('Loop Over Follow-ups').item.json['Follow-up Draft'] || '');\nif (!body.trim()) throw new Error('Follow-up Draft is empty for ' + $('Loop Over Follow-ups').item.json['Lead ID']);\nconst encSubject = '=?UTF-8?B?' + Buffer.from(subject, 'utf8').toString('base64') + '?=';\nconst lines = [\n  'To: ' + to,\n  'Subject: ' + encSubject,\n  msgId ? 'In-Reply-To: ' + msgId : null,\n  msgId ? 'References: ' + msgId : null,\n  'MIME-Version: 1.0',\n  'Content-Type: text/plain; charset=\"UTF-8\"',\n  'Content-Transfer-Encoding: base64',\n  '',\n  Buffer.from(body, 'utf8').toString('base64'),\n].filter(l => l !== null);\nconst raw = Buffer.from(lines.join('\\r\\n'), 'utf8').toString('base64').replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '');\nreturn { json: { raw, threadId: thread.id || $('Loop Over Follow-ups').item.json['Gmail Thread ID'], to, subject, in_reply_to: msgId } };"
+      },
+      "id": "7e850d8f-2db0-4bc5-9e7d-0a27d3aa0211",
+      "name": "Build Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2112,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "gmailOAuth2",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ raw: $json.raw, threadId: $json.threadId }) }}",
+        "options": {}
+      },
+      "id": "87e5fe3d-194b-4552-8c60-28af065a785d",
+      "name": "Send Follow-up",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2304,
+        112
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "e4PwwBoziWhyHRLW",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Runs once when the follow-up loop is finished. Counts what happened this run.\nconst count = (name) => { try { return $(name).all().length; } catch (e) { return 0; } };\nconst ids = (name) => { try { return $(name).all().map(i => i.json['Lead ID'] || '').filter(Boolean); } catch (e) { return []; } };\nlet sent = [];\ntry { sent = $('Update Follow-up Row').all().map(i => (i.json['Lead ID'] || '') + ' (' + (i.json.Stage || 'follow-up') + ')'); } catch (e) {}\nconst drafted = ids('Save Follow-up Draft');\nreturn [{ json: {\n  sent_count: sent.length,\n  sent_list: sent.join(', '),\n  drafted_count: drafted.length,\n  drafted_list: drafted.join(', '),\n  blocked_count: count('Log Follow-up Blocked'),\n  declined_count: count('Log Follow-up Declined'),\n} }];"
+      },
+      "id": "c0744025-c765-4ae2-b077-7111a2d0fa53",
+      "name": "Summarize Follow-ups",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        -320
+      ],
+      "notes": "Summary of this run for Nil: sent follow-ups (Lead ID + stage) and blocked count."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "any",
+              "leftValue": "={{ ($json.sent_count || 0) + ($json.drafted_count || 0) + ($json.blocked_count || 0) + ($json.declined_count || 0) > 0 }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": true
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      },
+      "id": "0078ff38-1fbb-4346-93ac-4b4c99521d22",
+      "name": "Anything to report?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1344,
+        -320
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "demoSheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk",
+          "mode": "list",
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Settings"
+        },
+        "options": {}
+      },
+      "id": "67f971a8-072b-42fd-9c7e-48e8f9646327",
+      "name": "Read Settings (follow-ups)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1568,
+        -320
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xLTp24saWARCuZou",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json['Nil Email'] }}",
+        "subject": "=Texprove: {{ $('Summarize Follow-ups').first().json.drafted_count }} follow-up drafts to approve, {{ $('Summarize Follow-ups').first().json.sent_count }} sent",
+        "emailType": "text",
+        "message": "=Follow-up drafts waiting for your approval: {{ $('Summarize Follow-ups').first().json.drafted_count }} ({{ $('Summarize Follow-ups').first().json.drafted_list || 'none' }}). They are in the Leads tab, column \"Follow-up Draft\". Set Approved to Yes to send on the next run, No to drop the follow-up, or Edit (with your notes in Nil Notes) to have it rewritten.\n\nSent today (approved earlier): {{ $('Summarize Follow-ups').first().json.sent_count }} ({{ $('Summarize Follow-ups').first().json.sent_list || 'none' }}).\nBlocked by the compliance check: {{ $('Summarize Follow-ups').first().json.blocked_count }} (rewritten on the next run; see the Log tab).\nDeclined by you: {{ $('Summarize Follow-ups').first().json.declined_count }}.\n\nSheet: {{ $json['Sheet URL'] ?? 'open the \"Texprove Leads\" Google Sheet, tab Leads' }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "799e8d57-d4ba-4da0-bde4-25694955c3b0",
+      "name": "Email Nil (follow-ups)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1792,
+        -480
+      ],
+      "webhookId": "48a47c9e-5183-46c7-8b2c-bc5e7116ce69",
+      "executeOnce": true,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "e4PwwBoziWhyHRLW",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "={{ $('Read Settings (follow-ups)').first().json['WhatsApp Phone Number ID'] }}",
+        "recipientPhoneNumber": "={{ $('Read Settings (follow-ups)').first().json['Nil WhatsApp'] }}",
+        "textBody": "=Texprove: {{ $('Summarize Follow-ups').first().json.drafted_count }} follow-up draft(s) waiting for your approval ({{ $('Summarize Follow-ups').first().json.drafted_list || 'none' }}); {{ $('Summarize Follow-ups').first().json.sent_count }} sent ({{ $('Summarize Follow-ups').first().json.sent_list || 'none' }}); {{ $('Summarize Follow-ups').first().json.blocked_count }} blocked. Set Approved to Yes, No or Edit in the Leads tab.{{ $('Read Settings (follow-ups)').first().json['Sheet URL'] ? ' ' + $('Read Settings (follow-ups)').first().json['Sheet URL'] : '' }}",
+        "additionalFields": {}
+      },
+      "id": "9bda05bd-dd5a-4d71-8f76-e97e7f279b2f",
+      "name": "WhatsApp Nil (follow-ups)",
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1.1,
+      "position": [
+        1792,
+        -320
+      ],
+      "webhookId": "dabc2c9e-96f4-46d2-9291-d5c5f367bb74",
+      "executeOnce": true,
+      "onError": "continueRegularOutput",
+      "notes": "Free-form text only delivers within 24 h of Nil's last message to the business number; otherwise a template is needed.",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "aqvFqaaR7JLYtUr1",
+          "name": "WhatsApp account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Read Settings (follow-ups)').first().json['Nil Telegram Chat ID'] }}",
+        "text": "=Texprove: {{ $('Summarize Follow-ups').first().json.drafted_count }} follow-up draft(s) waiting for your approval ({{ $('Summarize Follow-ups').first().json.drafted_list || 'none' }}); {{ $('Summarize Follow-ups').first().json.sent_count }} sent ({{ $('Summarize Follow-ups').first().json.sent_list || 'none' }}); {{ $('Summarize Follow-ups').first().json.blocked_count }} blocked. Set Approved to Yes, No or Edit in the Leads tab.{{ $('Read Settings (follow-ups)').first().json['Sheet URL'] ? ' ' + $('Read Settings (follow-ups)').first().json['Sheet URL'] : '' }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "478df0ba-9454-4d4f-bea2-4d33a1e7f367",
+      "name": "Telegram Nil (follow-ups)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1792,
+        -160
+      ],
+      "webhookId": "15df847f-c844-445c-8d20-d0d5544fed6c",
+      "executeOnce": true,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "telegramApi": {
+          "id": "y32njswIhYQwKdR8",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Approval gate for follow-ups. Looks at the lead row (not the Gmail thread).\nconst lead = $('Loop Over Follow-ups').item.json;\nconst draft = String(lead['Follow-up Draft'] || '').trim();\nconst approved = String(lead.Approved || '').trim();\nlet action = 'draft';\nif (draft) {\n  if (approved === 'Yes') action = 'send';\n  else if (approved === 'No') action = 'decline';\n  else if (approved === 'Edit') action = 'draft';\n  else action = 'wait';\n}\nreturn { json: {\n  lead_id: lead['Lead ID'],\n  fu_action: action,\n  fu_previous_draft: draft,\n  fu_edit_notes: approved === 'Edit' ? String(lead['Nil Notes'] || '').trim() : '',\n} };"
+      },
+      "id": "458b75f4-c278-4563-93ee-c7d9c39c1135",
+      "name": "Decide Follow-up Action",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        112
+      ],
+      "notes": "Approval gate: send only when Nil set Approved = Yes for the waiting draft; No drops it; Edit rewrites with Nil Notes; empty draft means write a new one."
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "send",
+                    "leftValue": "={{ $json.fu_action }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "send"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                }
+              },
+              "renameOutput": true,
+              "outputKey": "send"
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "draft",
+                    "leftValue": "={{ $json.fu_action }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "draft"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                }
+              },
+              "renameOutput": true,
+              "outputKey": "draft"
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "decline",
+                    "leftValue": "={{ $json.fu_action }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "decline"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                }
+              },
+              "renameOutput": true,
+              "outputKey": "decline"
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "wait",
+                    "leftValue": "={{ $json.fu_action }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "wait"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                }
+              },
+              "renameOutput": true,
+              "outputKey": "wait"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "0301f1cf-0a80-40c1-afd8-1873973a0b2d",
+      "name": "Follow-up action",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1712,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "demoSheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk",
+          "mode": "list",
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Leads"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "Lead ID"
+          ],
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": true,
+              "display": true,
+              "displayName": "Lead ID",
+              "id": "Lead ID",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Follow-up Draft",
+              "id": "Follow-up Draft",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Approved",
+              "id": "Approved",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Last Updated",
+              "id": "Last Updated",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "Approved": "Pending",
+            "Follow-up Draft": "={{ String($('Check Follow-up').item.json.output?.body || '') }}",
+            "Last Updated": "={{ $now.toISO() }}",
+            "Lead ID": "={{ $('Loop Over Follow-ups').item.json['Lead ID'] }}"
+          }
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "id": "5b7b6fc2-4d8b-4761-88bc-5e2f270d8da8",
+      "name": "Save Follow-up Draft",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2512,
+        -208
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xLTp24saWARCuZou",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "demoSheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk",
+          "mode": "list",
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "schema": [
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Timestamp",
+              "id": "Timestamp",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Workflow",
+              "id": "Workflow",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Lead ID",
+              "id": "Lead ID",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Company",
+              "id": "Company",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Step",
+              "id": "Step",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Input",
+              "id": "Input",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Output",
+              "id": "Output",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Reason",
+              "id": "Reason",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "Company": "={{ $('Loop Over Follow-ups').item.json.Company }}",
+            "Input": "={{ 'Thread ' + $('Loop Over Follow-ups').item.json['Gmail Thread ID'] + '; due ' + $('Loop Over Follow-ups').item.json['Next Follow-up Date'] + ($('Decide Follow-up Action').item.json.fu_edit_notes ? '; rewritten with Nil Notes: ' + $('Decide Follow-up Action').item.json.fu_edit_notes : '') }}",
+            "Lead ID": "={{ $('Loop Over Follow-ups').item.json['Lead ID'] }}",
+            "Output": "={{ String($('Check Follow-up').item.json.output?.body || '').slice(0, 2500) }}",
+            "Reason": "Due date reached and no reply in the thread; draft written to the Follow-up Draft column and waiting for Nil (Approved = Pending)",
+            "Step": "={{ 'Follow-up ' + (Number($('Loop Over Follow-ups').item.json['Follow-up Count'] || 0) + 1) + ' drafted' }}",
+            "Timestamp": "={{ $now.toISO() }}",
+            "Workflow": "WF5 Follow-ups"
+          }
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "id": "decd18b6-1f64-4f3d-9e4d-b1625a7db029",
+      "name": "Log Follow-up Drafted",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2704,
+        -208
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xLTp24saWARCuZou",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "demoSheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk",
+          "mode": "list",
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Leads"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "Lead ID"
+          ],
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": true,
+              "display": true,
+              "displayName": "Lead ID",
+              "id": "Lead ID",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Follow-up Draft",
+              "id": "Follow-up Draft",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Next Follow-up Date",
+              "id": "Next Follow-up Date",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Last Updated",
+              "id": "Last Updated",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "Follow-up Draft": "",
+            "Last Updated": "={{ $now.toISO() }}",
+            "Lead ID": "={{ $('Loop Over Follow-ups').item.json['Lead ID'] }}",
+            "Next Follow-up Date": ""
+          }
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "id": "31e234fb-3783-4ffd-be07-e3351e5f6ec9",
+      "name": "Decline Follow-up",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1920,
+        320
+      ],
+      "notes": "Nil set Approved = No: the draft is cleared and no further follow-up is scheduled for this lead.",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xLTp24saWARCuZou",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "demoSheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk",
+          "mode": "list",
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "schema": [
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Timestamp",
+              "id": "Timestamp",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Workflow",
+              "id": "Workflow",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Lead ID",
+              "id": "Lead ID",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Company",
+              "id": "Company",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Step",
+              "id": "Step",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Input",
+              "id": "Input",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Output",
+              "id": "Output",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Reason",
+              "id": "Reason",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "Company": "={{ $('Loop Over Follow-ups').item.json.Company }}",
+            "Input": "={{ 'Thread ' + $('Loop Over Follow-ups').item.json['Gmail Thread ID'] + ($('Loop Over Follow-ups').item.json['Nil Notes'] ? '; Nil Notes: ' + $('Loop Over Follow-ups').item.json['Nil Notes'] : '') }}",
+            "Lead ID": "={{ $('Loop Over Follow-ups').item.json['Lead ID'] }}",
+            "Output": "={{ String($('Decide Follow-up Action').item.json.fu_previous_draft || '').slice(0, 2500) }}",
+            "Reason": "Nil set Approved to No; follow-up not sent and no further follow-up scheduled (set a Next Follow-up Date to resume)",
+            "Step": "={{ 'Follow-up ' + (Number($('Loop Over Follow-ups').item.json['Follow-up Count'] || 0) + 1) + ' declined' }}",
+            "Timestamp": "={{ $now.toISO() }}",
+            "Workflow": "WF5 Follow-ups"
+          }
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "id": "e7e9ed34-eae7-426b-bde8-365135bb6861",
+      "name": "Log Follow-up Declined",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2128,
+        320
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xLTp24saWARCuZou",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Get Leads": {
+      "main": [
+        [
+          {
+            "node": "Follow-up due?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Ready to close?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Follow-up due?": {
+      "main": [
+        [
+          {
+            "node": "Limit 15",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit 15": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Follow-ups",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Thread": {
+      "main": [
+        [
+          {
+            "node": "Lead replied?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lead replied?": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Follow-ups",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Decide Follow-up Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Follow-ups": {
+      "main": [
+        [
+          {
+            "node": "Summarize Follow-ups",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Thread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude Sonnet 5.5": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Write Follow-up",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Follow-up JSON": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Write Follow-up",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HubSpot Log Follow-up": {
+      "main": [
+        [
+          {
+            "node": "Update Follow-up Row",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Follow-up Row": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Follow-ups",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ready to close?": {
+      "main": [
+        [
+          {
+            "node": "Close No Reply",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Close",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Weekdays 11:00": {
+      "main": [
+        [
+          {
+            "node": "Read Suppression",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Test": {
+      "main": [
+        [
+          {
+            "node": "Read Suppression",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Suppression": {
+      "main": [
+        [
+          {
+            "node": "Get Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Follow-up": {
+      "main": [
+        [
+          {
+            "node": "Check Follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Follow-up": {
+      "main": [
+        [
+          {
+            "node": "Follow-up clean?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Follow-up clean?": {
+      "main": [
+        [
+          {
+            "node": "Save Follow-up Draft",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Follow-up Blocked",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Follow-up Blocked": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Follow-ups",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude Sonnet 5.5 (account 2)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Write Follow-up",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Get Original Message-ID": {
+      "main": [
+        [
+          {
+            "node": "Build Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Reply": {
+      "main": [
+        [
+          {
+            "node": "Send Follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Follow-up": {
+      "main": [
+        [
+          {
+            "node": "HubSpot Log Follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarize Follow-ups": {
+      "main": [
+        [
+          {
+            "node": "Anything to report?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anything to report?": {
+      "main": [
+        [
+          {
+            "node": "Read Settings (follow-ups)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Settings (follow-ups)": {
+      "main": [
+        [
+          {
+            "node": "Email Nil (follow-ups)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "WhatsApp Nil (follow-ups)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Telegram Nil (follow-ups)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decide Follow-up Action": {
+      "main": [
+        [
+          {
+            "node": "Follow-up action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Follow-up action": {
+      "main": [
+        [
+          {
+            "node": "Get Original Message-ID",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Write Follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Decline Follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Follow-ups",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Follow-up Draft": {
+      "main": [
+        [
+          {
+            "node": "Log Follow-up Drafted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Follow-up Drafted": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Follow-ups",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decline Follow-up": {
+      "main": [
+        [
+          {
+            "node": "Log Follow-up Declined",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Follow-up Declined": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Follow-ups",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "timezone": "Europe/Istanbul",
+    "binaryMode": "separate"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

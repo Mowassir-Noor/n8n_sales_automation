@@ -1,0 +1,1134 @@
+{
+  "name": "Texprove WF4 - Reply triage",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyX",
+              "value": 15,
+              "unit": "minutes"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {
+          "q": "-from:me -label:sent in:inbox",
+          "readStatus": "unread"
+        },
+        "options": {}
+      },
+      "id": "ca558fb8-bc4d-4065-bef8-75b7d186250a",
+      "name": "Gmail Trigger",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        288
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "e4PwwBoziWhyHRLW",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM",
+          "mode": "list",
+          "cachedResultName": "demoSheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Leads"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Gmail Thread ID",
+              "lookupValue": "={{ $json.threadId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "893c8e7a-fdcf-4a54-a799-e60903d439e3",
+      "name": "Find Lead by Thread",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        272,
+        416
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xLTp24saWARCuZou",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Email reply from a sales lead (may be Turkish or English).\nSubject: {{ $('Gmail Trigger').item.json.subject }}\n\n{{ $('Gmail Trigger').item.json.text }}\n\nReturn: (1) a one-sentence summary IN ENGLISH; (2) whether the sender asked to be removed / not contacted again (yes or no); (3) exactly one category: Hot = wants a call, demo or pricing; Warm = interested, asks a question, or says later; Cold = vague or not now, but no refusal; Not interested = refuses or asks not to be contacted; Auto-reply = out of office, bounce or other automatic message.",
+        "hasOutputParser": true,
+        "needsFallback": true,
+        "batching": {}
+      },
+      "id": "fbbecba5-8579-445c-94d9-8e970dbac40b",
+      "name": "Summarize Reply",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        496,
+        416
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "claude-haiku-5-5",
+          "cachedResultName": "Claude Haiku 5.5"
+        },
+        "options": {}
+      },
+      "id": "161be0cb-379a-4ffb-b0e7-870df9e59679",
+      "name": "Claude Haiku (summary)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.6,
+      "position": [
+        512,
+        640
+      ],
+      "credentials": {
+        "anthropicApi": {
+          "id": "JXZ5NOJvJ6mIjWyY",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\"type\":\"object\",\"properties\":{\"summary\":{\"type\":\"string\"},\"removal_requested\":{\"type\":\"string\",\"enum\":[\"yes\",\"no\"]},\"category\":{\"type\":\"string\",\"enum\":[\"Hot\",\"Warm\",\"Cold\",\"Not interested\",\"Auto-reply\"]}},\"required\":[\"summary\",\"removal_requested\",\"category\"]}"
+      },
+      "id": "331a6876-5f0e-4fbc-9e03-6964b3134ea4",
+      "name": "Summary JSON",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        640,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cat",
+              "name": "category",
+              "value": "Hot",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ace52e9b-c840-4278-a92d-d4b4cfd2a60b",
+      "name": "Category Hot",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        752,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fc",
+              "name": "final_category",
+              "type": "string",
+              "value": "={{ $('Summarize Reply').item.json.output.removal_requested === 'yes' ? 'Not interested' : $json.category }}"
+            },
+            {
+              "id": "st",
+              "name": "stage",
+              "type": "string",
+              "value": "={{ ($('Summarize Reply').item.json.output.removal_requested === 'yes' || $json.category === 'Not interested') ? 'Opted out' : 'Replied - ' + $json.category }}"
+            },
+            {
+              "id": "oo",
+              "name": "opt_out",
+              "type": "string",
+              "value": "={{ ($('Summarize Reply').item.json.output.removal_requested === 'yes' || $json.category === 'Not interested') ? 'Yes' : ($('Find Lead by Thread').item.json['Opt-out'] || '') }}"
+            },
+            {
+              "id": "hs",
+              "name": "hs_status",
+              "type": "string",
+              "value": "={{ ($('Summarize Reply').item.json.output.removal_requested === 'yes' || $json.category === 'Not interested') ? 'UNQUALIFIED' : ($json.category === 'Hot' ? 'IN_PROGRESS' : 'OPEN') }}"
+            },
+            {
+              "id": "sm",
+              "name": "reply_summary",
+              "type": "string",
+              "value": "={{ $('Summarize Reply').item.json.output.summary }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "4bbaa2c8-c2f6-47f3-8486-6e6db6b8ad49",
+      "name": "Decide Outcome",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1024,
+        416
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cat",
+              "name": "category",
+              "value": "Warm",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d30f2508-c0b6-4329-acad-d226899d6008",
+      "name": "Category Warm",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        752,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cat",
+              "name": "category",
+              "value": "Cold",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a7ef9de9-e55f-4cad-a4ab-873ef80cfe2a",
+      "name": "Category Cold",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        752,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cat",
+              "name": "category",
+              "value": "Not interested",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "68fd6eb3-bd39-4ee4-acdb-6e8f981d07a5",
+      "name": "Category Not interested",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        752,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM",
+          "mode": "list",
+          "cachedResultName": "demoSheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Leads"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "Lead ID"
+          ],
+          "value": {
+            "Lead ID": "={{ $('Find Lead by Thread').item.json['Lead ID'] }}",
+            "Stage": "={{ $json.stage }}",
+            "Opt-out": "={{ $json.opt_out }}",
+            "Reply Category": "={{ $json.final_category }}",
+            "Reply Summary": "={{ $json.reply_summary }}",
+            "Next Follow-up Date": "",
+            "Last Updated": "={{ $now.toISO() }}"
+          },
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": true,
+              "display": true,
+              "displayName": "Lead ID",
+              "id": "Lead ID",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Stage",
+              "id": "Stage",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Opt-out",
+              "id": "Opt-out",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Reply Category",
+              "id": "Reply Category",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Reply Summary",
+              "id": "Reply Summary",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Next Follow-up Date",
+              "id": "Next Follow-up Date",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Last Updated",
+              "id": "Last Updated",
+              "required": false,
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "950eb037-0a17-4ba8-8048-9f257a571a36",
+      "name": "Update Lead Row",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1248,
+        416
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xLTp24saWARCuZou",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "appToken",
+        "resource": "engagement",
+        "type": "email",
+        "metadata": {
+          "fromEmail": "={{ $('Find Lead by Thread').item.json.Email }}",
+          "subject": "={{ $('Gmail Trigger').item.json.subject }}",
+          "toEmail": [
+            "={{ $('Gmail Trigger').item.json.to?.value?.[0]?.address || 'inbox' }}"
+          ]
+        },
+        "additionalFields": {
+          "associations": {
+            "contactIds": "={{ $('Find Lead by Thread').item.json['HubSpot Contact ID'] }}"
+          }
+        }
+      },
+      "id": "a9104d48-ba9e-4f94-b32b-8a6b62f18b00",
+      "name": "HubSpot Log Reply",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2.2,
+      "position": [
+        1472,
+        416
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "hubspotAppToken": {
+          "id": "bz7tvbTzcKKP4L3N",
+          "name": "HubSpot Service Key account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "appToken",
+        "email": "={{ $('Find Lead by Thread').item.json.Email }}",
+        "additionalFields": {
+          "leadStatus": "={{ $('Decide Outcome').item.json.hs_status }}"
+        },
+        "options": {}
+      },
+      "id": "75cc24cb-a5e3-46de-a401-a5cafd7e4521",
+      "name": "HubSpot Set Lead Status",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2.2,
+      "position": [
+        1696,
+        416
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "hubspotAppToken": {
+          "id": "bz7tvbTzcKKP4L3N",
+          "name": "HubSpot Service Key account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "markAsRead",
+        "messageId": "={{ $('Gmail Trigger').item.json.id }}"
+      },
+      "id": "33b30ea4-97f6-4bb2-955d-b420a7db10e5",
+      "name": "Mark Reply Read",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1920,
+        416
+      ],
+      "webhookId": "e5f736f4-69af-4ea4-985a-75f73cfa4b16",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "e4PwwBoziWhyHRLW",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "hot",
+              "leftValue": "={{ $('Decide Outcome').item.json.final_category }}",
+              "rightValue": "Hot",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "f3831ccd-da63-44ac-aa6a-4e8eb012b729",
+      "name": "Hot reply?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1552,
+        416
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM",
+          "mode": "list",
+          "cachedResultName": "demoSheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Settings"
+        },
+        "options": {}
+      },
+      "id": "ca177b13-8b29-4e1f-98b6-2b6cb2cb8e0f",
+      "name": "Read Settings",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1776,
+        416
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xLTp24saWARCuZou",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json['Nil Email'] }}",
+        "subject": "=Hot reply: {{ $('Find Lead by Thread').item.json['Contact Name'] }} at {{ $('Find Lead by Thread').item.json.Company }}",
+        "emailType": "text",
+        "message": "=Hot reply from {{ $('Find Lead by Thread').item.json['Contact Name'] }} at {{ $('Find Lead by Thread').item.json.Company }}: {{ $('Decide Outcome').item.json.reply_summary }}\n\nSheet: {{ $json['Sheet URL'] ?? 'open the \"Texprove Leads\" Google Sheet, tab Leads' }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "a2de7007-1347-4754-9d9c-6c0435797f1b",
+      "name": "Alert Nil",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2000,
+        256
+      ],
+      "webhookId": "aac8dd1d-a8df-4d1a-b0ae-1e582d7a0e96",
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "e4PwwBoziWhyHRLW",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Reply triage\nMatches the incoming email to a lead by Gmail Thread ID (no match = stop). One Claude Haiku call summarises the reply, checks for a removal request and classifies it (Hot / Warm / Cold / Not interested / Auto-reply); a Switch routes on the category. If the first Anthropic account errors (credits exhausted, rate limit), the chain retries on the account-2 model. Writes Stage / Reply Category / Reply Summary, logs the reply in HubSpot and alerts Nil on Hot replies. Auto-replies change nothing. Each classified reply is appended to the Log tab.",
+        "height": 180,
+        "width": 400
+      },
+      "id": "ffb3c9fe-0428-4d0c-a85f-841b8a0ced9d",
+      "name": "Note: Reply triage",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        928,
+        864
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "demoSheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk",
+          "mode": "list",
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "schema": [
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Timestamp",
+              "id": "Timestamp",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Workflow",
+              "id": "Workflow",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Lead ID",
+              "id": "Lead ID",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Company",
+              "id": "Company",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Step",
+              "id": "Step",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Input",
+              "id": "Input",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Output",
+              "id": "Output",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Reason",
+              "id": "Reason",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "Company": "={{ $('Find Lead by Thread').item.json.Company }}",
+            "Input": "={{ 'Subject: ' + $('Gmail Trigger').item.json.subject + '. ' + String($('Gmail Trigger').item.json.text || '').slice(0, 1500) }}",
+            "Lead ID": "={{ $('Find Lead by Thread').item.json['Lead ID'] }}",
+            "Output": "={{ 'Category ' + $json.final_category + '; summary: ' + $json.reply_summary }}",
+            "Reason": "={{ 'Stage set to ' + $json.stage + '; Opt-out ' + ($json.opt_out || 'unchanged') + '; HubSpot status ' + $json.hs_status }}",
+            "Step": "Reply triage",
+            "Timestamp": "={{ $now.toISO() }}",
+            "Workflow": "WF4 Reply triage"
+          }
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "id": "7bcace27-e23d-45cc-ab5d-840a5c4a5e1f",
+      "name": "Log Reply",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1248,
+        208
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xLTp24saWARCuZou",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "cachedResultName": "Claude Haiku 5.5",
+          "mode": "list",
+          "value": "claude-haiku-5-5"
+        },
+        "options": {}
+      },
+      "id": "ffccc2fb-ba2b-4649-aed2-ef7d97a1e27b",
+      "name": "Claude Haiku (summary, account 2)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.6,
+      "position": [
+        384,
+        640
+      ],
+      "notes": "Fallback model: used only when the first Anthropic account errors. Point this node at the second Anthropic credential.",
+      "credentials": {
+        "anthropicApi": {
+          "id": "JXZ5NOJvJ6mIjWyY",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "hot",
+                    "leftValue": "={{ $json.output.category }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "Hot"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                }
+              },
+              "renameOutput": true,
+              "outputKey": "Hot"
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "warm",
+                    "leftValue": "={{ $json.output.category }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "Warm"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                }
+              },
+              "renameOutput": true,
+              "outputKey": "Warm"
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "cold",
+                    "leftValue": "={{ $json.output.category }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "Cold"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                }
+              },
+              "renameOutput": true,
+              "outputKey": "Cold"
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "ni",
+                    "leftValue": "={{ $json.output.category }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "Not interested"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                }
+              },
+              "renameOutput": true,
+              "outputKey": "Not interested"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "cfcc019f-5ba3-4ef5-92fa-8e40f85bf52f",
+      "name": "Route by Category",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        848,
+        416
+      ],
+      "notes": "Auto-reply matches no rule and is dropped (nothing changes for the lead), as before."
+    },
+    {
+      "id": "ae3cd7ba-9bec-4bbb-9cd3-053911fb9094",
+      "name": "WhatsApp Nil (hot)",
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1.1,
+      "position": [
+        2000,
+        416
+      ],
+      "parameters": {
+        "messageType": "text",
+        "operation": "send",
+        "phoneNumberId": "={{ $('Read Settings').item.json['WhatsApp Phone Number ID'] }}",
+        "recipientPhoneNumber": "={{ $('Read Settings').item.json['Nil WhatsApp'] }}",
+        "resource": "message",
+        "textBody": "=Texprove: Hot reply from {{ $('Find Lead by Thread').item.json['Contact Name'] }} at {{ $('Find Lead by Thread').item.json.Company }}: {{ $('Decide Outcome').item.json.reply_summary }}{{ $('Read Settings').item.json['Sheet URL'] ? ' ' + $('Read Settings').item.json['Sheet URL'] : '' }}"
+      },
+      "notes": "Same Hot-reply alert as the email, on WhatsApp. Free-form text only delivers within 24 h of Nil's last message to the business number; otherwise a template is needed.",
+      "webhookId": "201b334f-50ef-4252-ad07-f62317a035fb",
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "aqvFqaaR7JLYtUr1",
+          "name": "WhatsApp account"
+        }
+      }
+    },
+    {
+      "id": "89b46fee-70b1-465a-aeca-759c928067de",
+      "name": "Telegram Nil (hot)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2000,
+        576
+      ],
+      "parameters": {
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        },
+        "chatId": "={{ $('Read Settings').item.json['Nil Telegram Chat ID'] }}",
+        "operation": "sendMessage",
+        "resource": "message",
+        "text": "=Texprove: Hot reply from {{ String($('Find Lead by Thread').item.json['Contact Name'] || '').replace(/&/g, '&amp;').replace(/</g, '&lt;') }} at {{ String($('Find Lead by Thread').item.json.Company || '').replace(/&/g, '&amp;').replace(/</g, '&lt;') }}: {{ String($('Decide Outcome').item.json.reply_summary || '').replace(/&/g, '&amp;').replace(/</g, '&lt;') }}{{ $('Read Settings').item.json['Sheet URL'] ? ' ' + $('Read Settings').item.json['Sheet URL'] : '' }}"
+      },
+      "notes": "Same Hot-reply alert as the email, on Telegram.",
+      "webhookId": "bec9cf70-ba40-4bba-9b6c-4c719f432a87",
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "telegramApi": {
+          "id": "y32njswIhYQwKdR8",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Find Lead by Thread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Lead by Thread": {
+      "main": [
+        [
+          {
+            "node": "Summarize Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude Haiku (summary)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Summarize Reply",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summary JSON": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Summarize Reply",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Category Hot": {
+      "main": [
+        [
+          {
+            "node": "Decide Outcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decide Outcome": {
+      "main": [
+        [
+          {
+            "node": "Update Lead Row",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Category Warm": {
+      "main": [
+        [
+          {
+            "node": "Decide Outcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Category Cold": {
+      "main": [
+        [
+          {
+            "node": "Decide Outcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Category Not interested": {
+      "main": [
+        [
+          {
+            "node": "Decide Outcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Lead Row": {
+      "main": [
+        [
+          {
+            "node": "HubSpot Log Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HubSpot Log Reply": {
+      "main": [
+        [
+          {
+            "node": "HubSpot Set Lead Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HubSpot Set Lead Status": {
+      "main": [
+        [
+          {
+            "node": "Mark Reply Read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Reply Read": {
+      "main": [
+        [
+          {
+            "node": "Hot reply?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hot reply?": {
+      "main": [
+        [
+          {
+            "node": "Read Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Settings": {
+      "main": [
+        [
+          {
+            "node": "Alert Nil",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "WhatsApp Nil (hot)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Telegram Nil (hot)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude Haiku (summary, account 2)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Summarize Reply",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Summarize Reply": {
+      "main": [
+        [
+          {
+            "node": "Route by Category",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Category": {
+      "main": [
+        [
+          {
+            "node": "Category Hot",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Category Warm",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Category Cold",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Category Not interested",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "timezone": "Europe/Istanbul",
+    "binaryMode": "separate"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

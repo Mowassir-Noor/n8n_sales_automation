@@ -1,0 +1,1265 @@
+{
+  "name": "Texprove WF3 - Send approved emails",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 10,14 * * 1-5"
+            }
+          ]
+        }
+      },
+      "id": "930eb766-8dde-4ef3-94ad-b1f8253bb0af",
+      "name": "Weekdays 10:00 and 14:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        32
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM",
+          "mode": "list",
+          "cachedResultName": "demoSheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Leads"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Stage",
+              "lookupValue": "Drafted"
+            },
+            {
+              "lookupColumn": "Approved",
+              "lookupValue": "Yes"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "0f9adc1d-71aa-4697-8b81-c5d914c19ea9",
+      "name": "Get Approved Drafts",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        224,
+        144
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xLTp24saWARCuZou",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "22049859-f002-4bab-89fb-0400a453c215",
+      "name": "Manual Test",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "maxItems": 15
+      },
+      "id": "5607ca87-f8a1-4302-92ba-afe11e9984ec",
+      "name": "Limit 15",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        448,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ok",
+              "leftValue": "={{ $json[\"Compliance Status\"] }}",
+              "operator": {
+                "operation": "notEquals",
+                "type": "string"
+              },
+              "rightValue": "Blocked"
+            },
+            {
+              "id": "noopt",
+              "leftValue": "={{ $json[\"Opt-out\"] }}",
+              "operator": {
+                "operation": "notEquals",
+                "type": "string"
+              },
+              "rightValue": "Yes"
+            },
+            {
+              "id": "nosupp",
+              "leftValue": "={{ (() => { const e = String($json.Email || '').toLowerCase().trim(); const d = e.includes('@') ? e.split('@')[1] : ''; return !$('Read Suppression').all().some(i => { const se = String(i.json.Email || '').toLowerCase().trim(); const sd = String(i.json.Domain || '').toLowerCase().replace(/^@/, '').trim(); return (se && se === e) || (sd && d && (d === sd || d.endsWith('.' + sd))); }); })() }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "1523e90d-5d6a-4cf8-8b70-26bb8a48d2fa",
+      "name": "Safe to send?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        896,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Read Settings').first().json['Test Email'] || $json.Email }}",
+        "subject": "={{ $json.Subject }}",
+        "emailType": "text",
+        "message": "={{ $json[\"Draft Body\"] }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "664e0573-49cc-48af-8d9d-ea838fcfdb14",
+      "name": "Send Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1120,
+        0
+      ],
+      "webhookId": "04a4f594-c3de-4dce-b2c0-8ef6be68b438",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "e4PwwBoziWhyHRLW",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "appToken",
+        "email": "={{ $('Read Settings').first().json['Test Email'] || $('Loop Over Drafts').item.json.Email }}",
+        "additionalFields": {
+          "companyName": "={{ $('Loop Over Drafts').item.json.Company }}",
+          "country": "={{ $('Loop Over Drafts').item.json.Country }}",
+          "firstName": "={{ String($('Loop Over Drafts').item.json['Contact Name'] || '').split(' ')[0] }}",
+          "jobTitle": "={{ $('Loop Over Drafts').item.json['Contact Title'] }}",
+          "lastName": "={{ String($('Loop Over Drafts').item.json['Contact Name'] || '').split(' ').slice(1).join(' ') }}",
+          "websiteUrl": "={{ $('Loop Over Drafts').item.json.Website }}"
+        },
+        "options": {}
+      },
+      "id": "edc73580-32c0-4cf9-8d2a-977d655638dc",
+      "name": "HubSpot Upsert Contact",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2.2,
+      "position": [
+        1344,
+        0
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "hubspotAppToken": {
+          "id": "bz7tvbTzcKKP4L3N",
+          "name": "HubSpot Service Key account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "appToken",
+        "resource": "engagement",
+        "type": "email",
+        "metadata": {
+          "subject": "={{ $('Loop Over Drafts').item.json.Subject }}",
+          "toEmail": [
+            "={{ $('Read Settings').first().json['Test Email'] || $('Loop Over Drafts').item.json.Email }}"
+          ]
+        },
+        "additionalFields": {
+          "associations": {
+            "contactIds": "={{ $('HubSpot Upsert Contact').item.json.vid }}"
+          }
+        }
+      },
+      "id": "d302b5b1-01b2-4e1f-b197-f3361eb0c956",
+      "name": "HubSpot Log Email",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2.2,
+      "position": [
+        1568,
+        0
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "hubspotAppToken": {
+          "id": "bz7tvbTzcKKP4L3N",
+          "name": "HubSpot Service Key account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM",
+          "mode": "list",
+          "cachedResultName": "demoSheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Leads"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "Lead ID"
+          ],
+          "value": {
+            "Lead ID": "={{ $('Loop Over Drafts').item.json['Lead ID'] }}",
+            "Stage": "Sent",
+            "Sent At": "={{ $now.toISO() }}",
+            "Gmail Thread ID": "={{ $('Send Email').item.json.threadId }}",
+            "HubSpot Contact ID": "={{ $('HubSpot Upsert Contact').item.json.vid }}",
+            "Follow-up Count": "0",
+            "Next Follow-up Date": "={{ $now.plus({ days: 4 }).toFormat('yyyy-MM-dd') }}",
+            "Last Updated": "={{ $now.toISO() }}"
+          },
+          "schema": [
+            {
+              "id": "Lead ID",
+              "displayName": "Lead ID",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Stage",
+              "displayName": "Stage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Sent At",
+              "displayName": "Sent At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Gmail Thread ID",
+              "displayName": "Gmail Thread ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "HubSpot Contact ID",
+              "displayName": "HubSpot Contact ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Follow-up Count",
+              "displayName": "Follow-up Count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Next Follow-up Date",
+              "displayName": "Next Follow-up Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Last Updated",
+              "displayName": "Last Updated",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            }
+          ]
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "id": "dbc6d567-055a-491e-af95-4765e1ececc6",
+      "name": "Mark Sent",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1792,
+        0
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xLTp24saWARCuZou",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 90
+      },
+      "id": "402bfee4-b907-4585-a1e0-938994b8767f",
+      "name": "Wait 90s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2016,
+        80
+      ],
+      "webhookId": "de7d23b3-7740-437c-b109-04221e853102"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "baedd80d-e439-4802-bb56-d0b2d0cdf10d",
+      "name": "Loop Over Drafts",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        672,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Send approved emails\nOnly rows with Stage = Drafted and Approved = Yes, max 15 per run (inbox warm-up). Skips anything opted out, blocked, or on the Suppression tab (İYS opt-outs). Sends plain text from the Workspace inbox, logs the email in HubSpot, then writes Stage = Sent, thread ID and follow-up date back to the sheet. 90 s pause between sends. Every send, skip and quota pause is appended to the Log tab.\n\nTEST MODE: if Settings has a non-empty \"Test Email\", every email (and the HubSpot contact) goes to that address instead of the lead. Clear it before real sending.",
+        "height": 180,
+        "width": 400
+      },
+      "id": "838f671c-1755-45f7-acea-fb060f17aa62",
+      "name": "Note: Sending",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        864,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "demoSheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk",
+          "mode": "list",
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Leads"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "Lead ID"
+          ],
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": true,
+              "display": true,
+              "displayName": "Lead ID",
+              "id": "Lead ID",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Stage",
+              "id": "Stage",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Compliance Notes",
+              "id": "Compliance Notes",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Last Updated",
+              "id": "Last Updated",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "Compliance Notes": "={{ ($json['Compliance Notes'] ? $json['Compliance Notes'] + '; ' : '') + 'Skipped at send: Opt-out = Yes, Compliance Status = Blocked, or on Suppression list' }}",
+            "Last Updated": "={{ $now.toISO() }}",
+            "Lead ID": "={{ $json['Lead ID'] }}",
+            "Stage": "={{ $json['Opt-out'] === 'Yes' ? 'Opted out' : ($json['Compliance Status'] === 'Blocked' ? 'Blocked - Compliance' : 'Opted out') }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "b291b3f8-fc0a-44e6-96f7-b1a2913eb50c",
+      "name": "Mark Skipped",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1120,
+        240
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xLTp24saWARCuZou",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "demoSheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk",
+          "mode": "list",
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Leads"
+        },
+        "options": {}
+      },
+      "id": "e825fcfe-60c6-4965-9139-8074ac3f24b0",
+      "name": "Get All Leads",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        224,
+        -176
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xLTp24saWARCuZou",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "demoSheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk",
+          "mode": "list",
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Settings"
+        },
+        "options": {}
+      },
+      "id": "c29d664d-4dfb-4dde-acf9-fdbaf146dfb9",
+      "name": "Read Settings",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        448,
+        -176
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xLTp24saWARCuZou",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Estimates HubSpot actions used this month from the Leads tab.\n// Counting rule (HubSpot free plan, 3,000 actions/month): first email = 2 (contact upsert + logged email),\n// each follow-up = 1 (logged email), each reply = 2 (logged email + lead status).\n// Follow-up dates are estimated as Sent At + 4 / +10 / +20 days.\nconst rows = $('Get All Leads').all().map(i => i.json).filter(r => r && r['Lead ID']);\nconst settings = ($('Read Settings').first() || {}).json || {};\nconst limit = Number(settings['HubSpot Monthly Limit']) || 3000;\nconst pauseAt = Number(settings['HubSpot Pause Percent']) || 80;\n\nconst now = new Date();\nconst y = now.getUTCFullYear();\nconst m = now.getUTCMonth();\nconst inMonth = (d) => { const t = new Date(d); return !isNaN(t) && t.getUTCFullYear() === y && t.getUTCMonth() === m; };\nconst addDays = (d, n) => { const t = new Date(d); t.setUTCDate(t.getUTCDate() + n); return t; };\nconst offsets = [4, 10, 20];\n\nlet used = 0;\nconst detail = { firstEmails: 0, followUps: 0, replies: 0 };\nfor (const r of rows) {\n  const sentAt = r['Sent At'];\n  const sentValid = sentAt && !isNaN(new Date(sentAt));\n  if (sentValid && inMonth(sentAt)) { used += 2; detail.firstEmails++; }\n  const fu = Math.min(Number(r['Follow-up Count'] || 0), 3);\n  if (sentValid) {\n    for (let k = 0; k < fu; k++) {\n      if (inMonth(addDays(sentAt, offsets[k]))) { used += 1; detail.followUps++; }\n    }\n  }\n  if (String(r['Reply Category'] || '') !== '' && inMonth(r['Last Updated'])) { used += 2; detail.replies++; }\n}\n\nconst percent = Math.round((used / limit) * 100);\nreturn [{ json: {\n  hubspot_actions_used: used,\n  hubspot_limit: limit,\n  percent,\n  pause_at: pauseAt,\n  paused: percent >= pauseAt,\n  detail,\n  nil_email: settings['Nil Email'] || '',\n  sheet_url: settings['Sheet URL'] || '',\n} }];"
+      },
+      "id": "3fc24287-cc35-4c38-8a29-4d8fedd9398b",
+      "name": "HubSpot Quota Check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        -176
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "notpaused",
+              "leftValue": "={{ $json.paused }}",
+              "operator": {
+                "operation": "false",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      },
+      "id": "f853d8b0-e978-4c37-aa80-7a0b0db13899",
+      "name": "Quota OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        896,
+        -176
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.nil_email }}",
+        "subject": "=Texprove: HubSpot quota at {{ $json.percent }}%, first emails paused",
+        "emailType": "text",
+        "message": "=HubSpot actions used this month (estimate): {{ $json.hubspot_actions_used }} of {{ $json.hubspot_limit }} ({{ $json.percent }}%).\nFirst emails: {{ $json.detail.firstEmails }}, follow-ups: {{ $json.detail.followUps }}, replies: {{ $json.detail.replies }}.\n\nNew first-contact emails are paused until the percentage drops below {{ $json.pause_at }}% (next month, or raise HubSpot Monthly Limit / HubSpot Pause Percent in the Settings tab). Follow-ups and reply handling continue.\n\nSheet: {{ $json.sheet_url || 'open the Texprove Leads Google Sheet' }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "078b58db-6b9a-4d89-8393-3ce9979b7133",
+      "name": "Warn Nil Quota",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1120,
+        -336
+      ],
+      "executeOnce": true,
+      "webhookId": "e437bf16-0aef-46cf-a460-3fe0c5e93565",
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "e4PwwBoziWhyHRLW",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## HubSpot quota gate\nEstimates this month's HubSpot actions from the Leads tab (first email 2, follow-up 1, reply 2). At HubSpot Pause Percent (Settings, default 80%) of HubSpot Monthly Limit (default 3,000) it stops sending first emails and emails Nil. Follow-ups (WF5) and replies (WF4) keep running.",
+        "height": 180,
+        "width": 420
+      },
+      "id": "26f1f5b9-9875-42a4-9260-f439b95b5832",
+      "name": "Note: Quota gate",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        608,
+        -560
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "demoSheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk",
+          "mode": "list",
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "schema": [
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Timestamp",
+              "id": "Timestamp",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Workflow",
+              "id": "Workflow",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Lead ID",
+              "id": "Lead ID",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Company",
+              "id": "Company",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Step",
+              "id": "Step",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Input",
+              "id": "Input",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Output",
+              "id": "Output",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Reason",
+              "id": "Reason",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "Company": "={{ $('Loop Over Drafts').item.json.Company }}",
+            "Input": "={{ 'To ' + ($('Read Settings').first().json['Test Email'] ? $('Read Settings').first().json['Test Email'] + ' (TEST MODE, lead email ' + $('Loop Over Drafts').item.json.Email + ')' : $('Loop Over Drafts').item.json.Email) + '; subject: ' + $('Loop Over Drafts').item.json.Subject }}",
+            "Lead ID": "={{ $('Loop Over Drafts').item.json['Lead ID'] }}",
+            "Output": "={{ 'Gmail thread ' + ($('Send Email').item.json.threadId || '?') + '; HubSpot contact ' + ($('HubSpot Upsert Contact').item.json.vid || 'not logged') + '. Body: ' + String($('Loop Over Drafts').item.json['Draft Body'] || '').slice(0, 2500) }}",
+            "Reason": "={{ 'Approved = Yes by Nil; Compliance Status ' + $('Loop Over Drafts').item.json['Compliance Status'] + (String($('Loop Over Drafts').item.json['Nil Notes'] || '') ? '; Nil notes: ' + $('Loop Over Drafts').item.json['Nil Notes'] : '') }}",
+            "Step": "First email sent",
+            "Timestamp": "={{ $now.toISO() }}",
+            "Workflow": "WF3 Send approved emails"
+          }
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "id": "960334e6-a6c2-422e-9286-ad583987754c",
+      "name": "Log Send",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1792,
+        -160
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xLTp24saWARCuZou",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "demoSheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk",
+          "mode": "list",
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "schema": [
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Timestamp",
+              "id": "Timestamp",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Workflow",
+              "id": "Workflow",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Lead ID",
+              "id": "Lead ID",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Company",
+              "id": "Company",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Step",
+              "id": "Step",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Input",
+              "id": "Input",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Output",
+              "id": "Output",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Reason",
+              "id": "Reason",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "Company": "={{ $json.Company }}",
+            "Input": "={{ 'Compliance Status ' + $json['Compliance Status'] + '; Opt-out ' + ($json['Opt-out'] || '') }}",
+            "Lead ID": "={{ $json['Lead ID'] }}",
+            "Output": "={{ 'Stage set to ' + ($json['Opt-out'] === 'Yes' ? 'Opted out' : 'Blocked - Compliance') }}",
+            "Reason": "Approved but Opt-out = Yes, Compliance Status = Blocked, or email/domain on the Suppression tab; not sent",
+            "Step": "Send skipped",
+            "Timestamp": "={{ $now.toISO() }}",
+            "Workflow": "WF3 Send approved emails"
+          }
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "id": "a0314857-9cc1-4dc8-848c-26423109c9ab",
+      "name": "Log Skip",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1120,
+        400
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xLTp24saWARCuZou",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "demoSheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk",
+          "mode": "list",
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "schema": [
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Timestamp",
+              "id": "Timestamp",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Workflow",
+              "id": "Workflow",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Lead ID",
+              "id": "Lead ID",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Company",
+              "id": "Company",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Step",
+              "id": "Step",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Input",
+              "id": "Input",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Output",
+              "id": "Output",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Reason",
+              "id": "Reason",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "Company": "",
+            "Input": "={{ 'HubSpot actions used (estimate) ' + $json.hubspot_actions_used + ' of ' + $json.hubspot_limit + ' (' + $json.percent + '%); ' + JSON.stringify($json.detail) }}",
+            "Lead ID": "",
+            "Output": "No first emails sent this run; Nil emailed",
+            "Reason": "={{ 'Usage at or above HubSpot Pause Percent (' + $json.pause_at + '%)' }}",
+            "Step": "Quota pause",
+            "Timestamp": "={{ $now.toISO() }}",
+            "Workflow": "WF3 Send approved emails"
+          }
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "id": "ae2169e5-8275-4540-8d70-0731af2c12a3",
+      "name": "Log Quota Pause",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1120,
+        -496
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xLTp24saWARCuZou",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "demoSheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk",
+          "mode": "list",
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Suppression"
+        },
+        "options": {}
+      },
+      "id": "d8915435-a706-432c-b5ea-c70d993cf13c",
+      "name": "Read Suppression",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        560,
+        -336
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xLTp24saWARCuZou",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Get Approved Drafts": {
+      "main": [
+        [
+          {
+            "node": "Limit 15",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit 15": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Drafts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Safe to send?": {
+      "main": [
+        [
+          {
+            "node": "Send Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Skipped",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Skip",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email": {
+      "main": [
+        [
+          {
+            "node": "HubSpot Upsert Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HubSpot Upsert Contact": {
+      "main": [
+        [
+          {
+            "node": "HubSpot Log Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HubSpot Log Email": {
+      "main": [
+        [
+          {
+            "node": "Mark Sent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Send",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Sent": {
+      "main": [
+        [
+          {
+            "node": "Wait 90s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 90s": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Drafts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Drafts": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Safe to send?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Skipped": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Drafts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Weekdays 10:00 and 14:00": {
+      "main": [
+        [
+          {
+            "node": "Get All Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Test": {
+      "main": [
+        [
+          {
+            "node": "Get All Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get All Leads": {
+      "main": [
+        [
+          {
+            "node": "Read Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HubSpot Quota Check": {
+      "main": [
+        [
+          {
+            "node": "Quota OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Quota OK?": {
+      "main": [
+        [
+          {
+            "node": "Get Approved Drafts",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Warn Nil Quota",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Quota Pause",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Settings": {
+      "main": [
+        [
+          {
+            "node": "Read Suppression",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Suppression": {
+      "main": [
+        [
+          {
+            "node": "HubSpot Quota Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "timezone": "Europe/Istanbul",
+    "binaryMode": "separate"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

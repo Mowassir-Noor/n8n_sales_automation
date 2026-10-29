@@ -1,0 +1,644 @@
+{
+  "name": "Texprove WF1 - Lead research",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * 1-5"
+            }
+          ]
+        }
+      },
+      "id": "533535e6-f1c0-4a25-b3e4-4da7eb3d6bd6",
+      "name": "Weekdays 08:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM",
+          "mode": "list",
+          "cachedResultName": "demoSheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Leads"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Stage",
+              "lookupValue": "New"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "0db3a84e-7f82-48f9-b627-45f3e6649b52",
+      "name": "Get New Leads",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        224,
+        224
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xLTp24saWARCuZou",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "7c2871f2-b0e8-4e3b-bbe5-6d1ef59296f6",
+      "name": "Manual Test",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "maxItems": 10
+      },
+      "id": "718c6444-eade-44b7-b575-025c4dc50f36",
+      "name": "Limit 10",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        448,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM",
+          "mode": "list",
+          "cachedResultName": "demoSheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Leads"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "Lead ID"
+          ],
+          "value": {
+            "Lead ID": "={{ $('Limit 10').all()[$runIndex].json['Lead ID'] }}",
+            "Research Notes": "={{ $json.output?.research_notes ?? '' }}",
+            "Personalisation Hook": "={{ $json.output?.personalisation_hook ?? '' }}",
+            "Contact Name": "={{ $json.output?.contact_name ?? '' }}",
+            "Contact Title": "={{ $json.output?.contact_title ?? '' }}",
+            "Email": "={{ $json.output?.email ?? '' }}",
+            "LinkedIn": "={{ $json.output?.linkedin ?? '' }}",
+            "Segment": "={{ $json.output?.segment ?? '' }}",
+            "Language": "={{ $json.output?.language ?? '' }}",
+            "Stage": "={{ $json.output?.personalisation_hook ? 'Researched' : 'Research failed' }}",
+            "Last Updated": "={{ $now.toISO() }}"
+          },
+          "schema": [
+            {
+              "id": "Lead ID",
+              "displayName": "Lead ID",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Research Notes",
+              "displayName": "Research Notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Personalisation Hook",
+              "displayName": "Personalisation Hook",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Contact Name",
+              "displayName": "Contact Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Contact Title",
+              "displayName": "Contact Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "LinkedIn",
+              "displayName": "LinkedIn",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Segment",
+              "displayName": "Segment",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Language",
+              "displayName": "Language",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Stage",
+              "displayName": "Stage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Last Updated",
+              "displayName": "Last Updated",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b14b1a2e-d0c8-4d4a-b854-e9a21171d191",
+      "name": "Update Lead Row",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1488,
+        224
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xLTp24saWARCuZou",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "c33d6814-0c6d-4484-b5e6-a8ed817d38e6",
+      "name": "Loop Over Leads",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        672,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 1. Pick leads\nRuns weekdays 08:00 (Europe/Istanbul) or manually. Reads rows from \"Texprove Leads\" / \"Leads\" where Stage = New, max 10 per run.",
+        "height": 140,
+        "width": 360
+      },
+      "id": "ca04c164-d977-4e07-83af-0041771b84c3",
+      "name": "Note: Pick leads",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        144,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 2. Research each lead\nOne lead at a time. \"Research with Claude\" is the Anthropic node (Claude Sonnet 4.6) with Claude's built-in web search switched on (max 8 searches per company): Claude searches, reads the pages itself and answers with one JSON object. If that call fails (credits exhausted, rate limit, outage), the error output runs the same call on \"Research with Claude (account 2)\" with the second Anthropic credential. \"Parse Research\" pulls the JSON out of either reply. It never invents facts; unknown fields stay empty.",
+        "width": 360
+      },
+      "id": "a7cf30da-6d99-4285-92f0-5e4792ad50a0",
+      "name": "Note: Research",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        624,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 3. Write back\nUpdates the row (match on Lead ID). Stage = Researched, or \"Research failed\" when the agent errors or returns an empty personalisation hook. \"Log Research\" appends the agent's output and the decision to the Log tab.",
+        "height": 140,
+        "width": 360
+      },
+      "id": "f63d3eaa-9600-489e-ad20-64a0f5d015f9",
+      "name": "Note: Write back",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        608,
+        848
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "demoSheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk",
+          "mode": "list",
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "schema": [
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Timestamp",
+              "id": "Timestamp",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Workflow",
+              "id": "Workflow",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Lead ID",
+              "id": "Lead ID",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Company",
+              "id": "Company",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Step",
+              "id": "Step",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Input",
+              "id": "Input",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Output",
+              "id": "Output",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Reason",
+              "id": "Reason",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "Company": "={{ $('Limit 10').all()[$runIndex].json.Company }}",
+            "Input": "={{ 'Website: ' + $('Limit 10').all()[$runIndex].json.Website + '; country: ' + $('Limit 10').all()[$runIndex].json.Country }}",
+            "Lead ID": "={{ $('Limit 10').all()[$runIndex].json['Lead ID'] }}",
+            "Output": "={{ JSON.stringify($json.output ?? $json.error ?? {}).slice(0, 3000) }}",
+            "Reason": "={{ $json.output?.personalisation_hook ? 'Hook found; Stage = Researched' : 'No hook or agent error; Stage = Research failed' }}",
+            "Step": "Research",
+            "Timestamp": "={{ $now.toISO() }}",
+            "Workflow": "WF1 Lead research"
+          }
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "id": "84b92b83-2dc1-469b-823c-79f32edac845",
+      "name": "Log Research",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1488,
+        -32
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xLTp24saWARCuZou",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "272f5d8c-1f28-4c4c-a4a9-42a262adcce3",
+      "name": "Research with Claude",
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        960,
+        112
+      ],
+      "parameters": {
+        "messages": {
+          "values": [
+            {
+              "content": "=Today is {{ $now.toFormat('yyyy-MM-dd') }}. Treat anything dated before today as past, not upcoming.\n\nCompany: {{ $json.Company }}\nWebsite: {{ $json.Website }}\nCountry: {{ $json.Country }}\n\nResearch this company with web search and return only the JSON object.",
+              "role": "user"
+            }
+          ]
+        },
+        "modelId": {
+          "__rl": true,
+          "cachedResultName": "Claude Sonnet 5.5",
+          "mode": "list",
+          "value": "claude-sonnet-5-5"
+        },
+        "operation": "message",
+        "options": {
+          "includeMergedResponse": true,
+          "maxTokens": 4096,
+          "maxToolsIterations": 12,
+          "maxUses": 8,
+          "system": "You are a B2B sales researcher for Texprove, a Digital Product Passport SaaS for textile and apparel exporters to the EU. For the given textile company, use web search to find: what they make, which EU markets or brands they export to, company size, sustainability or certification signals (OEKO-TEX, GOTS, GRS, BCI), recent news from the last year (new factory, new certification, EU brand deal, trade fair), and the best decision maker (export manager, sustainability manager, CEO) with their title, work email and LinkedIn URL if published.\n\nSearch plan (at most 8 searches): the company website and its about, sustainability, certificate and contact pages; the company name with words like ihracat, export, Europe, GOTS, OEKO-TEX; the company name with news words (haber, yeni fabrika, sertifika, fuar); the company name with export manager, ihracat müdürü, genel müdür, LinkedIn. Never invent facts, names or emails; leave a field empty if you cannot verify it on a page you found. Never record order volumes, prices or buyer contract details.\n\nRespond with ONLY a JSON object, no markdown fences, no commentary, with exactly these keys: research_notes (max 80 words), personalisation_hook (one specific, verifiable fact to open an email with, preferring recent news), contact_name, contact_title, email, linkedin, segment (one of Knitwear, Woven apparel, Denim, Home textile, Fabric mill, Yarn, Sportswear, Technical textile, Other), language (tr or en: tr when the company site is mainly Turkish).",
+          "webSearch": true
+        },
+        "resource": "text",
+        "simplify": true
+      },
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "anthropicApi": {
+          "id": "JXZ5NOJvJ6mIjWyY",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "id": "fee3b7e2-dc38-4778-a45c-073e1aba9e91",
+      "name": "Parse Research",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1216,
+        112
+      ],
+      "parameters": {
+        "jsCode": "// Pulls the JSON object out of Claude's reply (the reply can contain search blocks and text). Output shape: { output: {...} } like the old agent, or { error } when nothing parsable came back.\nconst keys = ['research_notes', 'personalisation_hook', 'contact_name', 'contact_title', 'email', 'linkedin', 'segment', 'language'];\nfunction strings(v, acc) {\n  if (typeof v === 'string') acc.push(v);\n  else if (Array.isArray(v)) v.forEach(x => strings(x, acc));\n  else if (v && typeof v === 'object') Object.values(v).forEach(x => strings(x, acc));\n  return acc;\n}\nfunction extract(text) {\n  const s = text.indexOf('{'); const e = text.lastIndexOf('}');\n  if (s < 0 || e <= s) return null;\n  for (let end = e; end > s; end = text.lastIndexOf('}', end - 1)) {\n    try { const o = JSON.parse(text.slice(s, end + 1)); if (o && typeof o === 'object') return o; } catch (err) { /* try a shorter slice */ }\n  }\n  return null;\n}\nreturn $input.all().map(item => {\n  const body = item.json || {};\n  if (body.error && !body.content && !body.merged) return { json: { error: String(body.error.message || body.error).slice(0, 500) } };\n  const texts = strings(body, []).filter(t => t.includes('personalisation_hook'));\n  let parsed = null;\n  for (const t of texts) { parsed = extract(t); if (parsed) break; }\n  if (!parsed) return { json: { error: 'No JSON in reply: ' + strings(body, []).join(' ').slice(0, 400) } };\n  const out = {};\n  for (const k of keys) out[k] = String(parsed[k] ?? '').trim();\n  if (!['tr', 'en'].includes(out.language)) out.language = 'en';\n  return { json: { output: out } };\n});"
+      }
+    },
+    {
+      "id": "02853a2e-7a49-4718-bac1-1b9639de2e17",
+      "name": "Research with Claude (account 2)",
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        960,
+        352
+      ],
+      "parameters": {
+        "messages": {
+          "values": [
+            {
+              "content": "=Today is {{ $now.toFormat('yyyy-MM-dd') }}. Treat anything dated before today as past, not upcoming.\n\nCompany: {{ $('Limit 10').all()[$runIndex].json.Company }}\nWebsite: {{ $('Limit 10').all()[$runIndex].json.Website }}\nCountry: {{ $('Limit 10').all()[$runIndex].json.Country }}\n\nResearch this company with web search and return only the JSON object.",
+              "role": "user"
+            }
+          ]
+        },
+        "modelId": {
+          "__rl": true,
+          "cachedResultName": "Claude Sonnet 4.6",
+          "mode": "list",
+          "value": "claude-sonnet-4-6"
+        },
+        "operation": "message",
+        "options": {
+          "includeMergedResponse": true,
+          "maxTokens": 4096,
+          "maxToolsIterations": 12,
+          "maxUses": 8,
+          "system": "You are a B2B sales researcher for Texprove, a Digital Product Passport SaaS for textile and apparel exporters to the EU. For the given textile company, use web search to find: what they make, which EU markets or brands they export to, company size, sustainability or certification signals (OEKO-TEX, GOTS, GRS, BCI), recent news from the last year (new factory, new certification, EU brand deal, trade fair), and the best decision maker (export manager, sustainability manager, CEO) with their title, work email and LinkedIn URL if published.\n\nSearch plan (at most 8 searches): the company website and its about, sustainability, certificate and contact pages; the company name with words like ihracat, export, Europe, GOTS, OEKO-TEX; the company name with news words (haber, yeni fabrika, sertifika, fuar); the company name with export manager, ihracat müdürü, genel müdür, LinkedIn. Never invent facts, names or emails; leave a field empty if you cannot verify it on a page you found. Never record order volumes, prices or buyer contract details.\n\nRespond with ONLY a JSON object, no markdown fences, no commentary, with exactly these keys: research_notes (max 80 words), personalisation_hook (one specific, verifiable fact to open an email with, preferring recent news), contact_name, contact_title, email, linkedin, segment (one of Knitwear, Woven apparel, Denim, Home textile, Fabric mill, Yarn, Sportswear, Technical textile, Other), language (tr or en: tr when the company site is mainly Turkish).",
+          "webSearch": true
+        },
+        "resource": "text",
+        "simplify": true
+      },
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "anthropicApi": {
+          "id": "JXZ5NOJvJ6mIjWyY",
+          "name": "Anthropic account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Weekdays 08:00": {
+      "main": [
+        [
+          {
+            "node": "Get New Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get New Leads": {
+      "main": [
+        [
+          {
+            "node": "Limit 10",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Test": {
+      "main": [
+        [
+          {
+            "node": "Get New Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit 10": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Lead Row": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Leads": {
+      "main": [
+        null,
+        [
+          {
+            "node": "Research with Claude",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Research with Claude": {
+      "main": [
+        [
+          {
+            "node": "Parse Research",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Research with Claude (account 2)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Research": {
+      "main": [
+        [
+          {
+            "node": "Update Lead Row",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Research",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Research with Claude (account 2)": {
+      "main": [
+        [
+          {
+            "node": "Parse Research",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "timezone": "Europe/Istanbul",
+    "binaryMode": "separate"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

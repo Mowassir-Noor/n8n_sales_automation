@@ -19,7 +19,7 @@ This repository holds the workflow exports in n8n's import format plus the docum
 | `WF6-weekly-report.json` | Monday report and three LinkedIn post drafts |
 | `docs/workflows.md` | What each workflow does, step by step, what it reads and writes, what to edit |
 | `docs/google-sheet.md` | Sheet tabs, exact column headers, Settings fields, Stage values |
-| `docs/setup-guide.md` | Step-by-step setup of everything: sheet, every credential (Anthropic, Sheets, HubSpot, Gmail or SMTP/IMAP, WhatsApp, Telegram), which nodes each goes on, tests, go-live |
+| `docs/setup-guide.md` | Step-by-step setup of everything: sheet, every credential (Anthropic, Sheets, HubSpot, Gmail or SMTP/IMAP, WhatsApp, Telegram), which nodes each goes on, tests, go-live, self-hosting n8n |
 | `docs/setup.md` | Import, credentials, test mode, manual test order, go-live checklist |
 | `docs/manager-guide.md` | The daily routine for the person approving emails (no n8n access needed) |
 | `docs/design-decisions.md` | Why it is built this way, deviations from the original plan, known limits, cost |
@@ -135,7 +135,7 @@ What changes with SMTP:
 
 ## Stack
 
-- [n8n](https://n8n.io) (Cloud or self-hosted, workflow execution order v1, timezone Europe/Istanbul)
+- [n8n](https://n8n.io) (Cloud or self-hosted, workflow execution order v1, timezone Europe/Istanbul; self-hosting steps in [docs/setup-guide.md](docs/setup-guide.md#9-self-hosting-n8n))
 - Anthropic Claude via n8n's Anthropic node and chat-model sub-nodes (Sonnet 5.5, Haiku 5.5, with a second-account fallback on every call)
 - Google Sheets (source of truth), Gmail or any SMTP/IMAP mailbox (sending and reply trigger), HubSpot free plan (contact and engagement log)
 - WhatsApp Business Cloud API and a Telegram bot for manager notifications

@@ -15,7 +15,7 @@ Everything is set up in eight steps, in this order. Steps 1 to 6 happen once. Ev
 7. Test every workflow by hand in test mode.
 8. Work through the go-live checklist, clear `Test Email`, activate one workflow at a time.
 
-In n8n, credentials are created at **Overview → Create → Credential** (or from any node: open it, click the credential dropdown, **Create new credential**). The names below are the ones the workflow exports expect; using them saves re-selecting credentials after import.
+In n8n, credentials are created at **Overview → Create → Credential** (or from any node: open it, click the credential dropdown, **Create new credential**). The names below are the ones the workflow exports expect; using them saves re-selecting credentials after import. To run n8n on your own server instead of n8n Cloud, start with section 9.
 
 ## 1. Google Sheet
 
@@ -219,3 +219,110 @@ Run each workflow from its **Manual Test** trigger with `Test Email` set, and ch
 - [ ] `Test Email` cleared in Settings.
 - [ ] Workflows activated one at a time: WF4, then WF2, WF3, WF5, WF6, WF1; WF0 last.
 - [ ] First week: watch bounces and spam complaints, and compare WF3's HubSpot usage estimate with HubSpot's usage page.
+
+## 9. Self-hosting n8n
+
+The workflows use only built-in nodes, so the repo's JSON files import into a self-hosted n8n unchanged. What changes is the server, the Anthropic key and the Google sign-in. Do the move before go-live, while `Test Email` is still set.
+
+**What differs from n8n Cloud**
+
+| Item | n8n Cloud | Self-hosted |
+| --- | --- | --- |
+| Claude nodes | can use n8n "Gateway credits" | own Anthropic API key required (section 2) |
+| Google sign-in (Sheets, Gmail) | n8n's Google app, one click | your own Google OAuth client (below) |
+| HTTPS, backups, updates | handled by n8n | yours |
+| Credentials | stored on Cloud | re-created on the new server; they never transfer |
+| Editing by Claude (MCP) | Cloud MCP URL | enable MCP on the new server and point the n8n connector at it |
+
+**1. Server**
+
+1. Rent a small Linux VPS (2 vCPU, 4 GB RAM is plenty; Texprove already uses Hetzner) and install Docker with the Compose plugin.
+2. Point a DNS name at it, e.g. an `A` record `n8n.texprove.com` → the server's IP.
+3. Generate an encryption key once: `openssl rand -hex 32`. Store it in a password manager. Losing it makes every saved credential unreadable.
+4. Create a folder with these two files, replacing the domain and the two secrets.
+
+`docker-compose.yml`:
+
+```yaml
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: n8n
+      POSTGRES_PASSWORD: CHANGE_ME_DB_PASSWORD
+      POSTGRES_DB: n8n
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    environment:
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_DATABASE: n8n
+      DB_POSTGRESDB_USER: n8n
+      DB_POSTGRESDB_PASSWORD: CHANGE_ME_DB_PASSWORD
+      N8N_ENCRYPTION_KEY: CHANGE_ME_ENCRYPTION_KEY
+      N8N_HOST: n8n.texprove.com
+      N8N_PROTOCOL: https
+      WEBHOOK_URL: https://n8n.texprove.com/
+      GENERIC_TIMEZONE: Europe/Istanbul
+      TZ: Europe/Istanbul
+      EXECUTIONS_DATA_PRUNE: "true"
+      EXECUTIONS_DATA_MAX_AGE: "720"
+    volumes:
+      - n8n_data:/home/node/.n8n
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+
+volumes:
+  pg_data:
+  n8n_data:
+  caddy_data:
+```
+
+`Caddyfile` (Caddy gets the HTTPS certificate automatically):
+
+```
+n8n.texprove.com {
+    reverse_proxy n8n:5678
+}
+```
+
+5. Run `docker compose up -d`, open `https://n8n.texprove.com`, and create the owner account.
+6. Pin a version instead of `latest` once it works, and update deliberately (`docker compose pull && docker compose up -d`). Back up the Postgres volume daily (e.g. `pg_dump` by cron, or the provider's snapshots).
+
+**2. Google OAuth client** (needed for Google Sheets, and for Gmail if you keep Gmail)
+
+1. console.cloud.google.com → create a project, e.g. `Texprove n8n`.
+2. **APIs & Services → Library**: enable **Google Sheets API**, **Google Drive API** (lets n8n list your sheets) and, if used, **Gmail API**.
+3. **OAuth consent screen**: user type **External** (or **Internal** on Google Workspace), app name, support email. If External, **publish** the app; in "Testing" mode Google expires the sign-in after 7 days and the workflows stop.
+4. **Credentials → Create credentials → OAuth client ID**, type **Web application**, authorized redirect URI `https://n8n.texprove.com/rest/oauth2-credential/callback`.
+5. Copy the client ID and secret into the n8n **Google Sheets OAuth2 API** credential (and **Gmail OAuth2 API**), then click **Sign in with Google**.
+
+**3. Move the workflows**
+
+1. On the new server, create every credential with the names from sections 2–5. Anthropic must be your own key.
+2. Import `WF0`…`WF6` from the repo and attach credentials and the sheet, as in section 6. The Google Sheet itself stays where it is.
+3. Optional: also import the sheet-check workflow from the Cloud instance (open it on Cloud → ⋯ → **Download**).
+4. **Deactivate WF4 (and any other active workflow) on n8n Cloud before activating anything on the new server.** Two instances running at once would process the same replies and send the same emails twice.
+5. Run the tests in section 7 on the new server, then go live with section 8.
+6. Cancel the Cloud plan only after a week of normal running.
+
+**4. Keep Claude able to edit the workflows** (optional)
+
+1. In the new n8n, open **Settings → n8n MCP** (instance-level MCP), turn it on, and copy the MCP URL and token.
+2. In each workflow's settings, allow it to be used by MCP.
+3. In Claude, update the n8n connector to the new URL, then start a fresh thread so the connector reloads.

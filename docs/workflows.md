@@ -4,6 +4,8 @@ All seven workflows run in Europe/Istanbul time with n8n execution order v1. Eac
 
 Every notification node to the manager (Gmail, WhatsApp, Telegram) is wired in parallel from the Settings read, has **On Error → Continue** and **Execute Once**, so a failing channel never stops the run or the channels next to it.
 
+**Mail provider.** Every mail step exists twice: a Gmail node and an `(SMTP)` node (WF4 also has an `IMAP Trigger` next to the `Gmail Trigger`). A `Use SMTP? (...)` IF node in front of each pair reads `Settings > Mail Provider` and routes to the SMTP node when it says `SMTP`, otherwise to Gmail. The SMTP/IMAP nodes ship disabled. After each send, `Gmail sent?` / `SMTP sent?` (and the follow-up equivalents in WF5) stop the run if the chosen node did not actually send, for example because it is disabled, so a lead is never marked Sent by mistake. Setup steps are in the README.
+
 ---
 
 ## WF0 Company discovery
@@ -96,11 +98,11 @@ Reads every reply that lands in the inbox, classifies it, updates the sheet and 
 
 **Steps**
 
-1. **Find Lead by Thread** looks up the `Leads` row whose Gmail Thread ID matches the mail. No match means it is not a reply to a campaign email and the run stops.
+1. **Reply** (Code) turns the Gmail or IMAP message into one shape; **Get Leads (reply)** reads the Leads tab; **Find Lead by Thread** (Code) picks the lead: for Gmail by Gmail Thread ID; for IMAP by `In-Reply-To` / `References` against the stored `smtp:<Message-ID>`, then by sender address, then by subject (the last two only among leads at `Sent` / `Follow-up 1–3`). No match means it is not a reply to a campaign email and the run stops.
 2. **Summarize Reply** (Claude Haiku 5.5, structured JSON) writes a one-sentence summary, flags any removal request, and classifies the reply as Hot (wants a call or demo), Warm (interested, later), Cold (polite no), Not interested (asks to stop) or Auto-reply (out of office, bounce).
 3. **Route by Category** (Switch) → **Category Hot / Warm / Cold / Not interested** → **Decide Outcome**. Auto-reply changes nothing. Not interested, or any removal request, sets `Stage = Opted out` and `Opt-out = Yes`. Hot / Warm / Cold set `Stage = Replied - …` and clear Next Follow-up Date so WF5 stops.
 4. **Update Lead Row**, **Log Reply**, **HubSpot Log Reply** (engagement) and **HubSpot Set Lead Status** (IN_PROGRESS for Hot, OPEN for Warm, UNQUALIFIED for Cold and Not interested). HubSpot nodes continue on error.
-5. **Hot reply?** → **Read Settings** → **Alert Nil** (Gmail), **WhatsApp Nil (hot)**, **Telegram Nil (hot)** in parallel with the summary and a link to the thread. **Mark Reply Read** at the end.
+5. **Hot reply?** → **Read Settings** → **Alert Nil** (Gmail), **WhatsApp Nil (hot)**, **Telegram Nil (hot)** in parallel with the summary and a link to the thread. **Mark Reply Read** at the end (Gmail only; the IMAP Trigger marks messages read itself).
 
 **Writes:** Reply Category, Reply Summary, Stage, Opt-out, Next Follow-up Date (cleared), Last Updated.
 
@@ -117,7 +119,7 @@ Drafts up to three follow-ups in the same email thread, 4, 10 and 20 days after 
 **Steps**
 
 1. **Get Leads** → **Follow-up due?** keeps rows where Stage is `Sent`, `Follow-up 1` or `Follow-up 2`, `Opt-out` is not Yes, there is a Gmail Thread ID, Next Follow-up Date is today or earlier, and the email / domain is not on `Suppression`. **Limit 15**, **Loop Over Follow-ups**.
-2. **Get Thread** fetches the Gmail thread; **Lead replied?** skips the lead if any message is not from you (WF4 handles replies).
+2. **Get Thread** fetches the Gmail thread; **Lead replied?** skips the lead if any message is not from you (WF4 handles replies). With Mail Provider `SMTP` this check is skipped (`Use SMTP? (thread)`) and WF4 is relied on to have moved replied leads out of the follow-up stages.
 3. **Decide Follow-up Action** (Code) reads `Follow-up Draft` and `Approved`:
    - no draft yet → **draft**
    - draft and `Approved = Yes` → **send**

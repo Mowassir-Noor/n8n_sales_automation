@@ -2,6 +2,14 @@
   "name": "Texprove WF3 - Send approved emails",
   "nodes": [
     {
+      "id": "61f70ce8-a7bb-490f-b0b6-c021c3a0199a",
+      "name": "Weekdays 10:00 and 14:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        32
+      ],
       "parameters": {
         "rule": {
           "interval": [
@@ -11,17 +19,17 @@
             }
           ]
         }
-      },
-      "id": "930eb766-8dde-4ef3-94ad-b1f8253bb0af",
-      "name": "Weekdays 10:00 and 14:00",
-      "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1.4,
-      "position": [
-        0,
-        32
-      ]
+      }
     },
     {
+      "id": "77edc1a6-d05c-4d53-96f9-d4cb5a547383",
+      "name": "Get Approved Drafts",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        224,
+        144
+      ],
       "parameters": {
         "documentId": {
           "__rl": true,
@@ -49,46 +57,46 @@
         },
         "options": {}
       },
-      "id": "0f9adc1d-71aa-4697-8b81-c5d914c19ea9",
-      "name": "Get Approved Drafts",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        224,
-        144
-      ],
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "xLTp24saWARCuZou",
+          "id": "4Ffu3jMNYiLLnti3",
           "name": "Google Sheets account"
         }
       }
     },
     {
-      "parameters": {},
-      "id": "22049859-f002-4bab-89fb-0400a453c215",
+      "id": "78c4dde0-eb8f-4c84-8d25-c79ab773a14c",
       "name": "Manual Test",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
       "position": [
         0,
         224
-      ]
+      ],
+      "parameters": {}
     },
     {
-      "parameters": {
-        "maxItems": 15
-      },
-      "id": "5607ca87-f8a1-4302-92ba-afe11e9984ec",
+      "id": "27057a0e-2e4b-4ef1-ac2f-035204f61a7b",
       "name": "Limit 15",
       "type": "n8n-nodes-base.limit",
       "typeVersion": 1,
       "position": [
         448,
         144
-      ]
+      ],
+      "parameters": {
+        "maxItems": 15
+      }
     },
     {
+      "id": "4fd8e399-3f0d-454a-b605-86e191db1e27",
+      "name": "Safe to send?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        896,
+        0
+      ],
       "parameters": {
         "conditions": {
           "options": {
@@ -130,17 +138,17 @@
           "combinator": "and"
         },
         "options": {}
-      },
-      "id": "1523e90d-5d6a-4cf8-8b70-26bb8a48d2fa",
-      "name": "Safe to send?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.3,
-      "position": [
-        896,
-        0
-      ]
+      }
     },
     {
+      "id": "83b44779-026a-4e37-a094-c85d84a6a17b",
+      "name": "Send Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1120,
+        0
+      ],
       "parameters": {
         "sendTo": "={{ $('Read Settings').first().json['Test Email'] || $json.Email }}",
         "subject": "={{ $json.Subject }}",
@@ -150,23 +158,23 @@
           "appendAttribution": false
         }
       },
-      "id": "664e0573-49cc-48af-8d9d-ea838fcfdb14",
-      "name": "Send Email",
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.2,
-      "position": [
-        1120,
-        0
-      ],
-      "webhookId": "04a4f594-c3de-4dce-b2c0-8ef6be68b438",
+      "webhookId": "4a2e2eae-e05b-4a7c-a874-033c6c54ab52",
       "credentials": {
         "gmailOAuth2": {
-          "id": "e4PwwBoziWhyHRLW",
+          "id": "Iu3jA1IOyvPbScAQ",
           "name": "Gmail account"
         }
       }
     },
     {
+      "id": "913ae674-e9a0-4765-9f28-76f074db1267",
+      "name": "HubSpot Upsert Contact",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2.2,
+      "position": [
+        1344,
+        0
+      ],
       "parameters": {
         "authentication": "appToken",
         "email": "={{ $('Read Settings').first().json['Test Email'] || $('Loop Over Drafts').item.json.Email }}",
@@ -180,23 +188,23 @@
         },
         "options": {}
       },
-      "id": "edc73580-32c0-4cf9-8d2a-977d655638dc",
-      "name": "HubSpot Upsert Contact",
-      "type": "n8n-nodes-base.hubspot",
-      "typeVersion": 2.2,
-      "position": [
-        1344,
-        0
-      ],
       "onError": "continueRegularOutput",
       "credentials": {
         "hubspotAppToken": {
-          "id": "bz7tvbTzcKKP4L3N",
+          "id": "FmgxvuKavV3YEBU7",
           "name": "HubSpot Service Key account"
         }
       }
     },
     {
+      "id": "146bc131-c741-4e93-abc3-9490e692276b",
+      "name": "HubSpot Log Email",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2.2,
+      "position": [
+        1568,
+        0
+      ],
       "parameters": {
         "authentication": "appToken",
         "resource": "engagement",
@@ -213,23 +221,23 @@
           }
         }
       },
-      "id": "d302b5b1-01b2-4e1f-b197-f3361eb0c956",
-      "name": "HubSpot Log Email",
-      "type": "n8n-nodes-base.hubspot",
-      "typeVersion": 2.2,
-      "position": [
-        1568,
-        0
-      ],
       "onError": "continueRegularOutput",
       "credentials": {
         "hubspotAppToken": {
-          "id": "bz7tvbTzcKKP4L3N",
+          "id": "FmgxvuKavV3YEBU7",
           "name": "HubSpot Service Key account"
         }
       }
     },
     {
+      "id": "d8e28a62-83cc-4521-9930-1940d9822dad",
+      "name": "Mark Sent",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1792,
+        0
+      ],
       "parameters": {
         "operation": "update",
         "documentId": {
@@ -253,7 +261,7 @@
             "Lead ID": "={{ $('Loop Over Drafts').item.json['Lead ID'] }}",
             "Stage": "Sent",
             "Sent At": "={{ $now.toISO() }}",
-            "Gmail Thread ID": "={{ $('Send Email').item.json.threadId }}",
+            "Gmail Thread ID": "={{ (() => { try { return $('Send Email').item.json.threadId } catch (e) { return '' } })() || (() => { try { return 'smtp:' + $('Send Email (SMTP)').item.json.messageId } catch (e) { return '' } })() }}",
             "HubSpot Contact ID": "={{ $('HubSpot Upsert Contact').item.json.vid }}",
             "Follow-up Count": "0",
             "Next Follow-up Date": "={{ $now.plus({ days: 4 }).toFormat('yyyy-MM-dd') }}",
@@ -338,26 +346,15 @@
           "cellFormat": "RAW"
         }
       },
-      "id": "dbc6d567-055a-491e-af95-4765e1ececc6",
-      "name": "Mark Sent",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        1792,
-        0
-      ],
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "xLTp24saWARCuZou",
+          "id": "4Ffu3jMNYiLLnti3",
           "name": "Google Sheets account"
         }
       }
     },
     {
-      "parameters": {
-        "amount": 90
-      },
-      "id": "402bfee4-b907-4585-a1e0-938994b8767f",
+      "id": "769f3d65-0a6f-41e5-81bf-eddb18ed15d4",
       "name": "Wait 90s",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
@@ -365,37 +362,48 @@
         2016,
         80
       ],
-      "webhookId": "de7d23b3-7740-437c-b109-04221e853102"
+      "parameters": {
+        "amount": 90
+      },
+      "webhookId": "daaa3761-4ca6-4265-a252-3a21266b6c93"
     },
     {
-      "parameters": {
-        "options": {}
-      },
-      "id": "baedd80d-e439-4802-bb56-d0b2d0cdf10d",
+      "id": "6653fd97-1bcf-41bf-881d-6e49aebf0083",
       "name": "Loop Over Drafts",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
         672,
         144
-      ]
+      ],
+      "parameters": {
+        "options": {}
+      }
     },
     {
-      "parameters": {
-        "content": "## Send approved emails\nOnly rows with Stage = Drafted and Approved = Yes, max 15 per run (inbox warm-up). Skips anything opted out, blocked, or on the Suppression tab (İYS opt-outs). Sends plain text from the Workspace inbox, logs the email in HubSpot, then writes Stage = Sent, thread ID and follow-up date back to the sheet. 90 s pause between sends. Every send, skip and quota pause is appended to the Log tab.\n\nTEST MODE: if Settings has a non-empty \"Test Email\", every email (and the HubSpot contact) goes to that address instead of the lead. Clear it before real sending.",
-        "height": 180,
-        "width": 400
-      },
-      "id": "838f671c-1755-45f7-acea-fb060f17aa62",
+      "id": "ffccba25-10ce-45e6-9250-70ed2908c0ce",
       "name": "Note: Sending",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
         864,
         192
-      ]
+      ],
+      "parameters": {
+        "content": "## Send approved emails\nOnly rows with Stage = Drafted and Approved = Yes, max 15 per run (inbox warm-up). Skips anything opted out, blocked, or on the Suppression tab (İYS opt-outs). Sends plain text from the Workspace inbox, logs the email in HubSpot, then writes Stage = Sent, thread ID and follow-up date back to the sheet. 90 s pause between sends. Every send, skip and quota pause is appended to the Log tab.\n\nTEST MODE: if Settings has a non-empty \"Test Email\", every email (and the HubSpot contact) goes to that address instead of the lead. Clear it before real sending.",
+        "width": 400,
+        "height": 180
+      }
     },
     {
+      "id": "bfc868a8-d390-44a4-acd0-85c8384842c7",
+      "name": "Mark Skipped",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1120,
+        240
+      ],
       "parameters": {
         "operation": "update",
         "documentId": {
@@ -462,22 +470,22 @@
         },
         "options": {}
       },
-      "id": "b291b3f8-fc0a-44e6-96f7-b1a2913eb50c",
-      "name": "Mark Skipped",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        1120,
-        240
-      ],
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "xLTp24saWARCuZou",
+          "id": "4Ffu3jMNYiLLnti3",
           "name": "Google Sheets account"
         }
       }
     },
     {
+      "id": "6c60250b-cc34-462a-b688-e252e29a573c",
+      "name": "Get All Leads",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        224,
+        -176
+      ],
       "parameters": {
         "documentId": {
           "__rl": true,
@@ -493,23 +501,23 @@
         },
         "options": {}
       },
-      "id": "e825fcfe-60c6-4965-9139-8074ac3f24b0",
-      "name": "Get All Leads",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        224,
-        -176
-      ],
       "alwaysOutputData": true,
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "xLTp24saWARCuZou",
+          "id": "4Ffu3jMNYiLLnti3",
           "name": "Google Sheets account"
         }
       }
     },
     {
+      "id": "9624296a-2dbf-4f11-ad6d-1b9a08017916",
+      "name": "Read Settings",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        448,
+        -176
+      ],
       "parameters": {
         "documentId": {
           "__rl": true,
@@ -525,37 +533,37 @@
         },
         "options": {}
       },
-      "id": "c29d664d-4dfb-4dde-acf9-fdbaf146dfb9",
-      "name": "Read Settings",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        448,
-        -176
-      ],
-      "alwaysOutputData": true,
       "executeOnce": true,
+      "alwaysOutputData": true,
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "xLTp24saWARCuZou",
+          "id": "4Ffu3jMNYiLLnti3",
           "name": "Google Sheets account"
         }
       }
     },
     {
-      "parameters": {
-        "jsCode": "// Estimates HubSpot actions used this month from the Leads tab.\n// Counting rule (HubSpot free plan, 3,000 actions/month): first email = 2 (contact upsert + logged email),\n// each follow-up = 1 (logged email), each reply = 2 (logged email + lead status).\n// Follow-up dates are estimated as Sent At + 4 / +10 / +20 days.\nconst rows = $('Get All Leads').all().map(i => i.json).filter(r => r && r['Lead ID']);\nconst settings = ($('Read Settings').first() || {}).json || {};\nconst limit = Number(settings['HubSpot Monthly Limit']) || 3000;\nconst pauseAt = Number(settings['HubSpot Pause Percent']) || 80;\n\nconst now = new Date();\nconst y = now.getUTCFullYear();\nconst m = now.getUTCMonth();\nconst inMonth = (d) => { const t = new Date(d); return !isNaN(t) && t.getUTCFullYear() === y && t.getUTCMonth() === m; };\nconst addDays = (d, n) => { const t = new Date(d); t.setUTCDate(t.getUTCDate() + n); return t; };\nconst offsets = [4, 10, 20];\n\nlet used = 0;\nconst detail = { firstEmails: 0, followUps: 0, replies: 0 };\nfor (const r of rows) {\n  const sentAt = r['Sent At'];\n  const sentValid = sentAt && !isNaN(new Date(sentAt));\n  if (sentValid && inMonth(sentAt)) { used += 2; detail.firstEmails++; }\n  const fu = Math.min(Number(r['Follow-up Count'] || 0), 3);\n  if (sentValid) {\n    for (let k = 0; k < fu; k++) {\n      if (inMonth(addDays(sentAt, offsets[k]))) { used += 1; detail.followUps++; }\n    }\n  }\n  if (String(r['Reply Category'] || '') !== '' && inMonth(r['Last Updated'])) { used += 2; detail.replies++; }\n}\n\nconst percent = Math.round((used / limit) * 100);\nreturn [{ json: {\n  hubspot_actions_used: used,\n  hubspot_limit: limit,\n  percent,\n  pause_at: pauseAt,\n  paused: percent >= pauseAt,\n  detail,\n  nil_email: settings['Nil Email'] || '',\n  sheet_url: settings['Sheet URL'] || '',\n} }];"
-      },
-      "id": "3fc24287-cc35-4c38-8a29-4d8fedd9398b",
+      "id": "94ca92dc-1291-4313-b86c-f4a8e2c82403",
       "name": "HubSpot Quota Check",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         672,
         -176
-      ]
+      ],
+      "parameters": {
+        "jsCode": "// Estimates HubSpot actions used this month from the Leads tab.\n// Counting rule (HubSpot free plan, 3,000 actions/month): first email = 2 (contact upsert + logged email),\n// each follow-up = 1 (logged email), each reply = 2 (logged email + lead status).\n// Follow-up dates are estimated as Sent At + 4 / +10 / +20 days.\nconst rows = $('Get All Leads').all().map(i => i.json).filter(r => r && r['Lead ID']);\nconst settings = ($('Read Settings').first() || {}).json || {};\nconst limit = Number(settings['HubSpot Monthly Limit']) || 3000;\nconst pauseAt = Number(settings['HubSpot Pause Percent']) || 80;\n\nconst now = new Date();\nconst y = now.getUTCFullYear();\nconst m = now.getUTCMonth();\nconst inMonth = (d) => { const t = new Date(d); return !isNaN(t) && t.getUTCFullYear() === y && t.getUTCMonth() === m; };\nconst addDays = (d, n) => { const t = new Date(d); t.setUTCDate(t.getUTCDate() + n); return t; };\nconst offsets = [4, 10, 20];\n\nlet used = 0;\nconst detail = { firstEmails: 0, followUps: 0, replies: 0 };\nfor (const r of rows) {\n  const sentAt = r['Sent At'];\n  const sentValid = sentAt && !isNaN(new Date(sentAt));\n  if (sentValid && inMonth(sentAt)) { used += 2; detail.firstEmails++; }\n  const fu = Math.min(Number(r['Follow-up Count'] || 0), 3);\n  if (sentValid) {\n    for (let k = 0; k < fu; k++) {\n      if (inMonth(addDays(sentAt, offsets[k]))) { used += 1; detail.followUps++; }\n    }\n  }\n  if (String(r['Reply Category'] || '') !== '' && inMonth(r['Last Updated'])) { used += 2; detail.replies++; }\n}\n\nconst percent = Math.round((used / limit) * 100);\nreturn [{ json: {\n  hubspot_actions_used: used,\n  hubspot_limit: limit,\n  percent,\n  pause_at: pauseAt,\n  paused: percent >= pauseAt,\n  detail,\n  nil_email: settings['Nil Email'] || '',\n  sheet_url: settings['Sheet URL'] || '',\n} }];"
+      }
     },
     {
+      "id": "81388a56-d5c8-4ca0-89cf-2b6dc69054de",
+      "name": "Quota OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        896,
+        -176
+      ],
       "parameters": {
         "conditions": {
           "combinator": "and",
@@ -579,17 +587,17 @@
           }
         },
         "options": {}
-      },
-      "id": "f853d8b0-e978-4c37-aa80-7a0b0db13899",
-      "name": "Quota OK?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.3,
-      "position": [
-        896,
-        -176
-      ]
+      }
     },
     {
+      "id": "00dc0a62-3adf-4ced-a9e4-cd89164f8f55",
+      "name": "Warn Nil Quota",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1120,
+        -336
+      ],
       "parameters": {
         "sendTo": "={{ $json.nil_email }}",
         "subject": "=Texprove: HubSpot quota at {{ $json.percent }}%, first emails paused",
@@ -599,40 +607,40 @@
           "appendAttribution": false
         }
       },
-      "id": "078b58db-6b9a-4d89-8393-3ce9979b7133",
-      "name": "Warn Nil Quota",
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.2,
-      "position": [
-        1120,
-        -336
-      ],
       "executeOnce": true,
-      "webhookId": "e437bf16-0aef-46cf-a460-3fe0c5e93565",
       "onError": "continueRegularOutput",
+      "webhookId": "496cd1e2-1efb-4293-88bd-bc04cd9383d0",
       "credentials": {
         "gmailOAuth2": {
-          "id": "e4PwwBoziWhyHRLW",
+          "id": "Iu3jA1IOyvPbScAQ",
           "name": "Gmail account"
         }
       }
     },
     {
-      "parameters": {
-        "content": "## HubSpot quota gate\nEstimates this month's HubSpot actions from the Leads tab (first email 2, follow-up 1, reply 2). At HubSpot Pause Percent (Settings, default 80%) of HubSpot Monthly Limit (default 3,000) it stops sending first emails and emails Nil. Follow-ups (WF5) and replies (WF4) keep running.",
-        "height": 180,
-        "width": 420
-      },
-      "id": "26f1f5b9-9875-42a4-9260-f439b95b5832",
+      "id": "47b5ab5f-10fd-4d40-9fe0-ee525c267d40",
       "name": "Note: Quota gate",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
         608,
         -560
-      ]
+      ],
+      "parameters": {
+        "content": "## HubSpot quota gate\nEstimates this month's HubSpot actions from the Leads tab (first email 2, follow-up 1, reply 2). At HubSpot Pause Percent (Settings, default 80%) of HubSpot Monthly Limit (default 3,000) it stops sending first emails and emails Nil. Follow-ups (WF5) and replies (WF4) keep running.",
+        "width": 420,
+        "height": 180
+      }
     },
     {
+      "id": "8508ed5f-ac6d-4e68-ac54-35f75b828d4e",
+      "name": "Log Send",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1792,
+        -160
+      ],
       "parameters": {
         "operation": "append",
         "documentId": {
@@ -727,7 +735,7 @@
             "Company": "={{ $('Loop Over Drafts').item.json.Company }}",
             "Input": "={{ 'To ' + ($('Read Settings').first().json['Test Email'] ? $('Read Settings').first().json['Test Email'] + ' (TEST MODE, lead email ' + $('Loop Over Drafts').item.json.Email + ')' : $('Loop Over Drafts').item.json.Email) + '; subject: ' + $('Loop Over Drafts').item.json.Subject }}",
             "Lead ID": "={{ $('Loop Over Drafts').item.json['Lead ID'] }}",
-            "Output": "={{ 'Gmail thread ' + ($('Send Email').item.json.threadId || '?') + '; HubSpot contact ' + ($('HubSpot Upsert Contact').item.json.vid || 'not logged') + '. Body: ' + String($('Loop Over Drafts').item.json['Draft Body'] || '').slice(0, 2500) }}",
+            "Output": "={{ 'Thread ' + ((() => { try { return $('Send Email').item.json.threadId } catch (e) { return '' } })() || (() => { try { return 'smtp:' + $('Send Email (SMTP)').item.json.messageId } catch (e) { return '?' } })()) + '; HubSpot contact ' + ($('HubSpot Upsert Contact').item.json.vid || 'not logged') + '. Body: ' + String($('Loop Over Drafts').item.json['Draft Body'] || '').slice(0, 2500) }}",
             "Reason": "={{ 'Approved = Yes by Nil; Compliance Status ' + $('Loop Over Drafts').item.json['Compliance Status'] + (String($('Loop Over Drafts').item.json['Nil Notes'] || '') ? '; Nil notes: ' + $('Loop Over Drafts').item.json['Nil Notes'] : '') }}",
             "Step": "First email sent",
             "Timestamp": "={{ $now.toISO() }}",
@@ -738,23 +746,23 @@
           "cellFormat": "RAW"
         }
       },
-      "id": "960334e6-a6c2-422e-9286-ad583987754c",
-      "name": "Log Send",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        1792,
-        -160
-      ],
       "onError": "continueRegularOutput",
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "xLTp24saWARCuZou",
+          "id": "4Ffu3jMNYiLLnti3",
           "name": "Google Sheets account"
         }
       }
     },
     {
+      "id": "71112232-470e-48a0-b71d-9e2b725d619d",
+      "name": "Log Skip",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1120,
+        400
+      ],
       "parameters": {
         "operation": "append",
         "documentId": {
@@ -860,23 +868,23 @@
           "cellFormat": "RAW"
         }
       },
-      "id": "a0314857-9cc1-4dc8-848c-26423109c9ab",
-      "name": "Log Skip",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        1120,
-        400
-      ],
       "onError": "continueRegularOutput",
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "xLTp24saWARCuZou",
+          "id": "4Ffu3jMNYiLLnti3",
           "name": "Google Sheets account"
         }
       }
     },
     {
+      "id": "d6f2ec51-a149-4320-9c75-7ad226612a84",
+      "name": "Log Quota Pause",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1120,
+        -496
+      ],
       "parameters": {
         "operation": "append",
         "documentId": {
@@ -982,23 +990,23 @@
           "cellFormat": "RAW"
         }
       },
-      "id": "ae2169e5-8275-4540-8d70-0731af2c12a3",
-      "name": "Log Quota Pause",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        1120,
-        -496
-      ],
       "onError": "continueRegularOutput",
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "xLTp24saWARCuZou",
+          "id": "4Ffu3jMNYiLLnti3",
           "name": "Google Sheets account"
         }
       }
     },
     {
+      "id": "77c44970-3a73-443f-b291-ab14813746da",
+      "name": "Read Suppression",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        560,
+        -336
+      ],
       "parameters": {
         "documentId": {
           "__rl": true,
@@ -1014,31 +1022,257 @@
         },
         "options": {}
       },
-      "id": "d8915435-a706-432c-b5ea-c70d993cf13c",
-      "name": "Read Suppression",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        560,
-        -336
-      ],
-      "alwaysOutputData": true,
       "executeOnce": true,
+      "alwaysOutputData": true,
       "onError": "continueRegularOutput",
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "xLTp24saWARCuZou",
+          "id": "4Ffu3jMNYiLLnti3",
           "name": "Google Sheets account"
         }
+      }
+    },
+    {
+      "id": "6bc7931d-4974-4f7e-877a-33572b3bb4fd",
+      "name": "Use SMTP? (send)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1008,
+        -96
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "smtp",
+              "leftValue": "={{ String($('Read Settings').first().json['Mail Provider'] || '').trim().toUpperCase() === 'SMTP' }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      },
+      "notes": "Settings 'Mail Provider' = SMTP sends through the SMTP credential; empty or Gmail uses Gmail."
+    },
+    {
+      "id": "c7dc150c-d474-477d-bd51-43dd4eb777a1",
+      "name": "Send Email (SMTP)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1120,
+        -176
+      ],
+      "parameters": {
+        "emailFormat": "text",
+        "fromEmail": "={{ $('Read Settings').first().json['SMTP From'] }}",
+        "options": {
+          "appendAttribution": false
+        },
+        "subject": "={{ $json.Subject }}",
+        "text": "={{ $json['Draft Body'] }}",
+        "toEmail": "={{ $('Read Settings').first().json['Test Email'] || $json.Email }}"
+      },
+      "notes": "SMTP version of Send Email. Needs an SMTP credential; disable it if you only use Gmail.",
+      "webhookId": "9d6f1d56-c355-4c54-b45a-eb8c0acb2478",
+      "disabled": true
+    },
+    {
+      "id": "d20572bf-600d-4fdc-89e2-071923d0e3e8",
+      "name": "Use SMTP? (quota)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1008,
+        -416
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "smtp",
+              "leftValue": "={{ String($('Read Settings').first().json['Mail Provider'] || '').trim().toUpperCase() === 'SMTP' }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "b7d5f7b1-d2db-4e34-a745-310dbe8955f5",
+      "name": "Warn Nil Quota (SMTP)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1120,
+        -576
+      ],
+      "parameters": {
+        "emailFormat": "text",
+        "fromEmail": "={{ $('Read Settings').first().json['SMTP From'] }}",
+        "options": {
+          "appendAttribution": false
+        },
+        "subject": "=Texprove: HubSpot quota at {{ $json.percent }}%, first emails paused",
+        "text": "=HubSpot actions used this month (estimate): {{ $json.hubspot_actions_used }} of {{ $json.hubspot_limit }} ({{ $json.percent }}%).\nFirst emails: {{ $json.detail.firstEmails }}, follow-ups: {{ $json.detail.followUps }}, replies: {{ $json.detail.replies }}.\n\nNew first-contact emails are paused until the percentage drops below {{ $json.pause_at }}% (next month, or raise HubSpot Monthly Limit / HubSpot Pause Percent in the Settings tab). Follow-ups and reply handling continue.\n\nSheet: {{ $json.sheet_url || 'open the Texprove Leads Google Sheet' }}",
+        "toEmail": "={{ $json.nil_email }}"
+      },
+      "webhookId": "9f3f6134-29f8-482e-b0eb-e79e180f8fc3",
+      "onError": "continueRegularOutput",
+      "executeOnce": true,
+      "disabled": true
+    },
+    {
+      "id": "dc51a755-5013-4348-9918-65a40bc9d791",
+      "name": "SMTP sent?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1232,
+        -176
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "mid",
+              "leftValue": "={{ !!$json.messageId }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      },
+      "notes": "A disabled SMTP node passes the lead through without sending; this stops the run instead of marking the lead Sent."
+    },
+    {
+      "id": "c603cc2f-b642-4b15-95de-cfa947573f91",
+      "name": "Stop: SMTP not sent",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        1344,
+        -320
+      ],
+      "parameters": {
+        "errorMessage": "Mail Provider is SMTP but 'Send Email (SMTP)' did not send (node disabled or no SMTP credential). Nothing was marked Sent."
+      }
+    },
+    {
+      "id": "b187a44c-2d7d-4cde-bd9c-77efaf5eb97d",
+      "name": "Gmail sent?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1232,
+        96
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "gm",
+              "leftValue": "={{ Array.isArray($json.labelIds) && !!$json.threadId }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      },
+      "notes": "A disabled Gmail node passes the lead through without sending; this stops the run instead of marking the lead Sent."
+    },
+    {
+      "id": "1dbe3f9a-1aa0-4b57-9cb4-6938f831e22f",
+      "name": "Stop: Gmail not sent",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        1344,
+        192
+      ],
+      "parameters": {
+        "errorMessage": "Mail Provider is Gmail but 'Send Email' did not send (node disabled?). Nothing was marked Sent. Set Settings 'Mail Provider' to SMTP if you switched to SMTP."
       }
     }
   ],
   "connections": {
+    "Weekdays 10:00 and 14:00": {
+      "main": [
+        [
+          {
+            "node": "Get All Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Get Approved Drafts": {
       "main": [
         [
           {
             "node": "Limit 15",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Test": {
+      "main": [
+        [
+          {
+            "node": "Get All Leads",
             "type": "main",
             "index": 0
           }
@@ -1060,7 +1294,7 @@
       "main": [
         [
           {
-            "node": "Send Email",
+            "node": "Use SMTP? (send)",
             "type": "main",
             "index": 0
           }
@@ -1073,17 +1307,6 @@
           },
           {
             "node": "Log Skip",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Send Email": {
-      "main": [
-        [
-          {
-            "node": "HubSpot Upsert Contact",
             "type": "main",
             "index": 0
           }
@@ -1162,33 +1385,22 @@
         ]
       ]
     },
-    "Weekdays 10:00 and 14:00": {
-      "main": [
-        [
-          {
-            "node": "Get All Leads",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Manual Test": {
-      "main": [
-        [
-          {
-            "node": "Get All Leads",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Get All Leads": {
       "main": [
         [
           {
             "node": "Read Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Settings": {
+      "main": [
+        [
+          {
+            "node": "Read Suppression",
             "type": "main",
             "index": 0
           }
@@ -1217,23 +1429,12 @@
         ],
         [
           {
-            "node": "Warn Nil Quota",
+            "node": "Log Quota Pause",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Log Quota Pause",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Read Settings": {
-      "main": [
-        [
-          {
-            "node": "Read Suppression",
+            "node": "Use SMTP? (quota)",
             "type": "main",
             "index": 0
           }
@@ -1245,6 +1446,100 @@
         [
           {
             "node": "HubSpot Quota Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Use SMTP? (send)": {
+      "main": [
+        [
+          {
+            "node": "Send Email (SMTP)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Use SMTP? (quota)": {
+      "main": [
+        [
+          {
+            "node": "Warn Nil Quota (SMTP)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Warn Nil Quota",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email (SMTP)": {
+      "main": [
+        [
+          {
+            "node": "SMTP sent?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SMTP sent?": {
+      "main": [
+        [
+          {
+            "node": "HubSpot Upsert Contact",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Stop: SMTP not sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email": {
+      "main": [
+        [
+          {
+            "node": "Gmail sent?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail sent?": {
+      "main": [
+        [
+          {
+            "node": "HubSpot Upsert Contact",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Stop: Gmail not sent",
             "type": "main",
             "index": 0
           }

@@ -26,7 +26,7 @@ WF5 does not send on its own. When a follow-up is due it writes the text to `Fol
 - **Hot** replies (wants a call or demo) arrive as an alert by email, WhatsApp and Telegram with a one-sentence summary and a link to the thread. Reply from the inbox yourself; the workflows never answer prospects.
 - Warm, Cold and Not interested replies only update the sheet and HubSpot. Filter `Stage = Replied - …` to review them.
 - Anyone asking to be removed is set to `Opted out` automatically and is never emailed again.
-- Only replies in the same Gmail thread are matched. A prospect who writes a fresh email is not picked up; handle those by hand.
+- Only replies to a campaign email are matched (same Gmail thread, or with an SMTP mailbox the same email chain, sender or subject). A prospect who writes a fresh email is not picked up; handle those by hand.
 - Do not open the sending inbox before the 15-minute poll: WF4 only sees unread mail.
 
 ## Mondays

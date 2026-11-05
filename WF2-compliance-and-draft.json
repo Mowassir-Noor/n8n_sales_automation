@@ -2,6 +2,14 @@
   "name": "Texprove WF2 - Compliance check and draft",
   "nodes": [
     {
+      "id": "b1596bec-2567-4955-8545-dd9a695a49eb",
+      "name": "Weekdays 09:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        160
+      ],
       "parameters": {
         "rule": {
           "interval": [
@@ -11,17 +19,17 @@
             }
           ]
         }
-      },
-      "id": "625578f3-eccd-461a-8731-d08d19b1f994",
-      "name": "Weekdays 09:00",
-      "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1.4,
-      "position": [
-        0,
-        160
-      ]
+      }
     },
     {
+      "id": "25a55cae-bb18-4a10-8e99-b00404c2bb4d",
+      "name": "Get Researched Leads",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        224,
+        256
+      ],
       "parameters": {
         "documentId": {
           "__rl": true,
@@ -45,46 +53,46 @@
         },
         "options": {}
       },
-      "id": "180a4679-d8af-46fb-bcaa-8c2c142e8d72",
-      "name": "Get Researched Leads",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        224,
-        256
-      ],
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "xLTp24saWARCuZou",
+          "id": "4Ffu3jMNYiLLnti3",
           "name": "Google Sheets account"
         }
       }
     },
     {
-      "parameters": {},
-      "id": "0ae26873-be37-4825-974b-3d7b24bf437e",
+      "id": "9b698e63-3134-453a-b441-4a999fc16d41",
       "name": "Manual Test",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
       "position": [
         0,
         352
-      ]
+      ],
+      "parameters": {}
     },
     {
-      "parameters": {
-        "maxItems": 20
-      },
-      "id": "cd281981-c728-4cb1-b7e5-a89e416eaf49",
+      "id": "c5225346-4e31-467a-9b3d-7794073a52df",
       "name": "Limit 20",
       "type": "n8n-nodes-base.limit",
       "typeVersion": 1,
       "position": [
         448,
         256
-      ]
+      ],
+      "parameters": {
+        "maxItems": 20
+      }
     },
     {
+      "id": "1afeac31-36dd-4fee-9a9f-b2cb391f6e8d",
+      "name": "Read Settings",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        672,
+        256
+      ],
       "parameters": {
         "documentId": {
           "__rl": true,
@@ -100,36 +108,36 @@
         },
         "options": {}
       },
-      "id": "157d37de-5e42-4b05-b407-7bac3663f92f",
-      "name": "Read Settings",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        672,
-        256
-      ],
       "executeOnce": true,
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "xLTp24saWARCuZou",
+          "id": "4Ffu3jMNYiLLnti3",
           "name": "Google Sheets account"
         }
       }
     },
     {
-      "parameters": {
-        "jsCode": "const leads = $('Limit 20').all();\nconst freeDomains = ['gmail.com', 'hotmail.com', 'yahoo.com', 'outlook.com', 'yandex.com', 'icloud.com'];\nconst allowedCountries = ['turkey', 'türkiye', 'turkiye'];\n\n// Suppression tab: emails and domains that must never be contacted (İYS \"ret\" opt-outs, manual do-not-contact, bounces).\nconst supp = $('Read Suppression').all().map(i => i.json).filter(r => r && (r.Email || r.Domain));\nconst suppEmails = new Set(supp.map(r => String(r.Email || '').toLowerCase().trim()).filter(Boolean));\nconst suppDomains = supp.map(r => String(r.Domain || '').toLowerCase().replace(/^@/, '').trim()).filter(Boolean);\n\nfunction domainOf(url) {\n  return String(url || '')\n    .toLowerCase()\n    .replace(/^https?:\\/\\//, '')\n    .replace(/^www\\./, '')\n    .split('/')[0]\n    .split(':')[0]\n    .trim();\n}\n\nreturn leads.map((item) => {\n  const lead = item.json;\n  const reasons = [];\n  const email = String(lead.Email || '').trim().toLowerCase();\n  const emailDomain = email.includes('@') ? email.split('@')[1] : '';\n  const siteDomain = domainOf(lead.Website);\n\n  if (!email) reasons.push('Email is empty');\n  if (emailDomain && freeDomains.includes(emailDomain)) reasons.push('Free or personal email domain');\n  if (String(lead['Opt-out'] || '').trim().toLowerCase() === 'yes') reasons.push('Lead opted out');\n  if (email && suppEmails.has(email)) reasons.push('On suppression list (İYS ret / do-not-contact)');\n  else if (emailDomain && suppDomains.some(sd => emailDomain === sd || emailDomain.endsWith('.' + sd))) reasons.push('Email domain on suppression list');\n  if (emailDomain && siteDomain && !freeDomains.includes(emailDomain)) {\n    const matches = emailDomain === siteDomain || emailDomain.endsWith('.' + siteDomain) || siteDomain.endsWith('.' + emailDomain);\n    if (!matches) reasons.push('Email domain does not match website domain');\n  }\n  if (!allowedCountries.includes(String(lead.Country || '').trim().toLowerCase())) reasons.push('Country not allowed');\n\n  return {\n    json: {\n      ...lead,\n      'Compliance Status': reasons.length ? 'Blocked' : 'OK',\n      'Compliance Notes': reasons.join('; '),\n    },\n  };\n});\n"
-      },
-      "id": "762a6f94-030a-4b31-ba18-0e89efd4e0ba",
+      "id": "9b8a0279-be2a-4757-ae1b-57625334a86c",
       "name": "Compliance check",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         896,
         256
-      ]
+      ],
+      "parameters": {
+        "jsCode": "const leads = $('Limit 20').all();\nconst freeDomains = ['gmail.com', 'hotmail.com', 'yahoo.com', 'outlook.com', 'yandex.com', 'icloud.com'];\nconst allowedCountries = ['turkey', 'türkiye', 'turkiye'];\n\n// Suppression tab: emails and domains that must never be contacted (İYS \"ret\" opt-outs, manual do-not-contact, bounces).\nconst supp = $('Read Suppression').all().map(i => i.json).filter(r => r && (r.Email || r.Domain));\nconst suppEmails = new Set(supp.map(r => String(r.Email || '').toLowerCase().trim()).filter(Boolean));\nconst suppDomains = supp.map(r => String(r.Domain || '').toLowerCase().replace(/^@/, '').trim()).filter(Boolean);\n\nfunction domainOf(url) {\n  return String(url || '')\n    .toLowerCase()\n    .replace(/^https?:\\/\\//, '')\n    .replace(/^www\\./, '')\n    .split('/')[0]\n    .split(':')[0]\n    .trim();\n}\n\nreturn leads.map((item) => {\n  const lead = item.json;\n  const reasons = [];\n  const email = String(lead.Email || '').trim().toLowerCase();\n  const emailDomain = email.includes('@') ? email.split('@')[1] : '';\n  const siteDomain = domainOf(lead.Website);\n\n  if (!email) reasons.push('Email is empty');\n  if (emailDomain && freeDomains.includes(emailDomain)) reasons.push('Free or personal email domain');\n  if (String(lead['Opt-out'] || '').trim().toLowerCase() === 'yes') reasons.push('Lead opted out');\n  if (email && suppEmails.has(email)) reasons.push('On suppression list (İYS ret / do-not-contact)');\n  else if (emailDomain && suppDomains.some(sd => emailDomain === sd || emailDomain.endsWith('.' + sd))) reasons.push('Email domain on suppression list');\n  if (emailDomain && siteDomain && !freeDomains.includes(emailDomain)) {\n    const matches = emailDomain === siteDomain || emailDomain.endsWith('.' + siteDomain) || siteDomain.endsWith('.' + emailDomain);\n    if (!matches) reasons.push('Email domain does not match website domain');\n  }\n  if (!allowedCountries.includes(String(lead.Country || '').trim().toLowerCase())) reasons.push('Country not allowed');\n\n  return {\n    json: {\n      ...lead,\n      'Compliance Status': reasons.length ? 'Blocked' : 'OK',\n      'Compliance Notes': reasons.join('; '),\n    },\n  };\n});\n"
+      }
     },
     {
+      "id": "ddfd3e93-17a3-4759-8d11-ce1f980942ab",
+      "name": "Compliance OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1120,
+        256
+      ],
       "parameters": {
         "conditions": {
           "options": {
@@ -152,34 +160,34 @@
           "combinator": "and"
         },
         "options": {}
-      },
-      "id": "7419499a-42fe-438a-abf3-8e41600a6f38",
-      "name": "Compliance OK?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.3,
-      "position": [
-        1120,
-        256
-      ]
+      }
     },
     {
-      "parameters": {
-        "promptType": "define",
-        "text": "=Write a short first-contact B2B email from {{ $('Read Settings').first().json['Sender Name'] }}, {{ $('Read Settings').first().json['Sender Title'] }} at Texprove to {{ $json['Contact Name'] }} ({{ $json['Contact Title'] }}) at {{ $json.Company }}.\nLanguage: Turkish if Language = tr, otherwise English; write natural business Turkish, not a translation. This lead's Language is: {{ $json.Language }}.\nOpen with this verified fact: {{ $json['Personalisation Hook'] }}.\nExplain in one sentence that EU Digital Product Passport rules for textiles are coming and exporters to the EU will need product-level data. One sentence on how Texprove helps. Ask for a 15-minute call.\nMax 120 words for the main text, no hype, no attachments. The only links allowed are the recipient company's own website and Texprove's website in the signature.\nNever mention the company's customers, buyers or the brands or retailers it supplies, nor any order volumes, quantities, prices, capacities, margins or revenue, even if that information is public. If the verified fact contains such details, refer to it in general terms (for example \"your exports to European retailers\").\nEnd with the sender's full name ({{ $('Read Settings').first().json['Sender Name'] }}), title ({{ $('Read Settings').first().json['Sender Title'] }}), company legal name ({{ $('Read Settings').first().json['Company Legal Name'] }}), address ({{ $('Read Settings').first().json['Company Address'] }}) and website ({{ $('Read Settings').first().json['Company Website'] || 'https://www.texprove.com' }}), each on its own line, exactly as given.\nThen add this sentence saying where we found their details, in the email's language, exactly as given:\nTurkish: İletişim bilgilerinizi şirketinizin herkese açık web sitesinden aldık.\nEnglish: We found your contact details on your company's public website.\nThen this opt-out line, in the email's language, exactly as given:\nTurkish: {{ $('Read Settings').first().json['Opt-out TR'] }}\nEnglish: {{ $('Read Settings').first().json['Opt-out EN'] }}\nReturn JSON: subject (max 7 words), body.",
-        "hasOutputParser": true,
-        "needsFallback": true,
-        "batching": {}
-      },
-      "id": "0a1b394d-6f64-46b6-bf8b-a5927782cc67",
+      "id": "cba7c8e9-bf24-4b60-984f-9f146c3d1579",
       "name": "Draft First Email",
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
         1216,
         -16
-      ]
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "=Write a short first-contact B2B email from {{ $('Read Settings').first().json['Sender Name'] }}, {{ $('Read Settings').first().json['Sender Title'] }} at Texprove to {{ $json['Contact Name'] }} ({{ $json['Contact Title'] }}) at {{ $json.Company }}.\nLanguage: Turkish if Language = tr, otherwise English; write natural business Turkish, not a translation. This lead's Language is: {{ $json.Language }}.\nOpen with this verified fact: {{ $json['Personalisation Hook'] }}.\nExplain in one sentence that EU Digital Product Passport rules for textiles are coming and exporters to the EU will need product-level data. One sentence on how Texprove helps. Ask for a 15-minute call.\nMax 120 words for the main text, no hype, no attachments. The only links allowed are the recipient company's own website and Texprove's website in the signature.\nNever mention the company's customers, buyers or the brands or retailers it supplies, nor any order volumes, quantities, prices, capacities, margins or revenue, even if that information is public. If the verified fact contains such details, refer to it in general terms (for example \"your exports to European retailers\").\nEnd with the sender's full name ({{ $('Read Settings').first().json['Sender Name'] }}), title ({{ $('Read Settings').first().json['Sender Title'] }}), company legal name ({{ $('Read Settings').first().json['Company Legal Name'] }}), address ({{ $('Read Settings').first().json['Company Address'] }}) and website ({{ $('Read Settings').first().json['Company Website'] || 'https://www.texprove.com' }}), each on its own line, exactly as given.\nThen add this sentence saying where we found their details, in the email's language, exactly as given:\nTurkish: İletişim bilgilerinizi şirketinizin herkese açık web sitesinden aldık.\nEnglish: We found your contact details on your company's public website.\nThen this opt-out line, in the email's language, exactly as given:\nTurkish: {{ $('Read Settings').first().json['Opt-out TR'] }}\nEnglish: {{ $('Read Settings').first().json['Opt-out EN'] }}\nReturn JSON: subject (max 7 words), body.",
+        "hasOutputParser": true,
+        "needsFallback": true,
+        "batching": {}
+      }
     },
     {
+      "id": "5573a6a8-24a3-41b9-8274-e0bd62f5494c",
+      "name": "Claude Sonnet 5.5",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.6,
+      "position": [
+        1360,
+        224
+      ],
       "parameters": {
         "model": {
           "__rl": true,
@@ -188,37 +196,51 @@
           "cachedResultName": "Claude Sonnet 5.5"
         },
         "options": {}
-      },
-      "id": "87f76cb4-2f7f-4609-95ff-c2df7a9518b5",
-      "name": "Claude Sonnet 5.5",
-      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
-      "typeVersion": 1.6,
-      "position": [
-        1360,
-        224
-      ],
-      "credentials": {
-        "anthropicApi": {
-          "id": "JXZ5NOJvJ6mIjWyY",
-          "name": "Anthropic account"
-        }
       }
     },
     {
+      "id": "9e2cc4ae-982c-4372-bada-50ee98270116",
+      "name": "Claude Sonnet 5.5 (account 2)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.6,
+      "position": [
+        1232,
+        224
+      ],
       "parameters": {
-        "schemaType": "manual",
-        "inputSchema": "{\"type\":\"object\",\"properties\":{\"subject\":{\"type\":\"string\"},\"body\":{\"type\":\"string\"}},\"required\":[\"subject\",\"body\"]}"
+        "model": {
+          "__rl": true,
+          "cachedResultName": "Claude Sonnet 5.5",
+          "mode": "list",
+          "value": "claude-sonnet-5-5"
+        },
+        "options": {}
       },
-      "id": "39cc9625-a4f7-4af9-8660-af41cd7e2b61",
+      "notes": "Fallback model: used only when the first Anthropic account errors (credits exhausted, rate limit, outage). Point this node at the second Anthropic credential."
+    },
+    {
+      "id": "3db6752e-b003-44b2-8942-6f003cbacb41",
       "name": "Email JSON",
       "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
       "typeVersion": 1.3,
       "position": [
         1488,
         224
-      ]
+      ],
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\"type\":\"object\",\"properties\":{\"subject\":{\"type\":\"string\"},\"body\":{\"type\":\"string\"}},\"required\":[\"subject\",\"body\"]}"
+      }
     },
     {
+      "id": "f26ee5dc-0079-4d4b-bd45-5dbcd1ce6183",
+      "name": "Save Draft",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2208,
+        -160
+      ],
       "parameters": {
         "operation": "update",
         "documentId": {
@@ -335,22 +357,22 @@
         },
         "options": {}
       },
-      "id": "a37ef4be-de13-4e88-b649-699adddd97e8",
-      "name": "Save Draft",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        2208,
-        -160
-      ],
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "xLTp24saWARCuZou",
+          "id": "4Ffu3jMNYiLLnti3",
           "name": "Google Sheets account"
         }
       }
     },
     {
+      "id": "e7a126ca-c218-465a-bf2e-6f9e3e3799e7",
+      "name": "Notify Nil",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2432,
+        -320
+      ],
       "parameters": {
         "sendTo": "={{ $('Read Settings').first().json['Nil Email'] }}",
         "subject": "={{ $('Check Draft').all().length }} new Texprove drafts waiting for approval",
@@ -360,25 +382,25 @@
           "appendAttribution": false
         }
       },
-      "id": "9a5c3621-9626-4bb8-872e-bdba5792bcbb",
-      "name": "Notify Nil",
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.2,
-      "position": [
-        2432,
-        -320
-      ],
-      "webhookId": "e74cf774-1e51-41b4-a1b5-eb9caf4a2e4b",
       "executeOnce": true,
       "onError": "continueRegularOutput",
+      "webhookId": "a86023ee-7825-4695-8f5f-da97a1c62f9c",
       "credentials": {
         "gmailOAuth2": {
-          "id": "e4PwwBoziWhyHRLW",
+          "id": "Iu3jA1IOyvPbScAQ",
           "name": "Gmail account"
         }
       }
     },
     {
+      "id": "f7ef5da8-8104-46ab-8b42-e527cf976d5e",
+      "name": "Mark Blocked",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1408,
+        400
+      ],
       "parameters": {
         "operation": "update",
         "documentId": {
@@ -455,87 +477,73 @@
         },
         "options": {}
       },
-      "id": "bfc623d9-f727-41df-8f3c-8db7a653d8a6",
-      "name": "Mark Blocked",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        1408,
-        400
-      ],
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "xLTp24saWARCuZou",
+          "id": "4Ffu3jMNYiLLnti3",
           "name": "Google Sheets account"
         }
       }
     },
     {
-      "parameters": {
-        "content": "## Compliance gate\nPlain JavaScript, no AI. Blocks: empty email, free/personal domain, opted-out, email or domain on the Suppression tab (İYS \"ret\" opt-outs and manual do-not-contact entries), email domain not matching website, country not in the allowed list (Turkey). İYS itself is not queried: Nil exports İYS opt-outs into the Suppression tab. Add more rules here after Nil confirms KVKK / İYS requirements.",
-        "width": 380
-      },
-      "id": "4b8a367c-9bde-4255-b2f1-2702a2e3e047",
+      "id": "03a1844e-ed8d-4484-85fb-87ad6836d481",
       "name": "Note: Compliance",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
         816,
         400
-      ]
+      ],
+      "parameters": {
+        "content": "## Compliance gate\nPlain JavaScript, no AI. Blocks: empty email, free/personal domain, opted-out, email or domain on the Suppression tab (İYS \"ret\" opt-outs and manual do-not-contact entries), email domain not matching website, country not in the allowed list (Turkey). İYS itself is not queried: Nil exports İYS opt-outs into the Suppression tab. Add more rules here after Nil confirms KVKK / İYS requirements.",
+        "width": 380
+      }
     },
     {
-      "parameters": {
-        "content": "## Settings, Suppression and extra columns\nSettings: one row with columns Sender Name, Sender Title, Company Legal Name, Company Address, Opt-out TR, Opt-out EN, Nil Email. Optional: Sheet URL, HubSpot Monthly Limit (default 3000), HubSpot Pause Percent (default 80).\nSuppression tab: Email | Domain | Reason | Date (one row per address or domain never to contact).\nLeads needs a Draft Body EN column. Log tab: Timestamp | Workflow | Lead ID | Company | Step | Input | Output | Reason.",
-        "height": 140,
-        "width": 380
-      },
-      "id": "a2e7c5ce-745d-411e-a4f9-6904e3e605ec",
+      "id": "ffdb9d0e-8347-482b-9b0c-7f40931576a5",
       "name": "Note: Settings tab",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
         816,
         656
-      ]
+      ],
+      "parameters": {
+        "content": "## Settings, Suppression and extra columns\nSettings: one row with columns Sender Name, Sender Title, Company Legal Name, Company Address, Opt-out TR, Opt-out EN, Nil Email. Optional: Sheet URL, HubSpot Monthly Limit (default 3000), HubSpot Pause Percent (default 80).\nSuppression tab: Email | Domain | Reason | Date (one row per address or domain never to contact).\nLeads needs a Draft Body EN column. Log tab: Timestamp | Workflow | Lead ID | Company | Step | Input | Output | Reason.",
+        "width": 380,
+        "height": 140
+      }
     },
     {
-      "parameters": {
-        "mode": "runOnceForEachItem",
-        "jsCode": "// Plain-code check of the generated email, no AI. Marks the draft OK or Needs fix.\nconst draft = ($input.item.json.output) || {};\nconst subject = String(draft.subject || '').trim();\nconst body = String(draft.body || '');\nconst lower = body.toLowerCase();\nconst settings = $('Read Settings').first().json || {};\nconst lead = $('Compliance check').item.json || {};\nconst isTr = String(lead.Language || '').trim().toLowerCase() === 'tr';\nconst reasons = [];\n\nconst has = (s) => s && lower.includes(String(s).toLowerCase().trim());\nconst start = (s, n) => String(s || '').trim().slice(0, n);\nconst domainOf = (u) => String(u || '').toLowerCase().replace(/^https?:\\/\\//, '').replace(/^www\\./, '').split('/')[0].split(':')[0].trim();\n\nif (!subject) reasons.push('Subject is empty');\nif (!body.trim()) reasons.push('Body is empty');\nif (!has(settings['Sender Name'])) reasons.push('Sender name missing');\nif (!has(settings['Company Legal Name'])) reasons.push('Company legal name missing');\nif (!has(start(settings['Company Address'], 12))) reasons.push('Company address missing');\n\n// Texprove's own website (Settings 'Company Website', default texprove.com) must be in the signature so prospects can check us out.\nconst ownDomain = domainOf(settings['Company Website'] || 'texprove.com') || 'texprove.com';\nif (!lower.includes(ownDomain)) reasons.push('Texprove website missing from signature');\n\nconst optOut = isTr ? settings['Opt-out TR'] : settings['Opt-out EN'];\nif (!has(start(optOut, 25))) reasons.push('Opt-out sentence missing (' + (isTr ? 'TR' : 'EN') + ')');\n\nconst sourceOk = isTr ? has('web sitesinden aldık') : has('contact details on your company');\nif (!sourceOk) reasons.push('Data-source sentence missing');\n\n// Links: only the lead's own website and Texprove's website are allowed.\nconst siteDomain = domainOf(lead.Website);\nconst allowedDomains = [siteDomain, ownDomain].filter(Boolean);\nconst links = body.match(/https?:\\/\\/[^\\s)>\\]]+/gi) || [];\nconst foreign = links.filter(l => !allowedDomains.some(d => l.toLowerCase().includes(d)));\nif (foreign.length) reasons.push('Links to other sites: ' + foreign.join(', '));\n\nconst words = body.trim().split(/\\s+/).length;\nif (words > 190) reasons.push('Too long (' + words + ' words incl. signature)');\n\nconst banned = ['garanti', 'guaranteed', '%100', '100%', 'ücretsiz', 'free trial', 'son şans', 'last chance'];\nconst hits = banned.filter(b => lower.includes(b));\nif (hits.length) reasons.push('Hype wording: ' + hits.join(', '));\n\n// Trade-secret rule: check subject and body (the signature is from Settings and should never trip it).\nfor (const r of sensitiveIssues(subject + '\\n' + body)) reasons.push(r);\n\nreturn { json: {\n  ...$input.item.json,\n  draft_check_status: reasons.length ? 'Needs fix' : 'OK',\n  draft_check_notes: reasons.join('; '),\n} };\n\n// Trade-secret rule (Nil's compliance plan): no buyer names, order volumes, prices, capacities or margins in outreach text.\nfunction sensitiveIssues(text) {\n  const t = String(text || '');\n  const low = t.toLowerCase();\n  const issues = [];\n  const buyers = ['zara', 'inditex', 'h&m', 'hennes', 'primark', 'c&a', 'mango', 'marks & spencer', 'm&s', 'tesco', 'lidl', 'aldi', 'decathlon', 'hugo boss', 'adidas', 'puma', 'nike', 'esprit', 's.oliver', 'tom tailor', 'bestseller', 'zalando', 'about you', 'otto', 'benetton', 'diesel', \"levi's\", 'levis', 'kiabi', 'celio', 'promod', 'etam', 'carrefour', 'auchan', 'tchibo', 'takko', 'ernsting', 'peek & cloppenburg', 'hunkemöller', 'we fashion', 'jack & jones', 'vero moda', 'pepe jeans', 'desigual', 'el corte ingl', 'cortefiel', 'mayoral', 'g-star', 'scotch & soda', 'zeeman', 'matalan', 'river island', 'new look', 'boohoo', 'asos', 'sinsay', 'cropp', 'mohito', 'pull&bear', 'pull & bear', 'bershka', 'stradivarius', 'massimo dutti', 'oysho', 'ikea', 'jysk', 'armani', 'gucci', 'prada', 'burberry', 'ralph lauren', 'tommy hilfiger', 'calvin klein', 'uniqlo', 'lacoste', 'superdry', 'jd sports', 'intersport', 'engelbert strauss', 'koton', 'defacto', 'lc waikiki'];\n  // Whole-word match only: \"zara\" must not fire inside \"yazarak\", nor \"otto\" inside \"cotton\".\n  const esc = (s) => s.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');\n  const wordHit = (name) => new RegExp('(^|[^a-z0-9çğıöşüâîû])' + esc(name) + '(?=$|[^a-z0-9çğıöşüâîû])').test(low);\n  const named = buyers.filter(wordHit);\n  if (named.length) issues.push('Names a buyer or brand: ' + named.join(', '));\n  if (/(€|£|₺|\\$|\\b(eur|usd|gbp|tl)\\b)/i.test(t)) issues.push('Mentions money or prices');\n  if (/\\b\\d[\\d.,]*\\s*(adet|parça|ton|tons|tonnes|kg|metre|meters|pcs|pieces|units|orders|order|sipariş)\\b/i.test(t)) issues.push('Mentions order volumes or quantities');\n  const words = ['sipariş hacmi', 'sipariş adedi', 'order volume', 'order quantity', 'minimum order', 'moq', 'fiyat', 'price', 'birim fiyat', 'tedarikçisi', 'supplier of', 'supplies to', 'supplier to', 'müşteriniz', 'your customer', 'your client', 'your buyer', 'alıcınız', 'customer list', 'müşteri listesi', 'kapasite', 'capacity', 'marj', 'margin', 'ciro', 'revenue', 'turnover'];\n  const hits = words.filter(w => low.includes(w));\n  if (hits.length) issues.push('Commercially sensitive wording: ' + hits.join(', '));\n  return issues;\n}\n"
-      },
-      "id": "9c17d8c4-0694-45ec-a9c9-1b4971c01585",
+      "id": "811914a4-2271-438d-a35a-a96f64b8f98b",
       "name": "Check Draft",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         1584,
         0
-      ]
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Plain-code check of the generated email, no AI. Marks the draft OK or Needs fix.\nconst draft = ($input.item.json.output) || {};\nconst subject = String(draft.subject || '').trim();\nconst body = String(draft.body || '');\nconst lower = body.toLowerCase();\nconst settings = $('Read Settings').first().json || {};\nconst lead = $('Compliance check').item.json || {};\nconst isTr = String(lead.Language || '').trim().toLowerCase() === 'tr';\nconst reasons = [];\n\nconst has = (s) => s && lower.includes(String(s).toLowerCase().trim());\nconst start = (s, n) => String(s || '').trim().slice(0, n);\nconst domainOf = (u) => String(u || '').toLowerCase().replace(/^https?:\\/\\//, '').replace(/^www\\./, '').split('/')[0].split(':')[0].trim();\n\nif (!subject) reasons.push('Subject is empty');\nif (!body.trim()) reasons.push('Body is empty');\nif (!has(settings['Sender Name'])) reasons.push('Sender name missing');\nif (!has(settings['Company Legal Name'])) reasons.push('Company legal name missing');\nif (!has(start(settings['Company Address'], 12))) reasons.push('Company address missing');\n\n// Texprove's own website (Settings 'Company Website', default texprove.com) must be in the signature so prospects can check us out.\nconst ownDomain = domainOf(settings['Company Website'] || 'texprove.com') || 'texprove.com';\nif (!lower.includes(ownDomain)) reasons.push('Texprove website missing from signature');\n\nconst optOut = isTr ? settings['Opt-out TR'] : settings['Opt-out EN'];\nif (!has(start(optOut, 25))) reasons.push('Opt-out sentence missing (' + (isTr ? 'TR' : 'EN') + ')');\n\nconst sourceOk = isTr ? has('web sitesinden aldık') : has('contact details on your company');\nif (!sourceOk) reasons.push('Data-source sentence missing');\n\n// Links: only the lead's own website and Texprove's website are allowed.\nconst siteDomain = domainOf(lead.Website);\nconst allowedDomains = [siteDomain, ownDomain].filter(Boolean);\nconst links = body.match(/https?:\\/\\/[^\\s)>\\]]+/gi) || [];\nconst foreign = links.filter(l => !allowedDomains.some(d => l.toLowerCase().includes(d)));\nif (foreign.length) reasons.push('Links to other sites: ' + foreign.join(', '));\n\nconst words = body.trim().split(/\\s+/).length;\nif (words > 190) reasons.push('Too long (' + words + ' words incl. signature)');\n\nconst banned = ['garanti', 'guaranteed', '%100', '100%', 'ücretsiz', 'free trial', 'son şans', 'last chance'];\nconst hits = banned.filter(b => lower.includes(b));\nif (hits.length) reasons.push('Hype wording: ' + hits.join(', '));\n\n// Trade-secret rule: check subject and body (the signature is from Settings and should never trip it).\nfor (const r of sensitiveIssues(subject + '\\n' + body)) reasons.push(r);\n\nreturn { json: {\n  ...$input.item.json,\n  draft_check_status: reasons.length ? 'Needs fix' : 'OK',\n  draft_check_notes: reasons.join('; '),\n} };\n\n// Trade-secret rule (Nil's compliance plan): no buyer names, order volumes, prices, capacities or margins in outreach text.\nfunction sensitiveIssues(text) {\n  const t = String(text || '');\n  const low = t.toLowerCase();\n  const issues = [];\n  const buyers = ['zara', 'inditex', 'h&m', 'hennes', 'primark', 'c&a', 'mango', 'marks & spencer', 'm&s', 'tesco', 'lidl', 'aldi', 'decathlon', 'hugo boss', 'adidas', 'puma', 'nike', 'esprit', 's.oliver', 'tom tailor', 'bestseller', 'zalando', 'about you', 'otto', 'benetton', 'diesel', \"levi's\", 'levis', 'kiabi', 'celio', 'promod', 'etam', 'carrefour', 'auchan', 'tchibo', 'takko', 'ernsting', 'peek & cloppenburg', 'hunkemöller', 'we fashion', 'jack & jones', 'vero moda', 'pepe jeans', 'desigual', 'el corte ingl', 'cortefiel', 'mayoral', 'g-star', 'scotch & soda', 'zeeman', 'matalan', 'river island', 'new look', 'boohoo', 'asos', 'sinsay', 'cropp', 'mohito', 'pull&bear', 'pull & bear', 'bershka', 'stradivarius', 'massimo dutti', 'oysho', 'ikea', 'jysk', 'armani', 'gucci', 'prada', 'burberry', 'ralph lauren', 'tommy hilfiger', 'calvin klein', 'uniqlo', 'lacoste', 'superdry', 'jd sports', 'intersport', 'engelbert strauss', 'koton', 'defacto', 'lc waikiki'];\n  // Whole-word match only: \"zara\" must not fire inside \"yazarak\", nor \"otto\" inside \"cotton\".\n  const esc = (s) => s.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');\n  const wordHit = (name) => new RegExp('(^|[^a-z0-9çğıöşüâîû])' + esc(name) + '(?=$|[^a-z0-9çğıöşüâîû])').test(low);\n  const named = buyers.filter(wordHit);\n  if (named.length) issues.push('Names a buyer or brand: ' + named.join(', '));\n  if (/(€|£|₺|\\$|\\b(eur|usd|gbp|tl)\\b)/i.test(t)) issues.push('Mentions money or prices');\n  if (/\\b\\d[\\d.,]*\\s*(adet|parça|ton|tons|tonnes|kg|metre|meters|pcs|pieces|units|orders|order|sipariş)\\b/i.test(t)) issues.push('Mentions order volumes or quantities');\n  const words = ['sipariş hacmi', 'sipariş adedi', 'order volume', 'order quantity', 'minimum order', 'moq', 'fiyat', 'price', 'birim fiyat', 'tedarikçisi', 'supplier of', 'supplies to', 'supplier to', 'müşteriniz', 'your customer', 'your client', 'your buyer', 'alıcınız', 'customer list', 'müşteri listesi', 'kapasite', 'capacity', 'marj', 'margin', 'ciro', 'revenue', 'turnover'];\n  const hits = words.filter(w => low.includes(w));\n  if (hits.length) issues.push('Commercially sensitive wording: ' + hits.join(', '));\n  return issues;\n}\n"
+      }
     },
     {
-      "parameters": {
-        "content": "## Draft check, English copy, log\nPlain code, no AI: every draft must contain the sender name, legal name, address, the opt-out sentence in its language, the data-source sentence, no links except the lead's website, no hype words, and nothing commercially sensitive (buyer or brand names, money, quantities, order/price/capacity/margin wording). Failures are saved as Compliance Status = \"Needs fix\" with reasons, for Nil to correct before approving.\n\"Translate to English\" (Claude Haiku 5.5) then writes a plain English copy of Turkish drafts to the Draft Body EN column so Nil can compare; English drafts leave it empty. The compliance decision and the draft are appended to the Log tab.",
-        "height": 180,
-        "width": 420
-      },
-      "id": "b34ac39c-6942-4405-98b0-330c9e696ce1",
+      "id": "f37d4510-9417-47c4-afb0-f0b15919ce85",
       "name": "Note: Draft check",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
         1760,
         -432
-      ]
+      ],
+      "parameters": {
+        "content": "## Draft check, English copy, log\nPlain code, no AI: every draft must contain the sender name, legal name, address, the opt-out sentence in its language, the data-source sentence, no links except the lead's website, no hype words, and nothing commercially sensitive (buyer or brand names, money, quantities, order/price/capacity/margin wording). Failures are saved as Compliance Status = \"Needs fix\" with reasons, for Nil to correct before approving.\n\"Translate to English\" (Claude Haiku 5.5) then writes a plain English copy of Turkish drafts to the Draft Body EN column so Nil can compare; English drafts leave it empty. The compliance decision and the draft are appended to the Log tab.",
+        "width": 420,
+        "height": 180
+      }
     },
     {
-      "parameters": {
-        "promptType": "define",
-        "text": "=Translate the email below into plain, natural English for an internal reviewer who does not read Turkish. Keep the meaning, paragraph structure, signature, data-source sentence and opt-out sentence exactly; do not improve, shorten or add anything. Return only the translated email text, no preface.\nIf the email is already in English, reply with exactly: n/a\n\nSubject: {{ $json.output.subject }}\n\n{{ $json.output.body }}",
-        "needsFallback": true,
-        "batching": {}
-      },
-      "id": "e244eb76-dc85-4f9e-bcc9-ece6a92ced5a",
+      "id": "a358b1ba-d56a-497f-91c5-0bafdaa6548f",
       "name": "Translate to English",
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
@@ -543,9 +551,42 @@
         1760,
         -160
       ],
+      "parameters": {
+        "promptType": "define",
+        "text": "=Translate the email below into plain, natural English for an internal reviewer who does not read Turkish. Keep the meaning, paragraph structure, signature, data-source sentence and opt-out sentence exactly; do not improve, shorten or add anything. Return only the translated email text, no preface.\nIf the email is already in English, reply with exactly: n/a\n\nSubject: {{ $json.output.subject }}\n\n{{ $json.output.body }}",
+        "needsFallback": true,
+        "batching": {}
+      },
       "onError": "continueRegularOutput"
     },
     {
+      "id": "e5e6549c-576d-4797-8636-c7ea2a6aa4c9",
+      "name": "Claude Haiku 5.5 (translate)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.6,
+      "position": [
+        1776,
+        64
+      ],
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "cachedResultName": "Claude Haiku 5.5",
+          "mode": "list",
+          "value": "claude-haiku-5-5"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "753263ef-b420-4234-9a89-e579b6ea841d",
+      "name": "Claude Haiku 5.5 (translate, account 2)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.6,
+      "position": [
+        1904,
+        64
+      ],
       "parameters": {
         "model": {
           "__rl": true,
@@ -555,22 +596,17 @@
         },
         "options": {}
       },
-      "id": "aa59b10c-56d4-48a6-9c6c-be4a4b18573e",
-      "name": "Claude Haiku 5.5 (translate)",
-      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
-      "typeVersion": 1.6,
-      "position": [
-        1776,
-        64
-      ],
-      "credentials": {
-        "anthropicApi": {
-          "id": "JXZ5NOJvJ6mIjWyY",
-          "name": "Anthropic account"
-        }
-      }
+      "notes": "Fallback model: used only when the first Anthropic account errors. Point this node at the second Anthropic credential."
     },
     {
+      "id": "974dd7c6-d7fa-4d1f-9d51-3ffe4483936a",
+      "name": "Set English Draft",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1984,
+        -160
+      ],
       "parameters": {
         "assignments": {
           "assignments": [
@@ -583,17 +619,17 @@
           ]
         },
         "options": {}
-      },
-      "id": "77743def-20ea-4192-ab77-9a91592a539b",
-      "name": "Set English Draft",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [
-        1984,
-        -160
-      ]
+      }
     },
     {
+      "id": "d1dc52b0-889b-4906-99f6-b7f217cc0087",
+      "name": "Log Compliance",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1248,
+        560
+      ],
       "parameters": {
         "operation": "append",
         "documentId": {
@@ -699,23 +735,23 @@
           "cellFormat": "RAW"
         }
       },
-      "id": "e91d5536-49a6-4d3a-a169-73e97dbf6f88",
-      "name": "Log Compliance",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        1248,
-        560
-      ],
       "onError": "continueRegularOutput",
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "xLTp24saWARCuZou",
+          "id": "4Ffu3jMNYiLLnti3",
           "name": "Google Sheets account"
         }
       }
     },
     {
+      "id": "6be019a3-e484-443e-a96d-5d81993aca64",
+      "name": "Log Draft",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1904,
+        416
+      ],
       "parameters": {
         "operation": "append",
         "documentId": {
@@ -821,23 +857,23 @@
           "cellFormat": "RAW"
         }
       },
-      "id": "dd3c5fc4-f6ef-4ce5-b65f-667a67d59796",
-      "name": "Log Draft",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        1904,
-        416
-      ],
       "onError": "continueRegularOutput",
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "xLTp24saWARCuZou",
+          "id": "4Ffu3jMNYiLLnti3",
           "name": "Google Sheets account"
         }
       }
     },
     {
+      "id": "82a93594-7bb0-455c-a765-313a17ad13f7",
+      "name": "Read Suppression",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        784,
+        96
+      ],
       "parameters": {
         "documentId": {
           "__rl": true,
@@ -853,78 +889,18 @@
         },
         "options": {}
       },
-      "id": "6573f2a1-11df-4991-8c6c-2479bdb49659",
-      "name": "Read Suppression",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        784,
-        96
-      ],
-      "alwaysOutputData": true,
       "executeOnce": true,
+      "alwaysOutputData": true,
       "onError": "continueRegularOutput",
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "xLTp24saWARCuZou",
+          "id": "4Ffu3jMNYiLLnti3",
           "name": "Google Sheets account"
         }
       }
     },
     {
-      "parameters": {
-        "model": {
-          "__rl": true,
-          "cachedResultName": "Claude Sonnet 5.5",
-          "mode": "list",
-          "value": "claude-sonnet-5-5"
-        },
-        "options": {}
-      },
-      "id": "1e606968-5ca3-4a90-8981-d95b942c116a",
-      "name": "Claude Sonnet 5.5 (account 2)",
-      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
-      "typeVersion": 1.6,
-      "position": [
-        1232,
-        224
-      ],
-      "notes": "Fallback model: used only when the first Anthropic account errors (credits exhausted, rate limit, outage). Point this node at the second Anthropic credential.",
-      "credentials": {
-        "anthropicApi": {
-          "id": "JXZ5NOJvJ6mIjWyY",
-          "name": "Anthropic account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "model": {
-          "__rl": true,
-          "cachedResultName": "Claude Haiku 5.5",
-          "mode": "list",
-          "value": "claude-haiku-5-5"
-        },
-        "options": {}
-      },
-      "id": "fd11358b-42b5-42db-9cf5-654792d31931",
-      "name": "Claude Haiku 5.5 (translate, account 2)",
-      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
-      "typeVersion": 1.6,
-      "position": [
-        1904,
-        64
-      ],
-      "notes": "Fallback model: used only when the first Anthropic account errors. Point this node at the second Anthropic credential.",
-      "credentials": {
-        "anthropicApi": {
-          "id": "JXZ5NOJvJ6mIjWyY",
-          "name": "Anthropic account"
-        }
-      }
-    },
-    {
-      "id": "681af053-b597-4e99-bcf6-a4de4efaaa4f",
+      "id": "f8940ad3-52fc-4997-9dcb-f66c93082418",
       "name": "WhatsApp Nil",
       "type": "n8n-nodes-base.whatsApp",
       "typeVersion": 1.1,
@@ -941,18 +917,12 @@
         "textBody": "=Texprove: {{ $('Check Draft').all().length }} new email drafts are waiting for your approval in the Leads tab ({{ $('Check Draft').all().filter(i => i.json.draft_check_status === 'Needs fix').length }} marked \"Needs fix\"). Set Approved to Yes, No or Edit.{{ $('Read Settings').first().json['Sheet URL'] ? ' ' + $('Read Settings').first().json['Sheet URL'] : '' }}"
       },
       "notes": "Needs a WhatsApp Business Cloud credential (Meta access token). Meta only delivers free-form text within 24 h of Nil's last message to the business number; outside that window a template message is required.",
-      "onError": "continueRegularOutput",
       "executeOnce": true,
-      "webhookId": "65d34bad-005c-4989-9894-b4a25c31e0ef",
-      "credentials": {
-        "whatsAppApi": {
-          "id": "aqvFqaaR7JLYtUr1",
-          "name": "WhatsApp account"
-        }
-      }
+      "onError": "continueRegularOutput",
+      "webhookId": "eb9353ac-7761-4958-94b9-5f8cda527604"
     },
     {
-      "id": "0129527a-6f50-41ba-bcda-0f70e626a309",
+      "id": "6666be7b-abe0-4292-865a-dba8f5380084",
       "name": "Telegram Nil",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
@@ -971,15 +941,74 @@
         "text": "=Texprove: {{ $('Check Draft').all().length }} new email drafts are waiting for your approval in the Leads tab ({{ $('Check Draft').all().filter(i => i.json.draft_check_status === 'Needs fix').length }} marked \"Needs fix\"). Set Approved to Yes, No or Edit.{{ $('Read Settings').first().json['Sheet URL'] ? ' ' + $('Read Settings').first().json['Sheet URL'] : '' }}"
       },
       "notes": "Needs a Telegram bot credential (token from @BotFather). Nil must start a chat with the bot once; her chat ID goes in Settings 'Nil Telegram Chat ID'.",
-      "webhookId": "10760120-2f63-4faf-b9c4-06c8025109ae",
-      "onError": "continueRegularOutput",
       "executeOnce": true,
+      "onError": "continueRegularOutput",
+      "webhookId": "816e77b7-d925-4666-a431-6747d39b293c",
       "credentials": {
         "telegramApi": {
-          "id": "y32njswIhYQwKdR8",
+          "id": "bErcuSM2t2Uk3jeC",
           "name": "Telegram account"
         }
       }
+    },
+    {
+      "id": "f86627a4-c3fb-414a-9fc2-fbacdd30e322",
+      "name": "Use SMTP? (notify)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2320,
+        -480
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "smtp",
+              "leftValue": "={{ String($('Read Settings').first().json['Mail Provider'] || '').trim().toUpperCase() === 'SMTP' }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      },
+      "notes": "Settings 'Mail Provider' = SMTP sends through the SMTP credential; empty or Gmail uses Gmail."
+    },
+    {
+      "id": "4c127b86-25eb-4196-8dcd-94b4b3e42c01",
+      "name": "Notify Nil (SMTP)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        2432,
+        -480
+      ],
+      "parameters": {
+        "emailFormat": "text",
+        "fromEmail": "={{ $('Read Settings').first().json['SMTP From'] }}",
+        "options": {
+          "appendAttribution": false
+        },
+        "subject": "={{ $('Check Draft').all().length }} new Texprove drafts waiting for approval",
+        "text": "={{ $('Check Draft').all().length }} new drafts are waiting for approval in the Texprove Leads sheet ({{ $('Check Draft').all().filter(i => i.json.draft_check_status === 'Needs fix').length }} marked \"Needs fix\" in Compliance Status, see Compliance Notes for what to correct). Set Approved to Yes, No, or edit the text and set Yes.\n\nSheet: {{ $('Read Settings').first().json['Sheet URL'] ?? 'open the \"Texprove Leads\" Google Sheet, tab Leads' }}",
+        "toEmail": "={{ $('Read Settings').first().json['Nil Email'] }}"
+      },
+      "onError": "continueRegularOutput",
+      "executeOnce": true,
+      "webhookId": "84656076-b951-40ea-a786-4f388e6ee21e",
+      "disabled": true
     }
   ],
   "connections": {
@@ -1027,6 +1056,17 @@
         ]
       ]
     },
+    "Read Settings": {
+      "main": [
+        [
+          {
+            "node": "Read Suppression",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Compliance check": {
       "main": [
         [
@@ -1061,6 +1101,17 @@
         ]
       ]
     },
+    "Draft First Email": {
+      "main": [
+        [
+          {
+            "node": "Check Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Claude Sonnet 5.5": {
       "ai_languageModel": [
         [
@@ -1068,6 +1119,17 @@
             "node": "Draft First Email",
             "type": "ai_languageModel",
             "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude Sonnet 5.5 (account 2)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Draft First Email",
+            "type": "ai_languageModel",
+            "index": 1
           }
         ]
       ]
@@ -1087,11 +1149,6 @@
       "main": [
         [
           {
-            "node": "Notify Nil",
-            "type": "main",
-            "index": 0
-          },
-          {
             "node": "WhatsApp Nil",
             "type": "main",
             "index": 0
@@ -1100,27 +1157,10 @@
             "node": "Telegram Nil",
             "type": "main",
             "index": 0
-          }
-        ]
-      ]
-    },
-    "Draft First Email": {
-      "main": [
-        [
+          },
           {
-            "node": "Check Draft",
+            "node": "Use SMTP? (notify)",
             "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Claude Haiku 5.5 (translate)": {
-      "ai_languageModel": [
-        [
-          {
-            "node": "Translate to English",
-            "type": "ai_languageModel",
             "index": 0
           }
         ]
@@ -1153,22 +1193,33 @@
         ]
       ]
     },
-    "Set English Draft": {
-      "main": [
+    "Claude Haiku 5.5 (translate)": {
+      "ai_languageModel": [
         [
           {
-            "node": "Save Draft",
-            "type": "main",
+            "node": "Translate to English",
+            "type": "ai_languageModel",
             "index": 0
           }
         ]
       ]
     },
-    "Read Settings": {
+    "Claude Haiku 5.5 (translate, account 2)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Translate to English",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Set English Draft": {
       "main": [
         [
           {
-            "node": "Read Suppression",
+            "node": "Save Draft",
             "type": "main",
             "index": 0
           }
@@ -1186,24 +1237,20 @@
         ]
       ]
     },
-    "Claude Sonnet 5.5 (account 2)": {
-      "ai_languageModel": [
+    "Use SMTP? (notify)": {
+      "main": [
         [
           {
-            "node": "Draft First Email",
-            "type": "ai_languageModel",
-            "index": 1
+            "node": "Notify Nil (SMTP)",
+            "type": "main",
+            "index": 0
           }
-        ]
-      ]
-    },
-    "Claude Haiku 5.5 (translate, account 2)": {
-      "ai_languageModel": [
+        ],
         [
           {
-            "node": "Translate to English",
-            "type": "ai_languageModel",
-            "index": 1
+            "node": "Notify Nil",
+            "type": "main",
+            "index": 0
           }
         ]
       ]

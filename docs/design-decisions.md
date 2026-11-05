@@ -42,6 +42,7 @@ At roughly 25 new companies a week and 10 researched leads a weekday, usage was 
 - Google Sheets must store dates as Plain text or string comparisons on `yyyy-MM-dd` break.
 - The Gmail node's "reply to thread" fails on a thread that holds only your own message; WF5 sends through the Gmail API with In-Reply-To / References instead.
 - The Gmail trigger only sees unread mail that arrived since its last poll; opening the inbox by hand hides replies from WF4.
+- SMTP/IMAP fallback (for mailboxes not on Google, such as texprove.com): chosen with `Settings > Mail Provider` rather than detected automatically, because n8n will not activate a workflow with an enabled node that has no credential. Trade-offs: no Gmail threading (follow-ups are new emails with a `Re:` subject, without In-Reply-To headers), no Sent-folder copy, reply matching falls back to sender and subject, and WF5 cannot check the thread for a reply before a follow-up.
 - Telegram's default Markdown parse mode fails on underscores in URLs; use HTML parse mode and escape `&` and `<`.
 - Every notification node needs continue-on-error, otherwise one dead channel stops the run.
 - A whole-word match is needed for banned buyer names ("zara" once matched "yazarak").

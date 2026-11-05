@@ -2,6 +2,14 @@
   "name": "Texprove WF4 - Reply triage",
   "nodes": [
     {
+      "id": "40790d8b-3741-490a-8730-44a3a0bb934d",
+      "name": "Gmail Trigger",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        288
+      ],
       "parameters": {
         "pollTimes": {
           "item": [
@@ -19,78 +27,71 @@
         },
         "options": {}
       },
-      "id": "ca558fb8-bc4d-4065-bef8-75b7d186250a",
-      "name": "Gmail Trigger",
-      "type": "n8n-nodes-base.gmailTrigger",
-      "typeVersion": 1.4,
-      "position": [
-        0,
-        288
-      ],
       "credentials": {
         "gmailOAuth2": {
-          "id": "e4PwwBoziWhyHRLW",
+          "id": "Iu3jA1IOyvPbScAQ",
           "name": "Gmail account"
         }
       }
     },
     {
-      "parameters": {
-        "documentId": {
-          "__rl": true,
-          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM",
-          "mode": "list",
-          "cachedResultName": "demoSheet",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk"
-        },
-        "sheetName": {
-          "__rl": true,
-          "mode": "name",
-          "value": "Leads"
-        },
-        "filtersUI": {
-          "values": [
-            {
-              "lookupColumn": "Gmail Thread ID",
-              "lookupValue": "={{ $json.threadId }}"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "893c8e7a-fdcf-4a54-a799-e60903d439e3",
-      "name": "Find Lead by Thread",
+      "id": "807857ab-a390-4517-bb44-1ee45da7985b",
+      "name": "Get Leads (reply)",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
         272,
         416
       ],
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "demoSheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk",
+          "mode": "list",
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM"
+        },
+        "options": {},
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Leads"
+        }
+      },
+      "executeOnce": true,
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "xLTp24saWARCuZou",
+          "id": "4Ffu3jMNYiLLnti3",
           "name": "Google Sheets account"
         }
       }
     },
     {
-      "parameters": {
-        "promptType": "define",
-        "text": "=Email reply from a sales lead (may be Turkish or English).\nSubject: {{ $('Gmail Trigger').item.json.subject }}\n\n{{ $('Gmail Trigger').item.json.text }}\n\nReturn: (1) a one-sentence summary IN ENGLISH; (2) whether the sender asked to be removed / not contacted again (yes or no); (3) exactly one category: Hot = wants a call, demo or pricing; Warm = interested, asks a question, or says later; Cold = vague or not now, but no refusal; Not interested = refuses or asks not to be contacted; Auto-reply = out of office, bounce or other automatic message.",
-        "hasOutputParser": true,
-        "needsFallback": true,
-        "batching": {}
-      },
-      "id": "fbbecba5-8579-445c-94d9-8e970dbac40b",
+      "id": "f194ed1d-272f-4e21-8a88-298127524efc",
       "name": "Summarize Reply",
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
         496,
         416
-      ]
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "=Email reply from a sales lead (may be Turkish or English).\nSubject: {{ $('Find Lead by Thread').item.json._reply.subject }}\n\n{{ $('Find Lead by Thread').item.json._reply.text }}\n\nReturn: (1) a one-sentence summary IN ENGLISH; (2) whether the sender asked to be removed / not contacted again (yes or no); (3) exactly one category: Hot = wants a call, demo or pricing; Warm = interested, asks a question, or says later; Cold = vague or not now, but no refusal; Not interested = refuses or asks not to be contacted; Auto-reply = out of office, bounce or other automatic message.",
+        "hasOutputParser": true,
+        "needsFallback": true,
+        "batching": {}
+      }
     },
     {
+      "id": "bcb90691-a14c-4ef6-9835-d45300c9a420",
+      "name": "Claude Haiku (summary)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.6,
+      "position": [
+        512,
+        640
+      ],
       "parameters": {
         "model": {
           "__rl": true,
@@ -99,37 +100,51 @@
           "cachedResultName": "Claude Haiku 5.5"
         },
         "options": {}
-      },
-      "id": "161be0cb-379a-4ffb-b0e7-870df9e59679",
-      "name": "Claude Haiku (summary)",
-      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
-      "typeVersion": 1.6,
-      "position": [
-        512,
-        640
-      ],
-      "credentials": {
-        "anthropicApi": {
-          "id": "JXZ5NOJvJ6mIjWyY",
-          "name": "Anthropic account"
-        }
       }
     },
     {
+      "id": "a6218ab1-14b9-48e2-a03d-e254dd3bc423",
+      "name": "Claude Haiku (summary, account 2)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.6,
+      "position": [
+        384,
+        640
+      ],
       "parameters": {
-        "schemaType": "manual",
-        "inputSchema": "{\"type\":\"object\",\"properties\":{\"summary\":{\"type\":\"string\"},\"removal_requested\":{\"type\":\"string\",\"enum\":[\"yes\",\"no\"]},\"category\":{\"type\":\"string\",\"enum\":[\"Hot\",\"Warm\",\"Cold\",\"Not interested\",\"Auto-reply\"]}},\"required\":[\"summary\",\"removal_requested\",\"category\"]}"
+        "model": {
+          "__rl": true,
+          "cachedResultName": "Claude Haiku 5.5",
+          "mode": "list",
+          "value": "claude-haiku-5-5"
+        },
+        "options": {}
       },
-      "id": "331a6876-5f0e-4fbc-9e03-6964b3134ea4",
+      "notes": "Fallback model: used only when the first Anthropic account errors. Point this node at the second Anthropic credential."
+    },
+    {
+      "id": "2a6087cb-eed1-4246-ad71-bf02cabc7972",
       "name": "Summary JSON",
       "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
       "typeVersion": 1.3,
       "position": [
         640,
         640
-      ]
+      ],
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\"type\":\"object\",\"properties\":{\"summary\":{\"type\":\"string\"},\"removal_requested\":{\"type\":\"string\",\"enum\":[\"yes\",\"no\"]},\"category\":{\"type\":\"string\",\"enum\":[\"Hot\",\"Warm\",\"Cold\",\"Not interested\",\"Auto-reply\"]}},\"required\":[\"summary\",\"removal_requested\",\"category\"]}"
+      }
     },
     {
+      "id": "efe84626-8dc6-42e6-8655-7b38b519c2b0",
+      "name": "Category Hot",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        752,
+        0
+      ],
       "parameters": {
         "assignments": {
           "assignments": [
@@ -142,17 +157,17 @@
           ]
         },
         "options": {}
-      },
-      "id": "ace52e9b-c840-4278-a92d-d4b4cfd2a60b",
-      "name": "Category Hot",
+      }
+    },
+    {
+      "id": "92f2309e-2e85-48ee-a507-b32d4893c890",
+      "name": "Decide Outcome",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        752,
-        0
-      ]
-    },
-    {
+        1024,
+        416
+      ],
       "parameters": {
         "assignments": {
           "assignments": [
@@ -189,17 +204,17 @@
           ]
         },
         "options": {}
-      },
-      "id": "4bbaa2c8-c2f6-47f3-8486-6e6db6b8ad49",
-      "name": "Decide Outcome",
+      }
+    },
+    {
+      "id": "6d44472d-d010-4b61-8ab3-f0512e15dc4b",
+      "name": "Category Warm",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        1024,
-        416
-      ]
-    },
-    {
+        752,
+        192
+      ],
       "parameters": {
         "assignments": {
           "assignments": [
@@ -212,17 +227,17 @@
           ]
         },
         "options": {}
-      },
-      "id": "d30f2508-c0b6-4329-acad-d226899d6008",
-      "name": "Category Warm",
+      }
+    },
+    {
+      "id": "f8ade447-2eae-47d0-99d1-ee53428bc723",
+      "name": "Category Cold",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
         752,
-        192
-      ]
-    },
-    {
+        384
+      ],
       "parameters": {
         "assignments": {
           "assignments": [
@@ -235,17 +250,17 @@
           ]
         },
         "options": {}
-      },
-      "id": "a7ef9de9-e55f-4cad-a4ab-873ef80cfe2a",
-      "name": "Category Cold",
+      }
+    },
+    {
+      "id": "a47bc76c-bcfd-431c-a862-a4a72f3006e5",
+      "name": "Category Not interested",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
         752,
-        384
-      ]
-    },
-    {
+        576
+      ],
       "parameters": {
         "assignments": {
           "assignments": [
@@ -258,17 +273,17 @@
           ]
         },
         "options": {}
-      },
-      "id": "68fd6eb3-bd39-4ee4-acdb-6e8f981d07a5",
-      "name": "Category Not interested",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [
-        752,
-        576
-      ]
+      }
     },
     {
+      "id": "26e46c14-2e51-4a44-9434-100bcd584af7",
+      "name": "Update Lead Row",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1248,
+        416
+      ],
       "parameters": {
         "operation": "update",
         "documentId": {
@@ -365,31 +380,31 @@
         },
         "options": {}
       },
-      "id": "950eb037-0a17-4ba8-8048-9f257a571a36",
-      "name": "Update Lead Row",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        1248,
-        416
-      ],
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "xLTp24saWARCuZou",
+          "id": "4Ffu3jMNYiLLnti3",
           "name": "Google Sheets account"
         }
       }
     },
     {
+      "id": "fae4cb1d-34b8-4437-a6bb-fd3513c7cd49",
+      "name": "HubSpot Log Reply",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2.2,
+      "position": [
+        1472,
+        416
+      ],
       "parameters": {
         "authentication": "appToken",
         "resource": "engagement",
         "type": "email",
         "metadata": {
           "fromEmail": "={{ $('Find Lead by Thread').item.json.Email }}",
-          "subject": "={{ $('Gmail Trigger').item.json.subject }}",
+          "subject": "={{ $('Find Lead by Thread').item.json._reply.subject }}",
           "toEmail": [
-            "={{ $('Gmail Trigger').item.json.to?.value?.[0]?.address || 'inbox' }}"
+            "={{ $('Find Lead by Thread').item.json._reply.to || 'inbox' }}"
           ]
         },
         "additionalFields": {
@@ -398,32 +413,16 @@
           }
         }
       },
-      "id": "a9104d48-ba9e-4f94-b32b-8a6b62f18b00",
-      "name": "HubSpot Log Reply",
-      "type": "n8n-nodes-base.hubspot",
-      "typeVersion": 2.2,
-      "position": [
-        1472,
-        416
-      ],
       "onError": "continueRegularOutput",
       "credentials": {
         "hubspotAppToken": {
-          "id": "bz7tvbTzcKKP4L3N",
+          "id": "FmgxvuKavV3YEBU7",
           "name": "HubSpot Service Key account"
         }
       }
     },
     {
-      "parameters": {
-        "authentication": "appToken",
-        "email": "={{ $('Find Lead by Thread').item.json.Email }}",
-        "additionalFields": {
-          "leadStatus": "={{ $('Decide Outcome').item.json.hs_status }}"
-        },
-        "options": {}
-      },
-      "id": "75cc24cb-a5e3-46de-a401-a5cafd7e4521",
+      "id": "a09a2012-2add-4215-914d-b980a905dcac",
       "name": "HubSpot Set Lead Status",
       "type": "n8n-nodes-base.hubspot",
       "typeVersion": 2.2,
@@ -431,20 +430,24 @@
         1696,
         416
       ],
+      "parameters": {
+        "authentication": "appToken",
+        "email": "={{ $('Read Settings (test mode)').item.json['Test Email'] || $('Find Lead by Thread').item.json.Email }}",
+        "additionalFields": {
+          "leadStatus": "={{ $('Decide Outcome').item.json.hs_status }}"
+        },
+        "options": {}
+      },
       "onError": "continueRegularOutput",
       "credentials": {
         "hubspotAppToken": {
-          "id": "bz7tvbTzcKKP4L3N",
+          "id": "FmgxvuKavV3YEBU7",
           "name": "HubSpot Service Key account"
         }
       }
     },
     {
-      "parameters": {
-        "operation": "markAsRead",
-        "messageId": "={{ $('Gmail Trigger').item.json.id }}"
-      },
-      "id": "33b30ea4-97f6-4bb2-955d-b420a7db10e5",
+      "id": "10d78489-b2b6-4fb5-a1e9-038a7d996ba0",
       "name": "Mark Reply Read",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
@@ -452,15 +455,27 @@
         1920,
         416
       ],
-      "webhookId": "e5f736f4-69af-4ea4-985a-75f73cfa4b16",
+      "parameters": {
+        "operation": "markAsRead",
+        "messageId": "={{ $('Find Lead by Thread').item.json._reply.message_id }}"
+      },
+      "webhookId": "27f33e37-ea7e-4d8f-8e84-d0ccaab5e7f0",
       "credentials": {
         "gmailOAuth2": {
-          "id": "e4PwwBoziWhyHRLW",
+          "id": "Iu3jA1IOyvPbScAQ",
           "name": "Gmail account"
         }
       }
     },
     {
+      "id": "6f27610f-13fa-4ef9-a132-bf7288ef1001",
+      "name": "Hot reply?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1552,
+        416
+      ],
       "parameters": {
         "conditions": {
           "options": {
@@ -483,17 +498,17 @@
           "combinator": "and"
         },
         "options": {}
-      },
-      "id": "f3831ccd-da63-44ac-aa6a-4e8eb012b729",
-      "name": "Hot reply?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.3,
-      "position": [
-        1552,
-        416
-      ]
+      }
     },
     {
+      "id": "c35d8f38-f4a2-45fd-83d0-609381da6dc2",
+      "name": "Read Settings",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1776,
+        416
+      ],
       "parameters": {
         "documentId": {
           "__rl": true,
@@ -509,22 +524,22 @@
         },
         "options": {}
       },
-      "id": "ca177b13-8b29-4e1f-98b6-2b6cb2cb8e0f",
-      "name": "Read Settings",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        1776,
-        416
-      ],
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "xLTp24saWARCuZou",
+          "id": "4Ffu3jMNYiLLnti3",
           "name": "Google Sheets account"
         }
       }
     },
     {
+      "id": "1d3bd1bd-8fd3-4e8f-a204-2635342a7828",
+      "name": "Alert Nil",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2000,
+        256
+      ],
       "parameters": {
         "sendTo": "={{ $json['Nil Email'] }}",
         "subject": "=Hot reply: {{ $('Find Lead by Thread').item.json['Contact Name'] }} at {{ $('Find Lead by Thread').item.json.Company }}",
@@ -534,39 +549,39 @@
           "appendAttribution": false
         }
       },
-      "id": "a2de7007-1347-4754-9d9c-6c0435797f1b",
-      "name": "Alert Nil",
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.2,
-      "position": [
-        2000,
-        256
-      ],
-      "webhookId": "aac8dd1d-a8df-4d1a-b0ae-1e582d7a0e96",
       "onError": "continueRegularOutput",
+      "webhookId": "b6a7748b-a596-4e65-8413-8fcd6b92215c",
       "credentials": {
         "gmailOAuth2": {
-          "id": "e4PwwBoziWhyHRLW",
+          "id": "Iu3jA1IOyvPbScAQ",
           "name": "Gmail account"
         }
       }
     },
     {
-      "parameters": {
-        "content": "## Reply triage\nMatches the incoming email to a lead by Gmail Thread ID (no match = stop). One Claude Haiku call summarises the reply, checks for a removal request and classifies it (Hot / Warm / Cold / Not interested / Auto-reply); a Switch routes on the category. If the first Anthropic account errors (credits exhausted, rate limit), the chain retries on the account-2 model. Writes Stage / Reply Category / Reply Summary, logs the reply in HubSpot and alerts Nil on Hot replies. Auto-replies change nothing. Each classified reply is appended to the Log tab.",
-        "height": 180,
-        "width": 400
-      },
-      "id": "ffb3c9fe-0428-4d0c-a85f-841b8a0ced9d",
+      "id": "47da299d-a800-487a-8962-af8fc25f9d3d",
       "name": "Note: Reply triage",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
         928,
         864
-      ]
+      ],
+      "parameters": {
+        "content": "## Reply triage\nMatches the incoming email to a lead by Gmail Thread ID (no match = stop). One Claude Haiku call summarises the reply, checks for a removal request and classifies it (Hot / Warm / Cold / Not interested / Auto-reply); a Switch routes on the category. If the first Anthropic account errors (credits exhausted, rate limit), the chain retries on the account-2 model. Writes Stage / Reply Category / Reply Summary, logs the reply in HubSpot and alerts Nil on Hot replies. Auto-replies change nothing. Each classified reply is appended to the Log tab.",
+        "width": 400,
+        "height": 180
+      }
     },
     {
+      "id": "9d7a0903-3bd4-4ba0-b4d4-be759f752432",
+      "name": "Log Reply",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1248,
+        208
+      ],
       "parameters": {
         "operation": "append",
         "documentId": {
@@ -659,7 +674,7 @@
           ],
           "value": {
             "Company": "={{ $('Find Lead by Thread').item.json.Company }}",
-            "Input": "={{ 'Subject: ' + $('Gmail Trigger').item.json.subject + '. ' + String($('Gmail Trigger').item.json.text || '').slice(0, 1500) }}",
+            "Input": "={{ 'Subject: ' + $('Find Lead by Thread').item.json._reply.subject + '. ' + String($('Find Lead by Thread').item.json._reply.text || '').slice(0, 1500) }}",
             "Lead ID": "={{ $('Find Lead by Thread').item.json['Lead ID'] }}",
             "Output": "={{ 'Category ' + $json.final_category + '; summary: ' + $json.reply_summary }}",
             "Reason": "={{ 'Stage set to ' + $json.stage + '; Opt-out ' + ($json.opt_out || 'unchanged') + '; HubSpot status ' + $json.hs_status }}",
@@ -672,49 +687,23 @@
           "cellFormat": "RAW"
         }
       },
-      "id": "7bcace27-e23d-45cc-ab5d-840a5c4a5e1f",
-      "name": "Log Reply",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        1248,
-        208
-      ],
       "onError": "continueRegularOutput",
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "xLTp24saWARCuZou",
+          "id": "4Ffu3jMNYiLLnti3",
           "name": "Google Sheets account"
         }
       }
     },
     {
-      "parameters": {
-        "model": {
-          "__rl": true,
-          "cachedResultName": "Claude Haiku 5.5",
-          "mode": "list",
-          "value": "claude-haiku-5-5"
-        },
-        "options": {}
-      },
-      "id": "ffccc2fb-ba2b-4649-aed2-ef7d97a1e27b",
-      "name": "Claude Haiku (summary, account 2)",
-      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
-      "typeVersion": 1.6,
+      "id": "3ef364d0-ba7a-44f7-b0df-9e231bda6cd1",
+      "name": "Route by Category",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
       "position": [
-        384,
-        640
+        848,
+        416
       ],
-      "notes": "Fallback model: used only when the first Anthropic account errors. Point this node at the second Anthropic credential.",
-      "credentials": {
-        "anthropicApi": {
-          "id": "JXZ5NOJvJ6mIjWyY",
-          "name": "Anthropic account"
-        }
-      }
-    },
-    {
       "parameters": {
         "rules": {
           "values": [
@@ -818,18 +807,10 @@
         },
         "options": {}
       },
-      "id": "cfcc019f-5ba3-4ef5-92fa-8e40f85bf52f",
-      "name": "Route by Category",
-      "type": "n8n-nodes-base.switch",
-      "typeVersion": 3.2,
-      "position": [
-        848,
-        416
-      ],
       "notes": "Auto-reply matches no rule and is dropped (nothing changes for the lead), as before."
     },
     {
-      "id": "ae3cd7ba-9bec-4bbb-9cd3-053911fb9094",
+      "id": "d7f8b16c-2a6b-4df4-b47a-3ab80fa13465",
       "name": "WhatsApp Nil (hot)",
       "type": "n8n-nodes-base.whatsApp",
       "typeVersion": 1.1,
@@ -846,17 +827,12 @@
         "textBody": "=Texprove: Hot reply from {{ $('Find Lead by Thread').item.json['Contact Name'] }} at {{ $('Find Lead by Thread').item.json.Company }}: {{ $('Decide Outcome').item.json.reply_summary }}{{ $('Read Settings').item.json['Sheet URL'] ? ' ' + $('Read Settings').item.json['Sheet URL'] : '' }}"
       },
       "notes": "Same Hot-reply alert as the email, on WhatsApp. Free-form text only delivers within 24 h of Nil's last message to the business number; otherwise a template is needed.",
-      "webhookId": "201b334f-50ef-4252-ad07-f62317a035fb",
       "onError": "continueRegularOutput",
-      "credentials": {
-        "whatsAppApi": {
-          "id": "aqvFqaaR7JLYtUr1",
-          "name": "WhatsApp account"
-        }
-      }
+      "webhookId": "6244ca46-41e0-49fa-8a1b-a89e4ccce309",
+      "disabled": true
     },
     {
-      "id": "89b46fee-70b1-465a-aeca-759c928067de",
+      "id": "145384f6-a690-40df-aad6-bd4f31489c32",
       "name": "Telegram Nil (hot)",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
@@ -875,33 +851,191 @@
         "text": "=Texprove: Hot reply from {{ String($('Find Lead by Thread').item.json['Contact Name'] || '').replace(/&/g, '&amp;').replace(/</g, '&lt;') }} at {{ String($('Find Lead by Thread').item.json.Company || '').replace(/&/g, '&amp;').replace(/</g, '&lt;') }}: {{ String($('Decide Outcome').item.json.reply_summary || '').replace(/&/g, '&amp;').replace(/</g, '&lt;') }}{{ $('Read Settings').item.json['Sheet URL'] ? ' ' + $('Read Settings').item.json['Sheet URL'] : '' }}"
       },
       "notes": "Same Hot-reply alert as the email, on Telegram.",
-      "webhookId": "bec9cf70-ba40-4bba-9b6c-4c719f432a87",
       "onError": "continueRegularOutput",
+      "webhookId": "1da8c39e-1959-4e73-98f9-3609dc89ab5f",
       "credentials": {
         "telegramApi": {
-          "id": "y32njswIhYQwKdR8",
+          "id": "bErcuSM2t2Uk3jeC",
           "name": "Telegram account"
         }
       }
+    },
+    {
+      "id": "420bbed5-0f5b-4d4b-ba77-f79008dd8c76",
+      "name": "Read Settings (test mode)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1360,
+        560
+      ],
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "demoSheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk",
+          "mode": "list",
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM"
+        },
+        "options": {},
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Settings"
+        }
+      },
+      "notes": "Reads Settings once per reply so the HubSpot steps can honour the Test Email switch.",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "4Ffu3jMNYiLLnti3",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "7422bbec-b321-4289-92a8-bd3bdf51cd40",
+      "name": "IMAP Trigger",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        560
+      ],
+      "parameters": {
+        "format": "resolved",
+        "mailbox": "INBOX",
+        "options": {
+          "customEmailConfig": "[\"UNSEEN\"]"
+        },
+        "postProcessAction": "read"
+      },
+      "disabled": true,
+      "notes": "Use instead of Gmail Trigger when Settings Mail Provider = SMTP: select the IMAP credential, enable this node and disable Gmail Trigger."
+    },
+    {
+      "id": "e4528ea8-c0e0-47aa-9435-251acb88a6a9",
+      "name": "Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        128,
+        416
+      ],
+      "parameters": {
+        "jsCode": "// Normalises an incoming reply from either the Gmail Trigger or the IMAP Trigger.\nconst addr = (v) => {\n  if (!v) return '';\n  if (typeof v === 'string') { const m = v.match(/<([^>]+)>/); return (m ? m[1] : v).trim(); }\n  return (v.value && v.value[0] && v.value[0].address) || '';\n};\nreturn $input.all().map((it, i) => {\n  const j = it.json;\n  const isGmail = !!j.threadId;\n  return {\n    json: {\n      source: isGmail ? 'gmail' : 'imap',\n      message_id: isGmail ? j.id : String(j.messageId || ''),\n      thread_id: isGmail ? j.threadId : '',\n      in_reply_to: isGmail ? '' : String(j.inReplyTo || ''),\n      references: isGmail ? '' : (Array.isArray(j.references) ? j.references.join(' ') : String(j.references || '')),\n      subject: String(j.subject || ''),\n      text: String(j.text || j.textPlain || ''),\n      from: addr(j.from).toLowerCase(),\n      to: addr(j.to),\n    },\n    pairedItem: { item: i },\n  };\n});"
+      }
+    },
+    {
+      "id": "81bd7e43-abb9-469f-b63a-599832c76c4d",
+      "name": "Find Lead by Thread",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        416
+      ],
+      "parameters": {
+        "jsCode": "// Matches each reply to its lead. No match = the reply is ignored.\n// Gmail: by Gmail Thread ID. IMAP/SMTP: by In-Reply-To/References against the stored 'smtp:<Message-ID>',\n// then by sender = lead email, then by subject (without Re:/Ynt:) among leads still in Sent / Follow-up stages.\nconst replies = $('Reply').all().map(i => i.json);\nconst leads = $('Get Leads (reply)').all().map(i => i.json).filter(r => r && r['Lead ID']);\nconst norm = (s) => String(s || '').replace(/[<>]/g, '').trim().toLowerCase();\nconst baseSubj = (s) => String(s || '').replace(/^\\s*((re|ynt|aw|fw|fwd|ynt\\.)\\s*:\\s*)+/i, '').trim().toLowerCase();\nconst open = ['Sent', 'Follow-up 1', 'Follow-up 2', 'Follow-up 3'];\nconst out = [];\nfor (const r of replies) {\n  let lead;\n  if (r.source === 'gmail') {\n    lead = leads.find(l => String(l['Gmail Thread ID'] || '') === r.thread_id);\n  } else {\n    const ids = (r.in_reply_to + ' ' + r.references).split(/\\s+/).map(norm).filter(Boolean);\n    lead = leads.find(l => { const t = String(l['Gmail Thread ID'] || ''); return t.startsWith('smtp:') && ids.includes(norm(t.slice(5))); });\n    if (!lead) lead = leads.find(l => open.includes(l.Stage) && r.from && norm(l.Email) === r.from);\n    if (!lead) { const s = baseSubj(r.subject); if (s) lead = leads.find(l => open.includes(l.Stage) && baseSubj(l.Subject) === s); }\n  }\n  if (lead) out.push({ json: { ...lead, _reply: r } });\n}\nreturn out;"
+      }
+    },
+    {
+      "id": "c4f4799b-95cc-4139-bccd-b56f139894bf",
+      "name": "From Gmail?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1808,
+        416
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "gm",
+              "leftValue": "={{ $('Find Lead by Thread').item.json._reply.source }}",
+              "operator": {
+                "operation": "equals",
+                "type": "string"
+              },
+              "rightValue": "gmail"
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      },
+      "notes": "IMAP already marks the message read itself."
+    },
+    {
+      "id": "f80f34fb-622e-4b68-b591-5ecc428a5306",
+      "name": "Use SMTP? (alert)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1888,
+        256
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "smtp",
+              "leftValue": "={{ String($json['Mail Provider'] || '').trim().toUpperCase() === 'SMTP' }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "a49a7ff3-47a9-4a01-bde7-d5a92b469f5e",
+      "name": "Alert Nil (SMTP)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        2000,
+        112
+      ],
+      "parameters": {
+        "emailFormat": "text",
+        "fromEmail": "={{ $json['SMTP From'] }}",
+        "options": {
+          "appendAttribution": false
+        },
+        "subject": "=Hot reply: {{ $('Find Lead by Thread').item.json['Contact Name'] }} at {{ $('Find Lead by Thread').item.json.Company }}",
+        "text": "=Hot reply from {{ $('Find Lead by Thread').item.json['Contact Name'] }} at {{ $('Find Lead by Thread').item.json.Company }}: {{ $('Decide Outcome').item.json.reply_summary }}\n\nSheet: {{ $json['Sheet URL'] ?? 'open the \"Texprove Leads\" Google Sheet, tab Leads' }}",
+        "toEmail": "={{ $json['Nil Email'] }}"
+      },
+      "disabled": true,
+      "onError": "continueRegularOutput",
+      "webhookId": "6dc42434-8f3f-45b6-9b36-745f586f35a9"
     }
   ],
   "connections": {
-    "Gmail Trigger": {
+    "Summarize Reply": {
       "main": [
         [
           {
-            "node": "Find Lead by Thread",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Find Lead by Thread": {
-      "main": [
-        [
-          {
-            "node": "Summarize Reply",
+            "node": "Route by Category",
             "type": "main",
             "index": 0
           }
@@ -915,6 +1049,17 @@
             "node": "Summarize Reply",
             "type": "ai_languageModel",
             "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude Haiku (summary, account 2)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Summarize Reply",
+            "type": "ai_languageModel",
+            "index": 1
           }
         ]
       ]
@@ -990,33 +1135,11 @@
         ]
       ]
     },
-    "Update Lead Row": {
-      "main": [
-        [
-          {
-            "node": "HubSpot Log Reply",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "HubSpot Log Reply": {
       "main": [
         [
           {
             "node": "HubSpot Set Lead Status",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "HubSpot Set Lead Status": {
-      "main": [
-        [
-          {
-            "node": "Mark Reply Read",
             "type": "main",
             "index": 0
           }
@@ -1049,11 +1172,6 @@
       "main": [
         [
           {
-            "node": "Alert Nil",
-            "type": "main",
-            "index": 0
-          },
-          {
             "node": "WhatsApp Nil (hot)",
             "type": "main",
             "index": 0
@@ -1062,26 +1180,9 @@
             "node": "Telegram Nil (hot)",
             "type": "main",
             "index": 0
-          }
-        ]
-      ]
-    },
-    "Claude Haiku (summary, account 2)": {
-      "ai_languageModel": [
-        [
+          },
           {
-            "node": "Summarize Reply",
-            "type": "ai_languageModel",
-            "index": 1
-          }
-        ]
-      ]
-    },
-    "Summarize Reply": {
-      "main": [
-        [
-          {
-            "node": "Route by Category",
+            "node": "Use SMTP? (alert)",
             "type": "main",
             "index": 0
           }
@@ -1114,6 +1215,130 @@
         [
           {
             "node": "Category Not interested",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Lead Row": {
+      "main": [
+        [
+          {
+            "node": "Read Settings (test mode)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Settings (test mode)": {
+      "main": [
+        [
+          {
+            "node": "HubSpot Log Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IMAP Trigger": {
+      "main": [
+        [
+          {
+            "node": "Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply": {
+      "main": [
+        [
+          {
+            "node": "Get Leads (reply)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Leads (reply)": {
+      "main": [
+        [
+          {
+            "node": "Find Lead by Thread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Lead by Thread": {
+      "main": [
+        [
+          {
+            "node": "Summarize Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HubSpot Set Lead Status": {
+      "main": [
+        [
+          {
+            "node": "From Gmail?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "From Gmail?": {
+      "main": [
+        [
+          {
+            "node": "Mark Reply Read",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Hot reply?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Use SMTP? (alert)": {
+      "main": [
+        [
+          {
+            "node": "Alert Nil (SMTP)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Alert Nil",
             "type": "main",
             "index": 0
           }

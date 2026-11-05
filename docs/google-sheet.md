@@ -25,7 +25,7 @@ Lead ID | Company | Website | Country | Segment | Contact Name | Contact Title |
 | Approved | manager | Dropdown: `Pending`, `Yes`, `No`, `Edit`. Only `Yes` sends. Used for first emails (WF3) and follow-ups (WF5) |
 | Nil Notes | manager | Free text; WF5 uses it to rewrite a follow-up when Approved = `Edit` |
 | Stage | all | The state machine, see below |
-| Sent At, Gmail Thread ID, HubSpot Contact ID | WF3 | Set when the first email goes out |
+| Sent At, Gmail Thread ID, HubSpot Contact ID | WF3 | Set when the first email goes out. With Mail Provider `SMTP`, Gmail Thread ID holds `smtp:<Message-ID>` |
 | Follow-up Count, Next Follow-up Date | WF3, WF5, WF4 | WF4 clears the date when a reply arrives so WF5 stops |
 | Reply Category, Reply Summary | WF4 | Hot / Warm / Cold / Not interested / Auto-reply |
 | Opt-out | WF4 or manager | `Yes` stops every workflow for that lead |
@@ -64,8 +64,11 @@ One header row and one data row (row 2). Every workflow reads this row at the st
 | M | WhatsApp Phone Number ID | The Phone Number ID of your WhatsApp Business Cloud sender |
 | N | Nil Telegram Chat ID | Manager's numeric Telegram chat ID (they must press Start on the bot once) |
 | O | Company Website | `https://www.texprove.com`; WF2 puts it on the last line of the signature and the draft check requires it |
+| P | HubSpot Owner ID | Optional; not read by the current workflows (left from an earlier HubSpot-task build) |
+| Q | Mail Provider | **Mail switch.** `Gmail` (default, also when empty) sends with the Gmail nodes and reads replies with the Gmail Trigger. `SMTP` sends with the SMTP nodes and reads replies with the IMAP Trigger. Enable the matching nodes in n8n too; see the README section on the company mailbox |
+| R | SMTP From | Sender used by the SMTP nodes, e.g. `Texprove Sales <sales@texprove.com>`. Only read when Mail Provider is `SMTP` |
 
-Columns K to O may be empty; the matching channel is then skipped or, for Test Email, real sending is enabled.
+Columns K to R may be empty; the matching channel is then skipped or, for Test Email, real sending is enabled.
 
 ## Tab `Social`
 

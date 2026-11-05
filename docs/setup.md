@@ -2,9 +2,9 @@
 
 ## 1. Requirements
 
-- An n8n instance (Cloud or self-hosted, v1.x with the Anthropic, Google Sheets, Gmail, HubSpot, WhatsApp and Telegram nodes available).
+- An n8n instance (Cloud or self-hosted, v1.x with the Anthropic, Google Sheets, Gmail (or Send Email + Email Trigger (IMAP)), HubSpot, WhatsApp and Telegram nodes available).
 - An Anthropic API key with credit (a second key on a separate account is optional, for the fallback nodes).
-- A Google account owning the sheet and the sending Gmail inbox. For production use a warmed Google Workspace mailbox on your own domain with SPF, DKIM and DMARC set up, not a personal Gmail.
+- A Google account owning the sheet. A sending mailbox: either Gmail / Google Workspace, or any mailbox with SMTP and IMAP access (set `Settings > Mail Provider` to `SMTP`). For production use a warmed mailbox on your own domain with SPF, DKIM and DMARC set up, not a personal Gmail.
 - HubSpot (free plan is enough) with a private app token that can read/write contacts and engagements.
 - Optional: a WhatsApp Business Cloud sender (Meta app) and a Telegram bot for manager notifications. Email works without them.
 
@@ -19,7 +19,9 @@ Follow [google-sheet.md](google-sheet.md): five tabs, exact headers, every cell 
 | Anthropic | `Anthropic account` | every Claude node |
 | Anthropic | `Anthropic account 2` | every node whose name ends in "(account 2)"; may point at the same key if you have only one |
 | Google Sheets OAuth2 | `Google Sheets account` | all sheet nodes |
-| Gmail OAuth2 | `Gmail account` | sending, reply trigger, thread lookups |
+| Gmail OAuth2 | `Gmail account` | sending, reply trigger, thread lookups (Mail Provider `Gmail`) |
+| SMTP | `SMTP account` | sending, when Mail Provider is `SMTP`; set it on the disabled `(SMTP)` nodes and enable them |
+| IMAP | `IMAP account` | WF4 `IMAP Trigger`, when Mail Provider is `SMTP` |
 | HubSpot (private app / service key) | `HubSpot Service Key account` | WF3, WF4, WF5 |
 | WhatsApp (Business Cloud API access token) | `WhatsApp API` | WhatsApp notification nodes. The OAuth2 credential type only works for the WhatsApp trigger, not sending. Use a permanent system-user token; the 24-hour token from Meta's API Setup page expires |
 | Telegram API (bot token from @BotFather) | `Telegram account` | Telegram notification nodes |
@@ -44,7 +46,7 @@ Use each workflow's **Manual Test** trigger and check the sheet after every run.
 1. Add two or three test leads with `Stage = New` and run **WF1**: rows reach `Researched` with a hook.
 2. Run **WF2**: drafts appear, Compliance Status is `OK` or `Needs fix`, you receive one notification on each configured channel.
 3. Set `Approved = Yes` on a test row and run **WF3**: the email arrives at the test address, HubSpot shows the contact, the row is `Sent` with a thread ID.
-4. Reply to that email from another address. Publish **WF4** (the Gmail trigger polls as soon as it is active) or run it from the editor: Reply Category is filled and, if Hot, the alert arrives. Unpublish again if you are not ready to go live.
+4. Reply to that email from another address. Publish **WF4** (the Gmail or IMAP trigger polls as soon as it is active) or run it from the editor: Reply Category is filled and, if Hot, the alert arrives. Unpublish again if you are not ready to go live.
 5. Set `Next Follow-up Date` on a `Sent` row to yesterday and run **WF5**: the row gets a `Follow-up Draft` with `Approved = Pending` and you get a summary. Set `Approved = Yes`, run WF5 again: the follow-up lands in the same thread.
 6. Run **WF6**: the report arrives and three rows appear in `Social`.
 7. Run **WF0** once: new rows have Source URL, Confidence ≥ 60 and no duplicates. Delete test companies you do not want.
@@ -52,7 +54,7 @@ Use each workflow's **Manual Test** trigger and check the sheet after every run.
 ## 6. Go-live checklist
 
 - [ ] Real `Company Legal Name` and `Company Address` in `Settings`; opt-out sentences, the data-source sentence and the signature reviewed by the manager or a lawyer (KVKK / İYS).
-- [ ] Sending mailbox is the company domain mailbox (Gmail credential swapped in WF2 to WF6), SPF/DKIM/DMARC pass, inbox warmed for a few weeks.
+- [ ] Sending mailbox is the company domain mailbox (Gmail credential swapped in WF2 to WF6, or `Mail Provider` = `SMTP` with the SMTP/IMAP nodes enabled and the Gmail nodes disabled, as in the README), SPF/DKIM/DMARC pass, inbox warmed for a few weeks.
 - [ ] `Settings > Test Email` cleared.
 - [ ] `Nil Email`, `Nil WhatsApp`, `Nil Telegram Chat ID` are the manager's real contacts; WhatsApp uses a permanent token (and a template if messages must arrive outside the 24-hour window).
 - [ ] `Anthropic account 2` credential exists if a separate fallback account is wanted.

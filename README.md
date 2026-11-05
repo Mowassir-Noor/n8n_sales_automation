@@ -19,6 +19,7 @@ This repository holds the workflow exports in n8n's import format plus the docum
 | `WF6-weekly-report.json` | Monday report and three LinkedIn post drafts |
 | `docs/workflows.md` | What each workflow does, step by step, what it reads and writes, what to edit |
 | `docs/google-sheet.md` | Sheet tabs, exact column headers, Settings fields, Stage values |
+| `docs/setup-guide.md` | Step-by-step setup of everything: sheet, every credential (Anthropic, Sheets, HubSpot, Gmail or SMTP/IMAP, WhatsApp, Telegram), which nodes each goes on, tests, go-live |
 | `docs/setup.md` | Import, credentials, test mode, manual test order, go-live checklist |
 | `docs/manager-guide.md` | The daily routine for the person approving emails (no n8n access needed) |
 | `docs/design-decisions.md` | Why it is built this way, deviations from the original plan, known limits, cost |
@@ -58,7 +59,7 @@ Manager notifications (approval requests, Hot-reply alerts, follow-up summaries,
 ## Quick start
 
 1. Create the Google Sheet with the tabs and headers in [docs/google-sheet.md](docs/google-sheet.md) and fill the `Settings` row.
-2. In n8n, create the credentials listed in [docs/setup.md](docs/setup.md) (Anthropic, Google Sheets, Gmail or SMTP + IMAP, HubSpot, WhatsApp, Telegram).
+2. In n8n, create the credentials described step by step in [docs/setup-guide.md](docs/setup-guide.md) (Anthropic, Google Sheets, Gmail or SMTP + IMAP, HubSpot, WhatsApp, Telegram).
 3. Import each `WF*.json` with **Workflows > Import from File**, re-select the credentials on every node, and point the Google Sheets nodes at your sheet.
 4. Put your own address in `Settings > Test Email` so nothing reaches a real lead, then run the workflows by hand in the order given in [docs/setup.md](docs/setup.md).
 5. Clear `Test Email`, finish the go-live checklist, and activate the workflows one at a time.

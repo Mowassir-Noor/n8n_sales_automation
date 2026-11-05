@@ -65,6 +65,35 @@ Manager notifications (approval requests, Hot-reply alerts, follow-up summaries,
 
 All workflows are shipped **inactive** and should stay that way until the checklist is done.
 
+## Switching from test mode to production
+
+Test mode is a single cell: **`Settings` tab → `Test Email` (row 2)** in the Texprove Leads sheet.
+
+- While it holds an address, every first email and follow-up goes to that address instead of the lead, and the HubSpot contact is created for that address too.
+- When it is empty, WF3 sends first emails to the real lead addresses, follow-ups (WF5) go out in those same threads, and HubSpot records the real contacts. Nothing has to change in n8n.
+
+Before you empty it, fix these, or real companies receive emails with test details:
+
+1. In the same `Settings` row, replace the `TEST ADDRESS` text in `Company Address` with Texprove's registered address, and change `Nil Email`, `Nil WhatsApp` and `Nil Telegram Chat ID` from the test values to the manager's.
+2. Send from the company mailbox (next section), not a personal Gmail. A personal Gmail sending cold email gets flagged as spam quickly.
+3. Agree with the manager that only rows with `Approved = Yes` are ever sent.
+
+Then switch on the schedules for WF2, WF3, WF5 and WF6 (and WF4 if it is not on yet), one at a time.
+
+## Connecting the company mailbox (texprove.com)
+
+The texprove.com mailbox runs on Google Workspace, so it connects to n8n the same way a normal Gmail account does.
+
+1. In n8n, go to **Overview → Create credential → Gmail OAuth2 API**, click **Sign in with Google** and log in with the texprove.com address you want to send from (for example `sales@texprove.com`). Name the credential `Gmail Texprove`.
+2. If Google blocks the sign-in with a message that the app is not allowed, a Workspace admin has to allow it: **admin.google.com → Security → API controls → App access control**, and mark n8n as trusted.
+3. Select the new credential on every Gmail node in WF2–WF6 (12 nodes in total): WF2 `Notify Nil`; WF3 `Send Email`, `Warn Nil Quota`; WF4 `Gmail Trigger`, `Mark Reply Read`, `Alert Nil`; WF5 `Get Thread`, `Get Original Message-ID`, `Send Follow-up`, `Email Nil (follow-ups)`; WF6 `Email Weekly Report`, `Email Social Drafts Ready`. Sending, follow-ups and reply checking then all use the company inbox.
+
+Before real sending from it:
+
+- Whoever manages the texprove.com domain should check that **SPF, DKIM and DMARC** are set up. DKIM is turned on in **admin.google.com → Apps → Google Workspace → Gmail → Authenticate email**.
+- Start slowly, about 10–15 emails a day for the first couple of weeks. WF3 already caps each run at 15.
+- Replies land in the texprove.com inbox and WF4 marks each one as read after processing it. Anyone who also reads that inbox by hand should check the sheet's `Reply Summary` column.
+
 ## Stack
 
 - [n8n](https://n8n.io) (Cloud or self-hosted, workflow execution order v1, timezone Europe/Istanbul)

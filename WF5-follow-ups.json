@@ -47,7 +47,6 @@
       },
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "4Ffu3jMNYiLLnti3",
           "name": "Google Sheets account"
         }
       }
@@ -140,7 +139,6 @@
       "webhookId": "8c719206-03b7-4e0d-9eaa-b5c4e1dee64c",
       "credentials": {
         "gmailOAuth2": {
-          "id": "Iu3jA1IOyvPbScAQ",
           "name": "Gmail account"
         }
       }
@@ -290,7 +288,6 @@
       "onError": "continueRegularOutput",
       "credentials": {
         "hubspotAppToken": {
-          "id": "FmgxvuKavV3YEBU7",
           "name": "HubSpot Service Key account"
         }
       }
@@ -394,7 +391,6 @@
       },
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "4Ffu3jMNYiLLnti3",
           "name": "Google Sheets account"
         }
       }
@@ -500,7 +496,6 @@
       },
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "4Ffu3jMNYiLLnti3",
           "name": "Google Sheets account"
         }
       }
@@ -637,7 +632,6 @@
       "onError": "continueRegularOutput",
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "4Ffu3jMNYiLLnti3",
           "name": "Google Sheets account"
         }
       }
@@ -759,7 +753,6 @@
       "onError": "continueRegularOutput",
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "4Ffu3jMNYiLLnti3",
           "name": "Google Sheets account"
         }
       }
@@ -793,7 +786,6 @@
       "onError": "continueRegularOutput",
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "4Ffu3jMNYiLLnti3",
           "name": "Google Sheets account"
         }
       }
@@ -962,7 +954,6 @@
       "onError": "continueRegularOutput",
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "4Ffu3jMNYiLLnti3",
           "name": "Google Sheets account"
         }
       }
@@ -997,7 +988,6 @@
       },
       "credentials": {
         "gmailOAuth2": {
-          "id": "Iu3jA1IOyvPbScAQ",
           "name": "Gmail account"
         }
       }
@@ -1037,7 +1027,6 @@
       },
       "credentials": {
         "gmailOAuth2": {
-          "id": "Iu3jA1IOyvPbScAQ",
           "name": "Gmail account"
         }
       }
@@ -1116,7 +1105,6 @@
       },
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "4Ffu3jMNYiLLnti3",
           "name": "Google Sheets account"
         }
       }
@@ -1144,7 +1132,6 @@
       "webhookId": "d7b2abc2-f7ec-482e-8103-5531ab4d19b1",
       "credentials": {
         "gmailOAuth2": {
-          "id": "Iu3jA1IOyvPbScAQ",
           "name": "Gmail account"
         }
       }
@@ -1192,7 +1179,6 @@
       "webhookId": "8462e8f3-ea87-4346-a4dd-0efd6ade583f",
       "credentials": {
         "telegramApi": {
-          "id": "bErcuSM2t2Uk3jeC",
           "name": "Telegram account"
         }
       }
@@ -1404,7 +1390,6 @@
       },
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "4Ffu3jMNYiLLnti3",
           "name": "Google Sheets account"
         }
       }
@@ -1526,7 +1511,6 @@
       "onError": "continueRegularOutput",
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "4Ffu3jMNYiLLnti3",
           "name": "Google Sheets account"
         }
       }
@@ -1611,7 +1595,6 @@
       "notes": "Nil set Approved = No: the draft is cleared and no further follow-up is scheduled for this lead.",
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "4Ffu3jMNYiLLnti3",
           "name": "Google Sheets account"
         }
       }
@@ -1733,7 +1716,6 @@
       "onError": "continueRegularOutput",
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "4Ffu3jMNYiLLnti3",
           "name": "Google Sheets account"
         }
       }
@@ -1766,7 +1748,6 @@
       "executeOnce": true,
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "4Ffu3jMNYiLLnti3",
           "name": "Google Sheets account"
         }
       }

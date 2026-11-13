@@ -55,7 +55,6 @@
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "xLTp24saWARCuZou",
           "name": "Google Sheets account"
         }
       }
@@ -231,7 +230,6 @@
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "xLTp24saWARCuZou",
           "name": "Google Sheets account"
         }
       }
@@ -410,7 +408,6 @@
       "onError": "continueRegularOutput",
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "xLTp24saWARCuZou",
           "name": "Google Sheets account"
         }
       }
@@ -454,7 +451,6 @@
       "onError": "continueErrorOutput",
       "credentials": {
         "anthropicApi": {
-          "id": "JXZ5NOJvJ6mIjWyY",
           "name": "Anthropic account"
         }
       }
@@ -511,7 +507,6 @@
       "onError": "continueRegularOutput",
       "credentials": {
         "anthropicApi": {
-          "id": "JXZ5NOJvJ6mIjWyY",
           "name": "Anthropic account"
         }
       }

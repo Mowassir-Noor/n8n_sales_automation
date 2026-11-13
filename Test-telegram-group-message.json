@@ -1,0 +1,62 @@
+{
+  "name": "Test - Telegram group message",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "ac0af559-0487-4739-9e15-d9e348ca6a88",
+      "name": "Run test",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "-5126570849",
+        "text": "<b>Texprove test</b>\nThe n8n bot on the Railway server can post in this group. No action needed.",
+        "additionalFields": {
+          "parse_mode": "HTML",
+          "appendAttribution": false
+        }
+      },
+      "id": "adaba948-8637-44bb-8ce8-ead7e6776e09",
+      "name": "Send test to group",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        0
+      ],
+      "webhookId": "9f40232a-f7e2-4f7c-8821-cab3d47ba5ff",
+      "credentials": {
+        "telegramApi": {
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Run test": {
+      "main": [
+        [
+          {
+            "node": "Send test to group",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Istanbul",
+    "availableInMCP": true
+  },
+  "pinData": {},
+  "meta": {}
+}

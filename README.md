@@ -17,6 +17,7 @@ This repository holds the workflow exports in n8n's import format plus the docum
 | `WF4-reply-triage.json` | Classifies replies (Hot / Warm / Cold / Not interested / Auto-reply), alerts on Hot |
 | `WF5-follow-ups.json` | Drafts follow-ups at day 4 / 10 / 20, approval gate, sends in the same thread, closes silent leads |
 | `WF6-weekly-report.json` | Monday report and three LinkedIn post drafts |
+| `Test-telegram-group-message.json` | One-node manual test that posts to the Telegram alerts group |
 | `docs/workflows.md` | What each workflow does, step by step, what it reads and writes, what to edit |
 | `docs/google-sheet.md` | Sheet tabs, exact column headers, Settings fields, Stage values |
 | `docs/setup-guide.md` | Step-by-step setup of everything: sheet, every credential (Anthropic, Sheets, HubSpot, Gmail or SMTP/IMAP, WhatsApp, Telegram), which nodes each goes on, tests, go-live, self-hosting n8n |
@@ -60,7 +61,7 @@ Manager notifications (approval requests, Hot-reply alerts, follow-up summaries,
 
 1. Create the Google Sheet with the tabs and headers in [docs/google-sheet.md](docs/google-sheet.md) and fill the `Settings` row.
 2. In n8n, create the credentials described step by step in [docs/setup-guide.md](docs/setup-guide.md) (Anthropic, Google Sheets, Gmail or SMTP + IMAP, HubSpot, WhatsApp, Telegram).
-3. Import each `WF*.json` with **Workflows > Import from File**, re-select the credentials on every node, and point the Google Sheets nodes at your sheet.
+3. Import each `WF*.json` with **Workflows > Import from File**, re-select the credentials on every node, and point the Google Sheets nodes at your sheet. The exports reference credentials by **name only** (`Google Sheets account`, `Gmail account`, `Anthropic account`, `Telegram account`, `HubSpot Service Key account`); no ids, keys or tokens are included, so naming your credentials the same way makes n8n match most of them on import.
 4. Put your own address in `Settings > Test Email` so nothing reaches a real lead, then run the workflows by hand in the order given in [docs/setup.md](docs/setup.md).
 5. Clear `Test Email`, finish the go-live checklist, and activate the workflows one at a time.
 
@@ -143,3 +144,7 @@ What changes with SMTP:
 ## Status
 
 Built and tested end to end with test addresses in October 2026 (WF2 → WF3 → WF4 → WF5 → WF6, including the follow-up approval gate and Hot-reply alerts). Not yet live. See the open items in [docs/design-decisions.md](docs/design-decisions.md).
+
+## Export history
+
+- 2026-11-13: re-exported from the self-hosted Railway instance before moving to a new n8n server. Workflow logic is unchanged from the 2026-11-05 exports (WF3 and WF4 were checked node by node against the live versions); credential ids were removed so the files import cleanly on any instance, and the Telegram group test workflow was added.

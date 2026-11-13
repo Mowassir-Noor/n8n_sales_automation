@@ -29,7 +29,6 @@
       },
       "credentials": {
         "gmailOAuth2": {
-          "id": "Iu3jA1IOyvPbScAQ",
           "name": "Gmail account"
         }
       }
@@ -61,7 +60,6 @@
       "executeOnce": true,
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "4Ffu3jMNYiLLnti3",
           "name": "Google Sheets account"
         }
       }
@@ -382,7 +380,6 @@
       },
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "4Ffu3jMNYiLLnti3",
           "name": "Google Sheets account"
         }
       }
@@ -416,7 +413,6 @@
       "onError": "continueRegularOutput",
       "credentials": {
         "hubspotAppToken": {
-          "id": "FmgxvuKavV3YEBU7",
           "name": "HubSpot Service Key account"
         }
       }
@@ -441,7 +437,6 @@
       "onError": "continueRegularOutput",
       "credentials": {
         "hubspotAppToken": {
-          "id": "FmgxvuKavV3YEBU7",
           "name": "HubSpot Service Key account"
         }
       }
@@ -462,7 +457,6 @@
       "webhookId": "27f33e37-ea7e-4d8f-8e84-d0ccaab5e7f0",
       "credentials": {
         "gmailOAuth2": {
-          "id": "Iu3jA1IOyvPbScAQ",
           "name": "Gmail account"
         }
       }
@@ -526,7 +520,6 @@
       },
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "4Ffu3jMNYiLLnti3",
           "name": "Google Sheets account"
         }
       }
@@ -553,7 +546,6 @@
       "webhookId": "b6a7748b-a596-4e65-8413-8fcd6b92215c",
       "credentials": {
         "gmailOAuth2": {
-          "id": "Iu3jA1IOyvPbScAQ",
           "name": "Gmail account"
         }
       }
@@ -690,7 +682,6 @@
       "onError": "continueRegularOutput",
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "4Ffu3jMNYiLLnti3",
           "name": "Google Sheets account"
         }
       }
@@ -855,7 +846,6 @@
       "webhookId": "1da8c39e-1959-4e73-98f9-3609dc89ab5f",
       "credentials": {
         "telegramApi": {
-          "id": "bErcuSM2t2Uk3jeC",
           "name": "Telegram account"
         }
       }
@@ -887,7 +877,6 @@
       "notes": "Reads Settings once per reply so the HubSpot steps can honour the Test Email switch.",
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "4Ffu3jMNYiLLnti3",
           "name": "Google Sheets account"
         }
       }

@@ -1066,14 +1066,15 @@
         -176
       ],
       "parameters": {
-        "emailFormat": "text",
+        "emailFormat": "both",
         "fromEmail": "={{ $('Read Settings').first().json['SMTP From'] }}",
         "options": {
           "appendAttribution": false
         },
         "subject": "={{ $json.Subject }}",
         "text": "={{ $json['Draft Body'] }}",
-        "toEmail": "={{ $('Read Settings').first().json['Test Email'] || $json.Email }}"
+        "toEmail": "={{ $('Read Settings').first().json['Test Email'] || $json.Email }}",
+        "html": "={{ $json.html }}"
       },
       "notes": "SMTP version of Send Email. Needs an SMTP credential; disable it if you only use Gmail.",
       "webhookId": "9d6f1d56-c355-4c54-b45a-eb8c0acb2478",
@@ -1251,7 +1252,7 @@
         560
       ],
       "parameters": {
-        "jsCode": "// Inbox-placement seed: every N first emails, send an identical copy of the last one to Settings 'Seed Email'.\nconst s = $('Read Settings').first().json;\nconst seed = String(s['Seed Email'] || '').trim();\nconst every = parseInt(s['Seed Every'], 10) || 12;\nif (!seed) return [];\n// Loop Over Drafts 'done' output = every processed row; sent rows come back from Mark Sent with Stage = Sent.\nconst sent = $input.all().map(i => i.json).filter(x => x.Stage === 'Sent' && x['Lead ID']);\nif (!sent.length) return [];\nconst sentIds = new Set(sent.map(x => x['Lead ID']));\n// First emails sent before this run (rows with Sent At when the run started, excluding this run's leads).\nconst before = $('Get All Leads').all().filter(i => String(i.json['Sent At'] || '').trim() && !sentIds.has(i.json['Lead ID'])).length;\nconst after = before + sent.length;\nif (Math.floor(before / every) === Math.floor(after / every)) return [];\nconst lastId = sent[sent.length - 1]['Lead ID'];\nconst d = $('Get Approved Drafts').all().map(i => i.json).find(x => x['Lead ID'] === lastId);\nif (!d) return [];\nreturn [{ json: { seed, subject: d.Subject, body: d['Draft Body'], lead: lastId, total_sent: after, every } }];"
+        "jsCode": "// Inbox-placement seed: every N first emails, send an identical copy of the last one to Settings 'Seed Email'.\nconst s = $('Read Settings').first().json;\nconst seed = String(s['Seed Email'] || '').trim();\nconst every = parseInt(s['Seed Every'], 10) || 12;\nif (!seed) return [];\n// Loop Over Drafts 'done' output = every processed row; sent rows come back from Mark Sent with Stage = Sent.\nconst sent = $input.all().map(i => i.json).filter(x => x.Stage === 'Sent' && x['Lead ID']);\nif (!sent.length) return [];\nconst sentIds = new Set(sent.map(x => x['Lead ID']));\n// First emails sent before this run (rows with Sent At when the run started, excluding this run's leads).\nconst before = $('Get All Leads').all().filter(i => String(i.json['Sent At'] || '').trim() && !sentIds.has(i.json['Lead ID'])).length;\nconst after = before + sent.length;\nif (Math.floor(before / every) === Math.floor(after / every)) return [];\nconst lastId = sent[sent.length - 1]['Lead ID'];\nconst d = $('Get Approved Drafts').all().map(i => i.json).find(x => x['Lead ID'] === lastId);\nif (!d) return [];\nreturn [{ json: { seed, subject: d.Subject, body: d['Draft Body'], html: buildHtml(d['Draft Body'], s), lead: lastId, total_sent: after, every } }];\n\n// Turns the plain-text draft into a light HTML version (sent alongside the plain text).\n// Looks like a personal email: no images, no banners; a tidy signature and a small grey footer.\nfunction buildHtml(body, s) {\n  const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n  const link = (t) => t.replace(/(https?:\\/\\/[^\\s<]+)/g, (u) => '<a href=\"' + u + '\" style=\"color:#0e7490;text-decoration:none;\">' + u.replace(/^https?:\\/\\//, '').replace(/\\/$/, '') + '</a>');\n  const lines = String(body || '').replace(/\\r/g, '').split('\\n');\n  const name = String(s['Sender Name'] || '').trim();\n  const title = String(s['Sender Title'] || '').trim();\n  const company = String(s['Company Legal Name'] || '').trim();\n  const iName = name ? lines.findIndex(l => l.trim() === name) : -1;\n  const paras = (arr) => arr.join('\\n').split(/\\n\\s*\\n/).map(p => p.trim()).filter(Boolean);\n  const P = (p, style) => '<p style=\"margin:0 0 16px;' + (style || '') + '\">' + link(esc(p)).replace(/\\n/g, '<br>') + '</p>';\n  if (iName < 0) {\n    return '<div style=\"font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#1f2937;max-width:600px;\">' + paras(lines).map(p => P(p)).join('') + '</div>';\n  }\n  let iEnd = iName;\n  while (iEnd + 1 < lines.length && lines[iEnd + 1].trim()) iEnd++;\n  const main = paras(lines.slice(0, iName));\n  const sig = lines.slice(iName, iEnd + 1).map(l => l.trim());\n  const foot = paras(lines.slice(iEnd + 1));\n  const sigHtml = sig.map((l, i) => {\n    const t = link(esc(l));\n    if (i === 0) return '<div style=\"font-size:15px;font-weight:bold;color:#111827;\">' + t + '</div>';\n    if (l === title) return '<div style=\"color:#4b5563;\">' + t + '</div>';\n    if (l === company) return '<div style=\"font-weight:bold;color:#0e7490;margin-top:2px;\">' + t + '</div>';\n    if (/^https?:\\/\\//.test(l)) return '<div style=\"margin-top:2px;\">' + t + '</div>';\n    return '<div style=\"font-size:13px;color:#6b7280;\">' + t + '</div>';\n  }).join('');\n  return '<div style=\"font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#1f2937;max-width:600px;\">'\n    + main.map(p => P(p)).join('')\n    + '<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" style=\"border-collapse:collapse;margin:4px 0 0;\"><tr><td style=\"border-left:3px solid #0e7490;padding:2px 0 2px 12px;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#1f2937;\">' + sigHtml + '</td></tr></table>'\n    + (foot.length ? '<div style=\"margin-top:28px;padding-top:12px;border-top:1px solid #e5e7eb;font-size:12px;line-height:1.5;color:#9ca3af;\">' + foot.map(p => P(p, 'margin:0 0 6px;')).join('') + '</div>' : '')\n    + '</div>';\n}\n"
       },
       "notes": "Inbox-placement check: every 'Seed Every' first emails (Settings, default 12) send an identical copy of the last email to Settings 'Seed Email'. Blank Seed Email = off."
     },
@@ -1265,14 +1266,15 @@
         560
       ],
       "parameters": {
-        "emailFormat": "text",
+        "emailFormat": "both",
         "fromEmail": "={{ $('Read Settings').first().json['SMTP From'] }}",
         "options": {
           "appendAttribution": false
         },
         "subject": "={{ $json.subject }}",
         "text": "={{ $json.body }}",
-        "toEmail": "={{ $json.seed }}"
+        "toEmail": "={{ $json.seed }}",
+        "html": "={{ $json.html }}"
       },
       "notes": "Identical copy of the last first email, to Settings 'Seed Email'. Check whether it lands in Inbox or Spam.",
       "onError": "continueRegularOutput",
@@ -1282,6 +1284,20 @@
           "name": "SMTP account"
         }
       }
+    },
+    {
+      "name": "Build HTML",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        -336
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// HTML copy of the approved draft; the plain text is sent alongside it.\nreturn { json: { ...$json, html: buildHtml($json['Draft Body'], $('Read Settings').first().json) } };\n\n// Turns the plain-text draft into a light HTML version (sent alongside the plain text).\n// Looks like a personal email: no images, no banners; a tidy signature and a small grey footer.\nfunction buildHtml(body, s) {\n  const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n  const link = (t) => t.replace(/(https?:\\/\\/[^\\s<]+)/g, (u) => '<a href=\"' + u + '\" style=\"color:#0e7490;text-decoration:none;\">' + u.replace(/^https?:\\/\\//, '').replace(/\\/$/, '') + '</a>');\n  const lines = String(body || '').replace(/\\r/g, '').split('\\n');\n  const name = String(s['Sender Name'] || '').trim();\n  const title = String(s['Sender Title'] || '').trim();\n  const company = String(s['Company Legal Name'] || '').trim();\n  const iName = name ? lines.findIndex(l => l.trim() === name) : -1;\n  const paras = (arr) => arr.join('\\n').split(/\\n\\s*\\n/).map(p => p.trim()).filter(Boolean);\n  const P = (p, style) => '<p style=\"margin:0 0 16px;' + (style || '') + '\">' + link(esc(p)).replace(/\\n/g, '<br>') + '</p>';\n  if (iName < 0) {\n    return '<div style=\"font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#1f2937;max-width:600px;\">' + paras(lines).map(p => P(p)).join('') + '</div>';\n  }\n  let iEnd = iName;\n  while (iEnd + 1 < lines.length && lines[iEnd + 1].trim()) iEnd++;\n  const main = paras(lines.slice(0, iName));\n  const sig = lines.slice(iName, iEnd + 1).map(l => l.trim());\n  const foot = paras(lines.slice(iEnd + 1));\n  const sigHtml = sig.map((l, i) => {\n    const t = link(esc(l));\n    if (i === 0) return '<div style=\"font-size:15px;font-weight:bold;color:#111827;\">' + t + '</div>';\n    if (l === title) return '<div style=\"color:#4b5563;\">' + t + '</div>';\n    if (l === company) return '<div style=\"font-weight:bold;color:#0e7490;margin-top:2px;\">' + t + '</div>';\n    if (/^https?:\\/\\//.test(l)) return '<div style=\"margin-top:2px;\">' + t + '</div>';\n    return '<div style=\"font-size:13px;color:#6b7280;\">' + t + '</div>';\n  }).join('');\n  return '<div style=\"font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#1f2937;max-width:600px;\">'\n    + main.map(p => P(p)).join('')\n    + '<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" style=\"border-collapse:collapse;margin:4px 0 0;\"><tr><td style=\"border-left:3px solid #0e7490;padding:2px 0 2px 12px;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#1f2937;\">' + sigHtml + '</td></tr></table>'\n    + (foot.length ? '<div style=\"margin-top:28px;padding-top:12px;border-top:1px solid #e5e7eb;font-size:12px;line-height:1.5;color:#9ca3af;\">' + foot.map(p => P(p, 'margin:0 0 6px;')).join('') + '</div>' : '')\n    + '</div>';\n}\n"
+      },
+      "id": "e3bf8f37-3377-43fa-ae27-d8e4a77620d2"
     }
   ],
   "connections": {
@@ -1501,7 +1517,7 @@
       "main": [
         [
           {
-            "node": "Send Email (SMTP)",
+            "node": "Build HTML",
             "type": "main",
             "index": 0
           }
@@ -1596,6 +1612,17 @@
         [
           {
             "node": "Send Seed Copy (SMTP)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build HTML": {
+      "main": [
+        [
+          {
+            "node": "Send Email (SMTP)",
             "type": "main",
             "index": 0
           }

@@ -52,7 +52,7 @@ One header row and one data row (row 2). Every workflow reads this row at the st
 | A | Sender Name | Full name the emails come from (currently `Nil Sızır`) |
 | B | Sender Title | Their title (currently `Founder & CEO`) |
 | C | Company Legal Name | Registered company name (printed in the signature) |
-| D | Company Address | Postal address printed in the signature (currently the Ankara office: Ankara Teknoloji Köprüsü Kuluçka Merkezi, İlkadım, Yeşilvadi Sk. No: 41 Ofis No: 36, 06450 Çankaya/Ankara) |
+| D | Company Address | Postal address printed in the signature (currently the Ankara office: Ankara Teknoloji Köprüsü Kuluçka Merkezi, İlkadım, Ofis No: 36, 06450 Çankaya/Ankara) |
 | E | Opt-out TR | Turkish opt-out sentence appended to every email |
 | F | Opt-out EN | English opt-out sentence |
 | G | Nil Email | Manager's address for approval requests, Hot alerts, summaries and reports |

@@ -171,7 +171,7 @@
       ],
       "parameters": {
         "promptType": "define",
-        "text": "=Write a short first-contact B2B email from {{ $('Read Settings').first().json['Sender Name'] }}, {{ $('Read Settings').first().json['Sender Title'] }} at Texprove to {{ $json['Contact Name'] }} ({{ $json['Contact Title'] }}) at {{ $json.Company }}.\nLanguage: Turkish if Language = tr, otherwise English; write natural business Turkish, not a translation. This lead's Language is: {{ $json.Language }}.\nOpen with this verified fact: {{ $json['Personalisation Hook'] }}.\nExplain in one sentence that EU Digital Product Passport rules for textiles are coming and exporters to the EU will need product-level data. One sentence on how Texprove helps. Ask for a 15-minute call.\nMax 120 words for the main text, no hype, no attachments. The only links allowed are the recipient company's own website and Texprove's website in the signature.\nNever mention the company's customers, buyers or the brands or retailers it supplies, nor any order volumes, quantities, prices, capacities, margins or revenue, even if that information is public. If the verified fact contains such details, refer to it in general terms (for example \"your exports to European retailers\").\nEnd with the sender's full name ({{ $('Read Settings').first().json['Sender Name'] }}), title ({{ $('Read Settings').first().json['Sender Title'] }}), company legal name ({{ $('Read Settings').first().json['Company Legal Name'] }}), address ({{ $('Read Settings').first().json['Company Address'] }}) and website ({{ $('Read Settings').first().json['Company Website'] || 'https://www.texprove.com' }}), each on its own line, exactly as given.\nThen add this sentence saying where we found their details, in the email's language, exactly as given:\nTurkish: İletişim bilgilerinizi şirketinizin herkese açık web sitesinden aldık.\nEnglish: We found your contact details on your company's public website.\nThen this opt-out line, in the email's language, exactly as given:\nTurkish: {{ $('Read Settings').first().json['Opt-out TR'] }}\nEnglish: {{ $('Read Settings').first().json['Opt-out EN'] }}\nReturn JSON: subject (max 7 words), body.",
+        "text": "=Write a short first-contact B2B email from {{ $('Read Settings').first().json['Sender Name'] }}, {{ $('Read Settings').first().json['Sender Title'] }} at Texprove to {{ $json['Contact Name'] }} ({{ $json['Contact Title'] }}) at {{ $json.Company }}.\nLanguage: Turkish if Language = tr, otherwise English; write natural business Turkish, not a translation. This lead's Language is: {{ $json.Language }}.\nGreeting: if the Contact Name above is a real person's name, greet that person (Turkish: \"Sayın\" + full name; English: \"Dear\" + full name). If the Contact Name is empty, or is a job title, role or placeholder rather than a person's name (for example \"General Manager\", \"Export Contact\", \"Sales Team\", or anything containing \"/\"), greet the company instead: English \"Dear {{ $json.Company }} team,\", Turkish \"Sayın {{ $json.Company }} ekibi,\". Never use a job title or role as the greeting.\nOpen with this verified fact: {{ $json['Personalisation Hook'] }}.\nExplain in one sentence that EU Digital Product Passport rules for textiles are coming and exporters to the EU will need product-level data. One sentence on how Texprove helps. Ask for a 15-minute call.\nMax 120 words for the main text, no hype, no attachments. The only links allowed are the recipient company's own website and Texprove's website in the signature.\nNever mention the company's customers, buyers or the brands or retailers it supplies, nor any order volumes, quantities, prices, capacities, margins or revenue, even if that information is public. If the verified fact contains such details, refer to it in general terms (for example \"your exports to European retailers\").\nEnd with the sender's full name ({{ $('Read Settings').first().json['Sender Name'] }}), title ({{ $('Read Settings').first().json['Sender Title'] }}), company legal name ({{ $('Read Settings').first().json['Company Legal Name'] }}), address ({{ $('Read Settings').first().json['Company Address'] }}) and website ({{ $('Read Settings').first().json['Company Website'] || 'https://www.texprove.com' }}), each on its own line, exactly as given.\nThen add this sentence saying where we found their details, in the email's language, exactly as given:\nTurkish: İletişim bilgilerinizi şirketinizin herkese açık web sitesinden aldık.\nEnglish: We found your contact details on your company's public website.\nThen this opt-out line, in the email's language, exactly as given:\nTurkish: {{ $('Read Settings').first().json['Opt-out TR'] }}\nEnglish: {{ $('Read Settings').first().json['Opt-out EN'] }}\nReturn JSON: subject (max 7 words), body.",
         "hasOutputParser": true,
         "needsFallback": true,
         "batching": {}
@@ -194,6 +194,11 @@
           "cachedResultName": "Claude Sonnet 5.5"
         },
         "options": {}
+      },
+      "credentials": {
+        "anthropicApi": {
+          "name": "Anthropic account"
+        }
       }
     },
     {
@@ -214,7 +219,12 @@
         },
         "options": {}
       },
-      "notes": "Fallback model: used only when the first Anthropic account errors (credits exhausted, rate limit, outage). Point this node at the second Anthropic credential."
+      "notes": "Fallback model: used only when the first Anthropic account errors (credits exhausted, rate limit, outage). Point this node at the second Anthropic credential.",
+      "credentials": {
+        "anthropicApi": {
+          "name": "Anthropic account 2"
+        }
+      }
     },
     {
       "id": "3db6752e-b003-44b2-8942-6f003cbacb41",
@@ -386,7 +396,8 @@
         "gmailOAuth2": {
           "name": "Gmail account"
         }
-      }
+      },
+      "disabled": true
     },
     {
       "id": "f7ef5da8-8104-46ab-8b42-e527cf976d5e",
@@ -571,6 +582,11 @@
           "value": "claude-haiku-5-5"
         },
         "options": {}
+      },
+      "credentials": {
+        "anthropicApi": {
+          "name": "Anthropic account"
+        }
       }
     },
     {
@@ -591,7 +607,12 @@
         },
         "options": {}
       },
-      "notes": "Fallback model: used only when the first Anthropic account errors. Point this node at the second Anthropic credential."
+      "notes": "Fallback model: used only when the first Anthropic account errors. Point this node at the second Anthropic credential.",
+      "credentials": {
+        "anthropicApi": {
+          "name": "Anthropic account 2"
+        }
+      }
     },
     {
       "id": "974dd7c6-d7fa-4d1f-9d51-3ffe4483936a",
@@ -892,28 +913,6 @@
       }
     },
     {
-      "id": "f8940ad3-52fc-4997-9dcb-f66c93082418",
-      "name": "WhatsApp Nil",
-      "type": "n8n-nodes-base.whatsApp",
-      "typeVersion": 1.1,
-      "position": [
-        2432,
-        -160
-      ],
-      "parameters": {
-        "messageType": "text",
-        "operation": "send",
-        "phoneNumberId": "={{ $('Read Settings').first().json['WhatsApp Phone Number ID'] }}",
-        "recipientPhoneNumber": "={{ $('Read Settings').first().json['Nil WhatsApp'] }}",
-        "resource": "message",
-        "textBody": "=Texprove: {{ $('Check Draft').all().length }} new email drafts are waiting for your approval in the Leads tab ({{ $('Check Draft').all().filter(i => i.json.draft_check_status === 'Needs fix').length }} marked \"Needs fix\"). Set Approved to Yes, No or Edit.{{ $('Read Settings').first().json['Sheet URL'] ? ' ' + $('Read Settings').first().json['Sheet URL'] : '' }}"
-      },
-      "notes": "Needs a WhatsApp Business Cloud credential (Meta access token). Meta only delivers free-form text within 24 h of Nil's last message to the business number; outside that window a template message is required.",
-      "executeOnce": true,
-      "onError": "continueRegularOutput",
-      "webhookId": "eb9353ac-7761-4958-94b9-5f8cda527604"
-    },
-    {
       "id": "6666be7b-abe0-4292-865a-dba8f5380084",
       "name": "Telegram Nil",
       "type": "n8n-nodes-base.telegram",
@@ -999,7 +998,11 @@
       "onError": "continueRegularOutput",
       "executeOnce": true,
       "webhookId": "84656076-b951-40ea-a786-4f388e6ee21e",
-      "disabled": true
+      "credentials": {
+        "smtp": {
+          "name": "SMTP account"
+        }
+      }
     }
   ],
   "connections": {
@@ -1139,11 +1142,6 @@
     "Save Draft": {
       "main": [
         [
-          {
-            "node": "WhatsApp Nil",
-            "type": "main",
-            "index": 0
-          },
           {
             "node": "Telegram Nil",
             "type": "main",

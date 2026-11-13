@@ -162,7 +162,8 @@
         "gmailOAuth2": {
           "name": "Gmail account"
         }
-      }
+      },
+      "disabled": true
     },
     {
       "id": "913ae674-e9a0-4765-9f28-76f074db1267",
@@ -606,7 +607,8 @@
         "gmailOAuth2": {
           "name": "Gmail account"
         }
-      }
+      },
+      "disabled": true
     },
     {
       "id": "47b5ab5f-10fd-4d40-9fe0-ee525c267d40",
@@ -1075,7 +1077,11 @@
       },
       "notes": "SMTP version of Send Email. Needs an SMTP credential; disable it if you only use Gmail.",
       "webhookId": "9d6f1d56-c355-4c54-b45a-eb8c0acb2478",
-      "disabled": true
+      "credentials": {
+        "smtp": {
+          "name": "SMTP account"
+        }
+      }
     },
     {
       "id": "d20572bf-600d-4fdc-89e2-071923d0e3e8",
@@ -1133,7 +1139,11 @@
       "webhookId": "9f3f6134-29f8-482e-b0eb-e79e180f8fc3",
       "onError": "continueRegularOutput",
       "executeOnce": true,
-      "disabled": true
+      "credentials": {
+        "smtp": {
+          "name": "SMTP account"
+        }
+      }
     },
     {
       "id": "dc51a755-5013-4348-9918-65a40bc9d791",
@@ -1229,6 +1239,48 @@
       ],
       "parameters": {
         "errorMessage": "Mail Provider is Gmail but 'Send Email' did not send (node disabled?). Nothing was marked Sent. Set Settings 'Mail Provider' to SMTP if you switched to SMTP."
+      }
+    },
+    {
+      "id": "b5bdf2a6-cc50-407d-8349-a1f445880e8c",
+      "name": "Seed check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        560
+      ],
+      "parameters": {
+        "jsCode": "// Inbox-placement seed: every N first emails, send an identical copy of the last one to Settings 'Seed Email'.\nconst s = $('Read Settings').first().json;\nconst seed = String(s['Seed Email'] || '').trim();\nconst every = parseInt(s['Seed Every'], 10) || 12;\nif (!seed) return [];\n// Loop Over Drafts 'done' output = every processed row; sent rows come back from Mark Sent with Stage = Sent.\nconst sent = $input.all().map(i => i.json).filter(x => x.Stage === 'Sent' && x['Lead ID']);\nif (!sent.length) return [];\nconst sentIds = new Set(sent.map(x => x['Lead ID']));\n// First emails sent before this run (rows with Sent At when the run started, excluding this run's leads).\nconst before = $('Get All Leads').all().filter(i => String(i.json['Sent At'] || '').trim() && !sentIds.has(i.json['Lead ID'])).length;\nconst after = before + sent.length;\nif (Math.floor(before / every) === Math.floor(after / every)) return [];\nconst lastId = sent[sent.length - 1]['Lead ID'];\nconst d = $('Get Approved Drafts').all().map(i => i.json).find(x => x['Lead ID'] === lastId);\nif (!d) return [];\nreturn [{ json: { seed, subject: d.Subject, body: d['Draft Body'], lead: lastId, total_sent: after, every } }];"
+      },
+      "notes": "Inbox-placement check: every 'Seed Every' first emails (Settings, default 12) send an identical copy of the last email to Settings 'Seed Email'. Blank Seed Email = off."
+    },
+    {
+      "id": "822c795a-1f64-4c62-b400-3a93c9bdb512",
+      "name": "Send Seed Copy (SMTP)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1568,
+        560
+      ],
+      "parameters": {
+        "emailFormat": "text",
+        "fromEmail": "={{ $('Read Settings').first().json['SMTP From'] }}",
+        "options": {
+          "appendAttribution": false
+        },
+        "subject": "={{ $json.subject }}",
+        "text": "={{ $json.body }}",
+        "toEmail": "={{ $json.seed }}"
+      },
+      "notes": "Identical copy of the last first email, to Settings 'Seed Email'. Check whether it lands in Inbox or Spam.",
+      "onError": "continueRegularOutput",
+      "webhookId": "a591d4af-0741-4e23-8393-80efabb05a6e",
+      "credentials": {
+        "smtp": {
+          "name": "SMTP account"
+        }
       }
     }
   ],
@@ -1351,7 +1403,13 @@
     },
     "Loop Over Drafts": {
       "main": [
-        [],
+        [
+          {
+            "node": "Seed check",
+            "type": "main",
+            "index": 0
+          }
+        ],
         [
           {
             "node": "Safe to send?",
@@ -1527,6 +1585,17 @@
         [
           {
             "node": "Stop: Gmail not sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Seed check": {
+      "main": [
+        [
+          {
+            "node": "Send Seed Copy (SMTP)",
             "type": "main",
             "index": 0
           }

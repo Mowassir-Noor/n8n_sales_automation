@@ -1,10 +1,10 @@
 # Workflow reference
 
-All seven workflows run in Europe/Istanbul time with n8n execution order v1. Each has a schedule trigger and a **Manual Test** trigger (except WF4, which has only a Gmail trigger). Every Claude call has an "(account 2)" twin: in WF0 and WF1 the Anthropic node's error output feeds a clone with the same prompt; in WF2, WF4, WF5 and WF6 the LLM chain has **Enable Fallback Model** on with a second chat-model node. When the first account errors (credits, rate limit, outage) that one call is retried on the second account.
+All seven workflows run in Europe/Istanbul time with n8n execution order v1. Each has a schedule trigger and a **Manual Test** trigger (except WF4, which has only its mail trigger: IMAP, or Gmail). Every Claude call has an "(account 2)" twin: in WF0 and WF1 the Anthropic node's error output feeds a clone with the same prompt; in WF2, WF4, WF5 and WF6 the LLM chain has **Enable Fallback Model** on with a second chat-model node. When the first account errors (credits, rate limit, outage) that one call is retried on the second account.
 
-Every notification node to the manager (Gmail, WhatsApp, Telegram) is wired in parallel from the Settings read, has **On Error → Continue** and **Execute Once**, so a failing channel never stops the run or the channels next to it.
+Every notification node to the manager (email and Telegram; WhatsApp nodes were removed on 2026-11-13) is wired in parallel from the Settings read, has **On Error → Continue** and **Execute Once**, so a failing channel never stops the run or the channels next to it.
 
-**Mail provider.** Every mail step exists twice: a Gmail node and an `(SMTP)` node (WF4 also has an `IMAP Trigger` next to the `Gmail Trigger`). A `Use SMTP? (...)` IF node in front of each pair reads `Settings > Mail Provider` and routes to the SMTP node when it says `SMTP`, otherwise to Gmail. The SMTP/IMAP nodes ship disabled. After each send, `Gmail sent?` / `SMTP sent?` (and the follow-up equivalents in WF5) stop the run if the chosen node did not actually send, for example because it is disabled, so a lead is never marked Sent by mistake. Setup steps are in the README.
+**Mail provider.** Every mail step exists twice: a Gmail node and an `(SMTP)` node (WF4 also has an `IMAP Trigger` next to the `Gmail Trigger`). A `Use SMTP? (...)` IF node in front of each pair reads `Settings > Mail Provider` and routes to the SMTP node when it says `SMTP`, otherwise to Gmail. Since 2026-11-13 the exports ship in SMTP mode: the SMTP/IMAP nodes are enabled and the Gmail nodes disabled. After each send, `Gmail sent?` / `SMTP sent?` (and the follow-up equivalents in WF5) stop the run if the chosen node did not actually send, for example because it is disabled, so a lead is never marked Sent by mistake. Setup steps are in the README.
 
 ---
 
@@ -57,11 +57,11 @@ Checks each researched lead against the outreach rules, writes the first email, 
 
 1. **Read Settings** and **Read Suppression** once, then **Get Researched Leads**.
 2. **Compliance check** (Code, no LLM) blocks a lead when: the country is not Turkey; the email is a generic inbox (info@, sales@, …); the email domain does not match the website; `Opt-out = Yes`; or the email or its domain is on `Suppression`. Blocked rows go through **Mark Blocked** (`Stage = Blocked - Compliance`, reason in Compliance Notes) and are never emailed.
-3. **Draft First Email** (LLM chain, Claude Sonnet 5.5, structured JSON output): writes the email in the lead's language from the research notes and hook. The prompt fixes the structure: under 120 words of body, one question, the signature with legal name, address and company website from Settings, the sentence saying the contact details came from the company's public website, and the opt-out sentence.
+3. **Draft First Email** (LLM chain, Claude Sonnet 5.5, structured JSON output): writes the email in the lead's language from the research notes and hook. Greeting: a real contact name gets "Sayın / Dear" + the name; an empty or role-like Contact Name ("General Manager", "Export Contact", anything with "/") gets "Sayın {Company} ekibi," / "Dear {Company} team,", never a job title. The prompt fixes the structure: under 120 words of body, one question, the signature with legal name, address and company website from Settings, the sentence saying the contact details came from the company's public website, and the opt-out sentence.
 4. **Check Draft** (Code) reads the text back and requires: sender name, legal name, address, the opt-out sentence in the right language, the data-source sentence, the Texprove website link in the signature, no links other than the lead's own site and Texprove's, under 190 words, nothing commercially sensitive (whole-word match on buyer/brand names, money amounts, quantities, order / price / capacity / margin / revenue wording), and none of the hype words (garanti, guaranteed, 100%, ücretsiz, free trial, son şans, last chance). Failures give `Compliance Status = Needs fix` with the reasons.
 5. **Translate to English** (Claude Haiku 5.5) turns a Turkish draft into plain English for `Draft Body EN`. Reference only; the Turkish text is what gets sent.
 6. **Save Draft** writes the row with `Approved = Pending`; **Log Compliance** and **Log Draft** record the decisions.
-7. **Notify Nil** (Gmail), **WhatsApp Nil** and **Telegram Nil** send one summary per run with the count of drafts waiting and how many need fixing, plus the sheet link.
+7. **Notify Nil (SMTP)** (or the Gmail **Notify Nil**) and **Telegram Nil** send one summary per run with the count of drafts waiting and how many need fixing, plus the sheet link.
 
 **Writes:** Compliance Status (`OK` / `Needs fix` / `Blocked`), Compliance Notes, Subject, Draft Body, Draft Body EN, Approved = Pending, Last Updated, `Stage = Drafted` or `Blocked - Compliance`.
 
@@ -71,7 +71,7 @@ Checks each researched lead against the outreach rules, writes the first email, 
 
 ## WF3 Send approved emails
 
-Sends the drafts the manager approved, from the connected Gmail inbox, and logs each one to HubSpot.
+Sends the drafts the manager approved, from the company mailbox (SMTP, marketing@texprove.com; Gmail optional), and logs each one to HubSpot.
 
 **Runs:** weekdays 10:00 and 14:00 (`0 10,14 * * 1-5`), or by hand. Up to 15 emails per run with a 90-second pause between them (**Wait 90s**), so at most 30 first emails a day.
 
@@ -80,9 +80,10 @@ Sends the drafts the manager approved, from the connected Gmail inbox, and logs 
 1. **HubSpot quota gate.** **Get All Leads** and **Read Settings**, then **HubSpot Quota Check** (Code) estimates this month's HubSpot actions from the sheet: 2 per first email, 1 per follow-up (dated from Sent At + 4 / 10 / 20 days) and 2 per reply (by Last Updated). If the estimate is at or above `HubSpot Pause Percent` of `HubSpot Monthly Limit` (defaults 80% of 3,000), **Quota OK?** routes to **Warn Nil Quota** and **Log Quota Pause** and nothing is sent. Replies and follow-ups are not gated.
 2. **Get Approved Drafts** reads `Stage = Drafted` and `Approved = Yes`, **Limit 15**, **Loop Over Drafts** one at a time.
 3. **Safe to send?** skips a row when `Compliance Status = Blocked`, `Opt-out = Yes`, or the email / domain is on `Suppression`. Skipped rows are marked by **Mark Skipped** (`Blocked - Compliance` or `Opted out`) so they do not take a slot every run.
-4. **Send Email** (Gmail, plain text, n8n attribution off). If `Settings > Test Email` is filled, the message goes to that address instead of the lead.
+4. **Send Email (SMTP)** (or the Gmail **Send Email**; plain text, n8n attribution off). If `Settings > Test Email` is filled, the message goes to that address instead of the lead.
 5. **HubSpot Upsert Contact** and **HubSpot Log Email** (both continue on error, so a HubSpot failure never causes a second send).
 6. **Mark Sent** updates the row right after the send; **Log Send** records it.
+7. **Inbox-placement copy.** When the loop is done, **Seed check** (Code) counts first emails sent so far (rows with Sent At). Each time the total crosses a multiple of `Settings > Seed Every` (default 12), **Send Seed Copy (SMTP)** sends an identical copy of the last email (same From, subject and text) to `Settings > Seed Email`. Empty Seed Email turns it off; the node continues on error.
 
 **Writes:** `Stage = Sent`, Sent At, Gmail Thread ID, HubSpot Contact ID, Follow-up Count = 0, Next Follow-up Date = Sent At + 4 days, Last Updated.
 
@@ -94,7 +95,7 @@ Sends the drafts the manager approved, from the connected Gmail inbox, and logs 
 
 Reads every reply that lands in the inbox, classifies it, updates the sheet and HubSpot, and alerts the manager when a lead is hot.
 
-**Runs:** **Gmail Trigger** polls every 15 minutes for unread inbox mail not sent by you. It cannot be started from a schedule or the API; to test it, publish the workflow and reply to a sent email, or run it from the editor on a real message.
+**Runs:** **IMAP Trigger** watches the company inbox (marketing@texprove.com) and fires within seconds of a new unread message (with Gmail instead, **Gmail Trigger** polls every 15 minutes). It cannot be started from a schedule or the API; to test it, publish the workflow and reply to a sent email, or run it from the editor on a real message.
 
 **Steps**
 
@@ -102,7 +103,7 @@ Reads every reply that lands in the inbox, classifies it, updates the sheet and 
 2. **Summarize Reply** (Claude Haiku 5.5, structured JSON) writes a one-sentence summary, flags any removal request, and classifies the reply as Hot (wants a call or demo), Warm (interested, later), Cold (polite no), Not interested (asks to stop) or Auto-reply (out of office, bounce).
 3. **Route by Category** (Switch) → **Category Hot / Warm / Cold / Not interested** → **Decide Outcome**. Auto-reply changes nothing. Not interested, or any removal request, sets `Stage = Opted out` and `Opt-out = Yes`. Hot / Warm / Cold set `Stage = Replied - …` and clear Next Follow-up Date so WF5 stops.
 4. **Update Lead Row**, **Log Reply**, **HubSpot Log Reply** (engagement) and **HubSpot Set Lead Status** (IN_PROGRESS for Hot, OPEN for Warm, UNQUALIFIED for Cold and Not interested). HubSpot nodes continue on error.
-5. **Hot reply?** → **Read Settings** → **Alert Nil** (Gmail), **WhatsApp Nil (hot)**, **Telegram Nil (hot)** in parallel with the summary and a link to the thread. **Mark Reply Read** at the end (Gmail only; the IMAP Trigger marks messages read itself).
+5. **Hot reply?** → **Read Settings** → **Alert Nil (SMTP)** (or the Gmail **Alert Nil**) and **Telegram Nil (hot)** in parallel with the summary and a link to the thread. **Mark Reply Read** at the end (Gmail only; the IMAP Trigger marks messages read itself).
 
 **Writes:** Reply Category, Reply Summary, Stage, Opt-out, Next Follow-up Date (cleared), Last Updated.
 
@@ -130,7 +131,7 @@ Drafts up to three follow-ups in the same email thread, 4, 10 and 20 days after 
 5. **send:** **Get Original Message-ID** (Gmail API) → **Build Reply** (Code: `Re:` subject, In-Reply-To, References, the saved draft as body) → **Send Follow-up** (Gmail API, same thread ID). The Gmail node's "reply to thread" is not used because it fails on a thread holding only your own message. Then **HubSpot Log Follow-up** (continue on error), **Update Follow-up Row**, **Log Follow-up**.
 6. **decline:** **Decline Follow-up** clears `Follow-up Draft` and `Next Follow-up Date`; **Log Follow-up Declined**.
 7. After the loop: **Ready to close?** → **Close No Reply** sets `Closed - No reply` seven days after Follow-up 3 with no reply; **Log Close**.
-8. **Summarize Follow-ups** (Code) counts sent / drafted / blocked / declined; if **Anything to report?** is true, **Read Settings (follow-ups)** → **Email Nil (follow-ups)**, **WhatsApp Nil (follow-ups)**, **Telegram Nil (follow-ups)** in parallel. Nothing is sent when nothing was due.
+8. **Summarize Follow-ups** (Code) counts sent / drafted / blocked / declined; if **Anything to report?** is true, **Read Settings (follow-ups)** → **Email Nil (follow-ups, SMTP)** (or the Gmail version) and **Telegram Nil (follow-ups)** in parallel. Nothing is sent when nothing was due.
 
 **Writes (on send):** Follow-up Count + 1, `Stage = Follow-up 1/2/3`, Next Follow-up Date = Sent At + 10 days, + 20 days, then empty, Follow-up Draft cleared, Last Updated.
 
@@ -148,13 +149,13 @@ Two branches from one trigger.
 
 1. **Get All Leads** → **Compute Weekly Stats** (Code) counts rows per Stage and the last 7 days' activity: first emails sent, leads followed up, replies by category, opt-outs.
 2. **Write Weekly Report** (Claude Sonnet 5.5) writes under 200 words with the numbers, what went well and two suggestions.
-3. **Read Settings (report)** → **Email Weekly Report** (subject "Texprove outreach, week of …") and **Telegram Nil (report)** in parallel; **Log Report**.
+3. **Read Settings (report)** → **Email Weekly Report (SMTP)** (or the Gmail version; subject "Texprove outreach, week of …") and **Telegram Nil (report)** in parallel; **Log Report**.
 
 **Branch B, LinkedIn drafts**
 
 1. **Write LinkedIn Drafts** (Claude Sonnet 5.5, structured JSON) writes three posts for the company page: an EU regulation explainer, a customer-style story, a practical tip.
 2. **Split Drafts** → **Append to Social** with `Approved = Pending`, `Posted = No`.
-3. **Read Settings (social)** → **Email Social Drafts Ready**, **WhatsApp Nil (social)**, **Telegram Nil (social)** in parallel. Email and Telegram carry the three full draft texts (Telegram sliced to the 4,096-character limit), not only the sheet link.
+3. **Read Settings (social)** → **Email Social Drafts Ready (SMTP)** (or the Gmail version) and **Telegram Nil (social)** in parallel. Email and Telegram carry the three full draft texts (Telegram sliced to the 4,096-character limit), not only the sheet link.
 
 Nothing is posted to LinkedIn by the workflow.
 

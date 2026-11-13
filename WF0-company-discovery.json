@@ -503,7 +503,7 @@
       "onError": "continueRegularOutput",
       "credentials": {
         "anthropicApi": {
-          "name": "Anthropic account"
+          "name": "Anthropic account 2"
         }
       }
     }

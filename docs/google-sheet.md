@@ -49,10 +49,10 @@ One header row and one data row (row 2). Every workflow reads this row at the st
 
 | Column | Header | What goes in it |
 |---|---|---|
-| A | Sender Name | Full name the emails come from |
-| B | Sender Title | Their title |
+| A | Sender Name | Full name the emails come from (currently `Nil Sızır`) |
+| B | Sender Title | Their title (currently `Founder & CEO`) |
 | C | Company Legal Name | Registered company name (printed in the signature) |
-| D | Company Address | Registered postal address (printed in the signature) |
+| D | Company Address | Postal address printed in the signature (currently the Ankara office: Ankara Teknoloji Köprüsü Kuluçka Merkezi, İlkadım, Yeşilvadi Sk. No: 41 Ofis No: 36, 06450 Çankaya/Ankara) |
 | E | Opt-out TR | Turkish opt-out sentence appended to every email |
 | F | Opt-out EN | English opt-out sentence |
 | G | Nil Email | Manager's address for approval requests, Hot alerts, summaries and reports |
@@ -60,15 +60,17 @@ One header row and one data row (row 2). Every workflow reads this row at the st
 | I | HubSpot Monthly Limit | Optional, default 3000 |
 | J | HubSpot Pause Percent | Optional, default 80. WF3 pauses first emails when the estimated month's actions reach this share of the limit |
 | K | Test Email | **Test mode switch.** While it holds an address, WF3 sends every first email (and creates the HubSpot contact) to that address instead of the lead. Clear it before going live |
-| L | Nil WhatsApp | Manager's WhatsApp number with country code, no `+` (e.g. `9050…`) |
-| M | WhatsApp Phone Number ID | The Phone Number ID of your WhatsApp Business Cloud sender |
+| L | Nil WhatsApp | Not read any more (WhatsApp nodes removed on 2026-11-13). Left in place so column letters don't move |
+| M | WhatsApp Phone Number ID | Not read any more (see L) |
 | N | Nil Telegram Chat ID | Manager's numeric Telegram chat ID (they must press Start on the bot once) |
 | O | Company Website | `https://www.texprove.com`; WF2 puts it on the last line of the signature and the draft check requires it |
 | P | HubSpot Owner ID | Optional; not read by the current workflows (left from an earlier HubSpot-task build) |
-| Q | Mail Provider | **Mail switch.** `Gmail` (default, also when empty) sends with the Gmail nodes and reads replies with the Gmail Trigger. `SMTP` sends with the SMTP nodes and reads replies with the IMAP Trigger. Enable the matching nodes in n8n too; see the README section on the company mailbox |
-| R | SMTP From | Sender used by the SMTP nodes, e.g. `Texprove Sales <sales@texprove.com>`. Only read when Mail Provider is `SMTP` |
+| Q | Mail Provider | **Mail switch.** `SMTP` (current setting) sends with the SMTP nodes and reads replies with the IMAP Trigger. `Gmail` (also when empty) sends with the Gmail nodes and reads replies with the Gmail Trigger. The matching nodes must be enabled in n8n too; see the README section on the company mailbox |
+| R | SMTP From | Sender used by the SMTP nodes, currently `Texprove <marketing@texprove.com>`. Only read when Mail Provider is `SMTP` |
+| S | Seed Email | Inbox-placement check (WF3). Every `Seed Every` first emails, an identical copy of the last one is sent here so you can see whether it lands in Inbox or Spam. Empty = off. Currently `mowassirnoor01@gmail.com` |
+| T | Seed Every | How many first emails between copies, default 12 |
 
-Columns K to R may be empty; the matching channel is then skipped or, for Test Email, real sending is enabled.
+Columns K to T may be empty; the matching channel is then skipped or, for Test Email, real sending is enabled.
 
 ## Tab `Social`
 

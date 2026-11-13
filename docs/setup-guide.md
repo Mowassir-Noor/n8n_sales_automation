@@ -1,6 +1,6 @@
 # Texprove Automation Setup Guide
 
-Last updated 2026-11-05. Live copy: the "Texprove Automation Setup Guide" Claude Doc.
+Last updated 2026-11-14. Live copy: the "Texprove Automation Setup Guide" Claude Doc.
 
 ## Overview
 
@@ -8,8 +8,8 @@ Everything is set up in eight steps, in this order. Steps 1 to 6 happen once. Ev
 
 1. Create the Google Sheet and fill the `Settings` row, with `Test Email` set.
 2. Create the Anthropic, Google Sheets and HubSpot credentials in n8n.
-3. Set up email: Gmail **or** SMTP + IMAP (texprove.com needs SMTP + IMAP).
-4. Set up WhatsApp Business Cloud (optional).
+3. Set up email: SMTP + IMAP for texprove.com (current setup), or Gmail.
+4. (WhatsApp was removed on 2026-11-13; nothing to set up.)
 5. Set up the Telegram bot (optional, but the most reliable alert channel).
 6. Import WF0–WF6 and attach the credentials node by node.
 7. Test every workflow by hand in test mode.
@@ -28,10 +28,10 @@ The sheet `Texprove Leads` is the only shared state; it needs five tabs with exa
 
 | Column | Header | What to put in it |
 | --- | --- | --- |
-| A | Sender Name | Full name emails come from |
-| B | Sender Title | Their job title |
+| A | Sender Name | Full name emails come from (`Nil Sızır`) |
+| B | Sender Title | Their job title (`Founder & CEO`) |
 | C | Company Legal Name | Registered company name |
-| D | Company Address | Registered postal address (printed in every email) |
+| D | Company Address | Postal address printed in every email (the Ankara office) |
 | E | Opt-out TR | Turkish opt-out sentence |
 | F | Opt-out EN | English opt-out sentence |
 | G | Nil Email | Manager's email for approvals, alerts, reports |
@@ -39,13 +39,15 @@ The sheet `Texprove Leads` is the only shared state; it needs five tabs with exa
 | I | HubSpot Monthly Limit | 3000 |
 | J | HubSpot Pause Percent | 80 |
 | K | Test Email | **Test mode switch.** Your own address while testing; empty = real sending |
-| L | Nil WhatsApp | Manager's number with country code, no + (e.g. 905…) |
-| M | WhatsApp Phone Number ID | From Meta, step 4 |
+| L | Nil WhatsApp | Not used any more (WhatsApp removed) |
+| M | WhatsApp Phone Number ID | Not used any more |
 | N | Nil Telegram Chat ID | From Telegram, step 5 |
 | O | Company Website | https://www.texprove.com |
 | P | HubSpot Owner ID | Not used; leave as is |
-| Q | Mail Provider | `Gmail` or `SMTP` (step 3) |
-| R | SMTP From | Only for SMTP, e.g. `Texprove Sales <sales@texprove.com>` |
+| Q | Mail Provider | `SMTP` (current) or `Gmail` (step 3) |
+| R | SMTP From | `Texprove <marketing@texprove.com>` |
+| S | Seed Email | Inbox you check; WF3 sends it a copy of every 12th first email to show Inbox vs Spam. Empty = off |
+| T | Seed Every | 12 |
 
 Keep `Test Email` filled until the go-live checklist is done. While it holds an address, every first email, follow-up and HubSpot contact uses that address instead of the lead's.
 
@@ -64,7 +66,7 @@ These three are required; nothing runs without them.
 
 1. Log in to console.anthropic.com, add credit under **Billing**, then **API Keys → Create Key**. Copy the key once; it is not shown again.
 2. In n8n create an **Anthropic** credential named `Anthropic account` and paste the key.
-3. On the current instance the Claude nodes carry an auto-assigned "Gateway credits" credential. Replace it with `Anthropic account` on every Claude node (step 6).
+3. Every Claude node must use `Anthropic account` (fallback nodes: `Anthropic account 2`), not n8n "Gateway credits" (step 6).
 
 **Google Sheets**
 
@@ -79,14 +81,14 @@ These three are required; nothing runs without them.
 
 ## 3. Email: Gmail or SMTP + IMAP
 
-Pick one provider with `Settings → Mail Provider`. texprove.com is hosted on its own server (`mail.texprove.com`), not Google, so the company mailbox uses **Option B**. Gmail (Option A) is what testing uses today.
+Pick one provider with `Settings → Mail Provider`. texprove.com is hosted on its own server (`mail.texprove.com`), not Google, so the company mailbox uses **Option B**, which is what the exports and the live server use since 2026-11-13 (marketing@texprove.com; send, reply and Hot-alert tested end to end).
 
 ### Option A: Gmail or Google Workspace
 
 1. In n8n create a **Gmail OAuth2 API** credential named `Gmail account`, click **Sign in with Google**, and log in with the sending address.
 2. If a Workspace account is blocked with "app not allowed", an admin allows n8n in **admin.google.com → Security → API controls → App access control**.
 3. Set `Mail Provider` = `Gmail` (or leave it empty).
-4. Select `Gmail account` on these 12 nodes; leave every `(SMTP)` node and the `IMAP Trigger` disabled:
+4. Select `Gmail account` on these 12 nodes and enable them; disable every `(SMTP)` node and the `IMAP Trigger`:
 
 | Workflow | Gmail nodes |
 | --- | --- |
@@ -118,40 +120,12 @@ If `Mail Provider` and the enabled nodes don't match, WF3 and WF5 stop with an e
 
 - The domain admin checks that **SPF and DKIM** cover the sending server. texprove.com already enforces DMARC (quarantine/reject), so unauthenticated mail is junked or bounced.
 - Warm up slowly: 10–15 emails a day for the first two weeks (WF3 caps a run at 15).
-- Nobody should read new replies in the inbox before WF4 does; WF4 only picks up unread mail.
+- Nobody should read new replies in the inbox before WF4 does, including on a phone; WF4 only picks up unread mail.
+- Watch the inbox-placement copies (`Seed Email`, every 12 first emails). SPF, DKIM and DMARC already pass for marketing@texprove.com; a copy in Spam means reputation or content, so slow down.
 
-## 4. WhatsApp Business Cloud (optional)
+## 4. WhatsApp (removed)
 
-WhatsApp alerts need a Meta app, a permanent token and the manager's number on the allow-list. Email and Telegram work without it; the current credential holds an expired 24-hour token.
-
-**Create the sender**
-
-1. Go to developers.facebook.com → **My Apps → Create App**, choose type **Business**, and link it to Texprove's Meta Business account.
-2. In the app, add the **WhatsApp** product. Open **WhatsApp → API Setup**. Meta gives you a test sender number.
-3. Copy the **Phone Number ID** into `Settings` column M, and note the **WhatsApp Business Account ID**.
-4. Under **To**, add the manager's number and confirm the code sent to it. A test number can message at most 5 allow-listed numbers.
-5. For real use, click **Add phone number** to register Texprove's own number, verify the business, and add a payment method in WhatsApp Manager.
-
-**Create a permanent token** (the API Setup token expires after 24 hours)
-
-1. Open business.facebook.com → **Settings → Users → System users → Add**, role Admin.
-2. **Assign assets**: pick the app, give full control.
-3. **Generate new token**: select the app, tick `whatsapp_business_messaging` and `whatsapp_business_management`, expiry **Never**. Copy the token.
-
-**Connect n8n**
-
-1. Create a **WhatsApp API** credential named `WhatsApp API` with the token as **Access Token** and the Business Account ID. (The WhatsApp OAuth2 type only works for triggers, not sending.)
-2. Put the manager's number in `Settings` column L, digits only with country code (e.g. `905xxxxxxxxx`).
-3. Select `WhatsApp API` on these nodes:
-
-| Workflow | Node | Note |
-| --- | --- | --- |
-| WF2 | WhatsApp Nil | new drafts waiting |
-| WF4 | WhatsApp Nil (hot) | currently **disabled**: enable it (right-click → Activate) once the credential exists |
-| WF5 | WhatsApp Nil (follow-ups) | follow-up summary |
-| WF6 | WhatsApp Nil (social) | LinkedIn drafts ready |
-
-**The 24-hour rule.** Free-text messages only arrive within 24 hours of the manager's last message to the business number. Either the manager sends the number a message each day, or you create an approved **message template** in WhatsApp Manager and switch the nodes to send that template. Telegram has no such limit.
+The WhatsApp notification nodes were deleted from WF2, WF4, WF5 and WF6 on 2026-11-13. Manager alerts go by email and Telegram. Settings columns L and M are no longer read.
 
 ## 5. Telegram bot (optional)
 
@@ -172,7 +146,7 @@ Telegram is the most reliable alert channel: no 24-hour window and no business v
 
 ## 6. Import the workflows and attach credentials
 
-On the current instance (sobannoortesting.app.n8n.cloud) WF0–WF6 are already imported; only the missing credentials need attaching. On a fresh instance, start at step 1.
+On the current server (n8n.mowassirnoor.tech) WF0–WF6 are imported and every credential is attached (2026-11-13). On a fresh instance, start at step 1. n8n may not attach credentials by name on import, so check every node.
 
 1. Download `WF0-company-discovery.json` … `WF6-weekly-report.json` from the GitHub repo.
 2. In n8n: **Workflows → ⋯ → Import from File**, one file at a time.
@@ -183,17 +157,17 @@ On the current instance (sobannoortesting.app.n8n.cloud) WF0–WF6 are already i
 
 Which credentials each workflow needs:
 
-| Workflow | Anthropic | Google Sheets | Email (Gmail or SMTP/IMAP) | HubSpot | WhatsApp | Telegram |
-| --- | --- | --- | --- | --- | --- | --- |
-| WF0 Company discovery | yes | yes | – | – | – | – |
-| WF1 Lead research | yes | yes | – | – | – | – |
-| WF2 Compliance + draft | yes | yes | yes | – | yes | yes |
-| WF3 Send approved | – | yes | yes | yes | – | – |
-| WF4 Reply triage | yes | yes | yes | yes | yes | yes |
-| WF5 Follow-ups | yes | yes | yes | yes | yes | yes |
-| WF6 Weekly report | yes | yes | yes | – | yes | yes |
+| Workflow | Anthropic (+ account 2 on fallbacks) | Google Sheets | Email (SMTP/IMAP or Gmail) | HubSpot | Telegram |
+| --- | --- | --- | --- | --- | --- |
+| WF0 Company discovery | yes | yes | – | – | – |
+| WF1 Lead research | yes | yes | – | – | – |
+| WF2 Compliance + draft | yes | yes | yes | – | yes |
+| WF3 Send approved | – | yes | yes | yes | – |
+| WF4 Reply triage | yes | yes | yes | yes | yes |
+| WF5 Follow-ups | yes | yes | yes | yes | yes |
+| WF6 Weekly report | yes | yes | yes | – | yes |
 
-n8n refuses to activate a workflow while any **enabled** node has no credential. If you skip WhatsApp, disable the WhatsApp nodes; if you use SMTP, disable the Gmail nodes (section 3).
+n8n refuses to activate a workflow while any **enabled** node has no credential. The exports ship with the Gmail nodes disabled; if you switch to Gmail, disable the SMTP/IMAP nodes instead (section 3).
 
 ## 7. Test in test mode
 
@@ -209,12 +183,10 @@ Run each workflow from its **Manual Test** trigger with `Test Email` set, and ch
 
 ## 8. Go-live checklist
 
-- [ ] Real `Company Legal Name` and `Company Address` in Settings; opt-out and data-source sentences reviewed by the manager or a lawyer (KVKK / İYS).
-- [ ] `Nil Email`, `Nil WhatsApp`, `Nil Telegram Chat ID` changed from the test values to the manager's.
+- [ ] `Company Legal Name` checked (currently just "Texprove") and `Company Address` set (Ankara office, done 2026-11-13); opt-out and data-source sentences reviewed by the manager or a lawyer (KVKK / İYS).
+- [ ] `Nil Email` and `Nil Telegram Chat ID` changed from the test values to the manager's.
 - [ ] Company mailbox connected (section 3), SPF/DKIM pass, warm-up plan agreed.
-- [ ] WhatsApp uses a permanent token; `WhatsApp Nil (hot)` re-enabled in WF4 (or WhatsApp skipped and its nodes disabled).
-- [ ] Claude nodes use `Anthropic account` instead of the gateway credits.
-- [ ] WF4 Gmail Trigger back to every 15 minutes (it is on every minute for testing).
+- [ ] `Seed Email` points at an inbox someone checks.
 - [ ] Test rows removed or set to `Opted out`; duplicate test rows in `Social` deleted.
 - [ ] `Test Email` cleared in Settings.
 - [ ] Workflows activated one at a time: WF4, then WF2, WF3, WF5, WF6, WF1; WF0 last.

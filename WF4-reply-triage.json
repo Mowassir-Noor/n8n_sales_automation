@@ -31,7 +31,8 @@
         "gmailOAuth2": {
           "name": "Gmail account"
         }
-      }
+      },
+      "disabled": true
     },
     {
       "id": "807857ab-a390-4517-bb44-1ee45da7985b",
@@ -98,6 +99,11 @@
           "cachedResultName": "Claude Haiku 5.5"
         },
         "options": {}
+      },
+      "credentials": {
+        "anthropicApi": {
+          "name": "Anthropic account"
+        }
       }
     },
     {
@@ -118,7 +124,12 @@
         },
         "options": {}
       },
-      "notes": "Fallback model: used only when the first Anthropic account errors. Point this node at the second Anthropic credential."
+      "notes": "Fallback model: used only when the first Anthropic account errors. Point this node at the second Anthropic credential.",
+      "credentials": {
+        "anthropicApi": {
+          "name": "Anthropic account 2"
+        }
+      }
     },
     {
       "id": "2a6087cb-eed1-4246-ad71-bf02cabc7972",
@@ -459,7 +470,8 @@
         "gmailOAuth2": {
           "name": "Gmail account"
         }
-      }
+      },
+      "disabled": true
     },
     {
       "id": "6f27610f-13fa-4ef9-a132-bf7288ef1001",
@@ -548,7 +560,8 @@
         "gmailOAuth2": {
           "name": "Gmail account"
         }
-      }
+      },
+      "disabled": true
     },
     {
       "id": "47da299d-a800-487a-8962-af8fc25f9d3d",
@@ -801,28 +814,6 @@
       "notes": "Auto-reply matches no rule and is dropped (nothing changes for the lead), as before."
     },
     {
-      "id": "d7f8b16c-2a6b-4df4-b47a-3ab80fa13465",
-      "name": "WhatsApp Nil (hot)",
-      "type": "n8n-nodes-base.whatsApp",
-      "typeVersion": 1.1,
-      "position": [
-        2000,
-        416
-      ],
-      "parameters": {
-        "messageType": "text",
-        "operation": "send",
-        "phoneNumberId": "={{ $('Read Settings').item.json['WhatsApp Phone Number ID'] }}",
-        "recipientPhoneNumber": "={{ $('Read Settings').item.json['Nil WhatsApp'] }}",
-        "resource": "message",
-        "textBody": "=Texprove: Hot reply from {{ $('Find Lead by Thread').item.json['Contact Name'] }} at {{ $('Find Lead by Thread').item.json.Company }}: {{ $('Decide Outcome').item.json.reply_summary }}{{ $('Read Settings').item.json['Sheet URL'] ? ' ' + $('Read Settings').item.json['Sheet URL'] : '' }}"
-      },
-      "notes": "Same Hot-reply alert as the email, on WhatsApp. Free-form text only delivers within 24 h of Nil's last message to the business number; otherwise a template is needed.",
-      "onError": "continueRegularOutput",
-      "webhookId": "6244ca46-41e0-49fa-8a1b-a89e4ccce309",
-      "disabled": true
-    },
-    {
       "id": "145384f6-a690-40df-aad6-bd4f31489c32",
       "name": "Telegram Nil (hot)",
       "type": "n8n-nodes-base.telegram",
@@ -898,8 +889,12 @@
         },
         "postProcessAction": "read"
       },
-      "disabled": true,
-      "notes": "Use instead of Gmail Trigger when Settings Mail Provider = SMTP: select the IMAP credential, enable this node and disable Gmail Trigger."
+      "notes": "Use instead of Gmail Trigger when Settings Mail Provider = SMTP: select the IMAP credential, enable this node and disable Gmail Trigger.",
+      "credentials": {
+        "imap": {
+          "name": "IMAP account"
+        }
+      }
     },
     {
       "id": "e4528ea8-c0e0-47aa-9435-251acb88a6a9",
@@ -1014,9 +1009,13 @@
         "text": "=Hot reply from {{ $('Find Lead by Thread').item.json['Contact Name'] }} at {{ $('Find Lead by Thread').item.json.Company }}: {{ $('Decide Outcome').item.json.reply_summary }}\n\nSheet: {{ $json['Sheet URL'] ?? 'open the \"Texprove Leads\" Google Sheet, tab Leads' }}",
         "toEmail": "={{ $json['Nil Email'] }}"
       },
-      "disabled": true,
       "onError": "continueRegularOutput",
-      "webhookId": "6dc42434-8f3f-45b6-9b36-745f586f35a9"
+      "webhookId": "6dc42434-8f3f-45b6-9b36-745f586f35a9",
+      "credentials": {
+        "smtp": {
+          "name": "SMTP account"
+        }
+      }
     }
   ],
   "connections": {
@@ -1160,11 +1159,6 @@
     "Read Settings": {
       "main": [
         [
-          {
-            "node": "WhatsApp Nil (hot)",
-            "type": "main",
-            "index": 0
-          },
           {
             "node": "Telegram Nil (hot)",
             "type": "main",

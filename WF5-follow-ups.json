@@ -141,7 +141,8 @@
         "gmailOAuth2": {
           "name": "Gmail account"
         }
-      }
+      },
+      "disabled": true
     },
     {
       "id": "879ff105-161a-4880-a3dc-4e7f4d7b6ef9",
@@ -224,6 +225,11 @@
           "cachedResultName": "Claude Sonnet 5.5"
         },
         "options": {}
+      },
+      "credentials": {
+        "anthropicApi": {
+          "name": "Anthropic account"
+        }
       }
     },
     {
@@ -244,7 +250,12 @@
         },
         "options": {}
       },
-      "notes": "Fallback model: used only when the first Anthropic account errors (credits exhausted, rate limit, outage). Point this node at the second Anthropic credential."
+      "notes": "Fallback model: used only when the first Anthropic account errors (credits exhausted, rate limit, outage). Point this node at the second Anthropic credential.",
+      "credentials": {
+        "anthropicApi": {
+          "name": "Anthropic account 2"
+        }
+      }
     },
     {
       "id": "5bddda78-5bd4-452f-8fd6-2884a0d68149",
@@ -990,7 +1001,8 @@
         "gmailOAuth2": {
           "name": "Gmail account"
         }
-      }
+      },
+      "disabled": true
     },
     {
       "id": "54339a7f-4499-4d31-bf4f-7a5de66bc4bd",
@@ -1029,7 +1041,8 @@
         "gmailOAuth2": {
           "name": "Gmail account"
         }
-      }
+      },
+      "disabled": true
     },
     {
       "id": "5a1c9e95-77f2-47a8-b6f7-c5bd87fd85d9",
@@ -1134,28 +1147,8 @@
         "gmailOAuth2": {
           "name": "Gmail account"
         }
-      }
-    },
-    {
-      "id": "1d1018cd-2a06-43bc-8c79-2a4d799c2378",
-      "name": "WhatsApp Nil (follow-ups)",
-      "type": "n8n-nodes-base.whatsApp",
-      "typeVersion": 1.1,
-      "position": [
-        1792,
-        -320
-      ],
-      "parameters": {
-        "operation": "send",
-        "phoneNumberId": "={{ $('Read Settings (follow-ups)').first().json['WhatsApp Phone Number ID'] }}",
-        "recipientPhoneNumber": "={{ $('Read Settings (follow-ups)').first().json['Nil WhatsApp'] }}",
-        "textBody": "=Texprove: {{ $('Summarize Follow-ups').first().json.drafted_count }} follow-up draft(s) waiting for your approval ({{ $('Summarize Follow-ups').first().json.drafted_list || 'none' }}); {{ $('Summarize Follow-ups').first().json.sent_count }} sent ({{ $('Summarize Follow-ups').first().json.sent_list || 'none' }}); {{ $('Summarize Follow-ups').first().json.blocked_count }} blocked. Set Approved to Yes, No or Edit in the Leads tab.{{ $('Read Settings (follow-ups)').first().json['Sheet URL'] ? ' ' + $('Read Settings (follow-ups)').first().json['Sheet URL'] : '' }}",
-        "additionalFields": {}
       },
-      "notes": "Free-form text only delivers within 24 h of Nil's last message to the business number; otherwise a template is needed.",
-      "executeOnce": true,
-      "onError": "continueRegularOutput",
-      "webhookId": "039c648c-2ac9-4a78-9698-ed82b509fac4"
+      "disabled": true
     },
     {
       "id": "f8192e40-ff52-4d23-acdf-9795d240f822",
@@ -1842,7 +1835,11 @@
       },
       "notes": "SMTP version of the follow-up send. Uses a Re: subject; SMTP cannot attach it to the Gmail thread.",
       "webhookId": "15dd9601-518a-4656-8f80-1e11528270fa",
-      "disabled": true
+      "credentials": {
+        "smtp": {
+          "name": "SMTP account"
+        }
+      }
     },
     {
       "id": "21800aae-1bca-47a8-93a6-e8fa70ad7d29",
@@ -1900,7 +1897,11 @@
       "onError": "continueRegularOutput",
       "executeOnce": true,
       "webhookId": "40cb1ca0-b811-4b92-bcf6-e5fca7ac7cc3",
-      "disabled": true
+      "credentials": {
+        "smtp": {
+          "name": "SMTP account"
+        }
+      }
     },
     {
       "id": "0ff058c9-4c9f-483e-b6d9-2fc297b7f387",
@@ -2281,11 +2282,6 @@
     "Read Settings (follow-ups)": {
       "main": [
         [
-          {
-            "node": "WhatsApp Nil (follow-ups)",
-            "type": "main",
-            "index": 0
-          },
           {
             "node": "Telegram Nil (follow-ups)",
             "type": "main",

@@ -116,6 +116,11 @@
           "cachedResultName": "Claude Sonnet 5.5"
         },
         "options": {}
+      },
+      "credentials": {
+        "anthropicApi": {
+          "name": "Anthropic account"
+        }
       }
     },
     {
@@ -136,7 +141,12 @@
         },
         "options": {}
       },
-      "notes": "Fallback model: used only when the first Anthropic account errors. Point this node at the second Anthropic credential."
+      "notes": "Fallback model: used only when the first Anthropic account errors. Point this node at the second Anthropic credential.",
+      "credentials": {
+        "anthropicApi": {
+          "name": "Anthropic account 2"
+        }
+      }
     },
     {
       "id": "03f4d44b-99e2-4fcb-a9c6-0bbd436ad213",
@@ -194,7 +204,8 @@
         "gmailOAuth2": {
           "name": "Gmail account"
         }
-      }
+      },
+      "disabled": true
     },
     {
       "id": "716ec484-e111-408f-a8e4-d24c149a18e6",
@@ -230,6 +241,11 @@
           "cachedResultName": "Claude Sonnet 5.5"
         },
         "options": {}
+      },
+      "credentials": {
+        "anthropicApi": {
+          "name": "Anthropic account"
+        }
       }
     },
     {
@@ -250,7 +266,12 @@
         },
         "options": {}
       },
-      "notes": "Fallback model: used only when the first Anthropic account errors. Point this node at the second Anthropic credential."
+      "notes": "Fallback model: used only when the first Anthropic account errors. Point this node at the second Anthropic credential.",
+      "credentials": {
+        "anthropicApi": {
+          "name": "Anthropic account 2"
+        }
+      }
     },
     {
       "id": "0d35e01b-c267-4c14-afc5-134880015f36",
@@ -433,7 +454,8 @@
         "gmailOAuth2": {
           "name": "Gmail account"
         }
-      }
+      },
+      "disabled": true
     },
     {
       "id": "744f335a-66de-4da4-87be-8a19c1667004",
@@ -572,28 +594,6 @@
       }
     },
     {
-      "id": "8ec9719c-6166-4cc1-910b-13a1d5640b4b",
-      "name": "WhatsApp Nil (social)",
-      "type": "n8n-nodes-base.whatsApp",
-      "typeVersion": 1.1,
-      "position": [
-        1376,
-        560
-      ],
-      "parameters": {
-        "messageType": "text",
-        "operation": "send",
-        "phoneNumberId": "={{ $('Read Settings (social)').first().json['WhatsApp Phone Number ID'] }}",
-        "recipientPhoneNumber": "={{ $('Read Settings (social)').first().json['Nil WhatsApp'] }}",
-        "resource": "message",
-        "textBody": "=Texprove: 3 LinkedIn post drafts for the week of {{ $now.startOf('week').toFormat('yyyy-MM-dd') }} are waiting for your approval in the Social tab.{{ $('Read Settings (social)').first().json['Sheet URL'] ? ' ' + $('Read Settings (social)').first().json['Sheet URL'] : '' }}"
-      },
-      "notes": "Needs a WhatsApp Business Cloud credential (Meta access token). Free-form text only delivers within 24 h of Nil's last message to the business number; otherwise use a template.",
-      "executeOnce": true,
-      "onError": "continueRegularOutput",
-      "webhookId": "92b1a79e-701d-4bfd-8dba-499e7866b93c"
-    },
-    {
       "id": "383a720d-a64f-4f69-bee3-433dc3ab19c5",
       "name": "Telegram Nil (social)",
       "type": "n8n-nodes-base.telegram",
@@ -707,7 +707,11 @@
       "onError": "continueRegularOutput",
       "executeOnce": true,
       "webhookId": "174c6d9d-1dae-40a0-9930-7f75303a08fe",
-      "disabled": true
+      "credentials": {
+        "smtp": {
+          "name": "SMTP account"
+        }
+      }
     },
     {
       "id": "db35d29e-9f8b-4813-853d-6e0810804d6b",
@@ -765,7 +769,11 @@
       "onError": "continueRegularOutput",
       "executeOnce": true,
       "webhookId": "5a00c6bf-69d9-4fe0-a189-4c545c233d7b",
-      "disabled": true
+      "credentials": {
+        "smtp": {
+          "name": "SMTP account"
+        }
+      }
     }
   ],
   "connections": {
@@ -946,11 +954,6 @@
     "Read Settings (social)": {
       "main": [
         [
-          {
-            "node": "WhatsApp Nil (social)",
-            "type": "main",
-            "index": 0
-          },
           {
             "node": "Telegram Nil (social)",
             "type": "main",

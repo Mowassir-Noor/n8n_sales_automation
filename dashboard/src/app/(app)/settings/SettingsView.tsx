@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import type { Settings, SettingsHeader, SettingsWriteRequest } from "@/lib/types";
+import { TARGET_COUNTRIES, parseCountries, type Settings, type SettingsHeader, type SettingsWriteRequest } from "@/lib/types";
 import { settingsFieldAccess, validateSettingsValues } from "@/lib/rules";
 import { newRequestId, postJson, SNAPSHOT_KEY, useSnapshot, type SnapshotResponse } from "@/components/api";
 import { useRole, useWriteGuard } from "@/components/actions";
@@ -38,13 +38,24 @@ const T = {
   errors: "Fix these first:",
 };
 
-type FieldDef = { key: SettingsHeader; help: string; multiline?: boolean; affects?: string; notUsed?: boolean };
+type FieldDef = { key: SettingsHeader; help: string; multiline?: boolean; affects?: string; notUsed?: boolean; countries?: boolean };
 type Group = { title: string; fields: FieldDef[] };
 
 const SIG_AFFECTS =
   "Changes the signature of drafts written from the next WF2 run (weekdays 09:00). Existing drafts keep the old text; edit them by hand if needed.";
 
 const GROUPS: Group[] = [
+  {
+    title: "Target countries",
+    fields: [
+      {
+        key: "Target Countries",
+        countries: true,
+        help: "Countries the weekly company search (WF0, Mondays) looks in. Each picked country runs its own six segment searches, so every extra country adds about $3 of API cost a week. Turkish companies get Turkish emails; companies in the other countries get English emails. Unticking a country only stops new searches there: leads already found keep going.",
+        affects: "WF0 searches the new country list from its next run (Monday 07:00).",
+      },
+    ],
+  },
   {
     title: "Sender and signature",
     fields: [
@@ -111,6 +122,14 @@ const GROUPS: Group[] = [
 
 const ALL_FIELDS = GROUPS.flatMap((g) => g.fields);
 const ADMIN_TYPED: SettingsHeader[] = ["Test Email", "HubSpot Monthly Limit", "HubSpot Pause Percent", "Seed Email", "Seed Every"];
+const ADMIN_ONLY_FIELDS: SettingsHeader[] = [...ADMIN_TYPED, "Target Countries"];
+
+function toggleCountry(value: string, country: string, on: boolean): string {
+  const picked = new Set<string>(parseCountries(value).list);
+  if (on) picked.add(country);
+  else picked.delete(country);
+  return TARGET_COUNTRIES.filter((c) => picked.has(c)).join(", ");
+}
 
 export function SettingsView() {
   const snap = useSnapshot();
@@ -194,7 +213,7 @@ export function SettingsView() {
           <div className="grid gap-4 md:grid-cols-2">
             {g.fields.map((f) => {
               const access = settingsFieldAccess(f.key, role);
-              const isAdminField = ADMIN_TYPED.includes(f.key);
+              const isAdminField = ADMIN_ONLY_FIELDS.includes(f.key);
               const readOnly = access === "readonly" || guard.disabled;
               const id = `set-${f.key.replace(/\W+/g, "-")}`;
               const isChanged = changed.includes(f.key);
@@ -217,7 +236,43 @@ export function SettingsView() {
                     {access === "readonly" && !isAdminField ? <Badge>{T.locked.readonly}</Badge> : null}
                     {isAdminField ? <Badge tone={isAdmin ? "warn" : "neutral"}>{T.locked.admin}</Badge> : null}
                   </div>
-                  {f.multiline ? <textarea rows={3} {...common} /> : <input type="text" {...common} />}
+                  {f.countries ? (
+                    <div
+                      id={id}
+                      role="group"
+                      aria-describedby={`${id}-help`}
+                      className={cx("flex flex-wrap gap-2 rounded-md border border-line p-2", isChanged && "border-accent ring-1 ring-accent/30")}
+                    >
+                      {TARGET_COUNTRIES.map((c) => {
+                        const value = form[f.key] ?? "";
+                        const on = parseCountries(value).list.includes(c) || (c === "Turkey" && !value.trim());
+                        return (
+                          <label
+                            key={c}
+                            className={cx(
+                              "flex cursor-pointer items-center gap-1.5 rounded-md border border-line px-2.5 py-1 text-sm",
+                              on && "border-accent bg-accent/10",
+                              readOnly && "cursor-not-allowed opacity-70",
+                            )}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={on}
+                              disabled={readOnly}
+                              onChange={(e) =>
+                                setForm((s) => ({ ...s, [f.key]: toggleCountry((s[f.key] ?? "").trim() || "Turkey", c, e.target.checked) }))
+                              }
+                            />
+                            {c}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  ) : f.multiline ? (
+                    <textarea rows={3} {...common} />
+                  ) : (
+                    <input type="text" {...common} />
+                  )}
                   <p id={`${id}-help`} className="text-xs text-muted">
                     {f.help}
                     {f.key === "Mail Provider" || f.key === "SMTP From" ? ` ${T.readonlyWhy}` : ""}

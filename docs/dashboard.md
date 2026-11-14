@@ -55,6 +55,7 @@ Two roles:
 | Remove a Suppression row | no | yes |
 | Sender, address, opt-out sentences, Nil Email, Telegram chat ID | yes | yes |
 | Test Email / go-live, HubSpot limits, Seed Email and Seed Every | no | yes |
+| Target countries (where WF0 searches for companies) | no | yes |
 | Mail Provider, SMTP From | read only | read only |
 
 ## 2. One-time setup

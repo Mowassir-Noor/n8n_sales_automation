@@ -20,7 +20,8 @@
     "Mail Provider": "SMTP",
     "SMTP From": "Texprove <outreach@example.com>",
     "Seed Email": "seed-inbox@example.com",
-    "Seed Every": "12"
+    "Seed Every": "12",
+    "Target Countries": "Turkey"
   },
   "leads": [
     {

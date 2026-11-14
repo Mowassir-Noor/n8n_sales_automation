@@ -21,7 +21,8 @@ function fixAddressLineBreak(body) {
 function complianceIssues(lead, suppression) {
   lead = lead || {};
   const freeDomains = ['gmail.com', 'hotmail.com', 'yahoo.com', 'outlook.com', 'yandex.com', 'icloud.com'];
-  const allowedCountries = ['turkey', 'türkiye', 'turkiye'];
+  // Every country the admin can pick in Settings 'Target Countries' (WF0 only searches the picked ones).
+  const allowedCountries = ['turkey', 'türkiye', 'turkiye', 'bangladesh', 'vietnam', 'viet nam', 'malaysia', 'brazil', 'brasil'];
 
   // Suppression tab: emails and domains that must never be contacted (İYS "ret" opt-outs, manual do-not-contact, bounces).
   const supp = (suppression || []).filter(r => r && (r.Email || r.Domain));

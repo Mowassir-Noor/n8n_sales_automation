@@ -84,6 +84,10 @@ describe("settings rules", () => {
   it("refuses read-only and admin-only fields", () => {
     expect(checkSettingsWrite({ ...base, data: { "SMTP From": "x" }, expect: { "SMTP From": "" } })).toMatchObject({ ok: false, status: 403 });
     expect(checkSettingsWrite({ ...base, role: "approver", data: { "Seed Every": "5" }, expect: { "Seed Every": "12" } })).toMatchObject({ ok: false, status: 403 });
+    expect(checkSettingsWrite({ ...base, role: "approver", data: { "Target Countries": "Brazil" }, expect: { "Target Countries": "Turkey" } })).toMatchObject({ ok: false, status: 403 });
+    expect(checkSettingsWrite({ ...base, data: { "Target Countries": "Turkey, Brazil" }, expect: { "Target Countries": "Turkey" } })).toMatchObject({ ok: true });
+    expect(checkSettingsWrite({ ...base, data: { "Target Countries": "" }, expect: { "Target Countries": "Turkey" } })).toMatchObject({ ok: false, status: 422 });
+    expect(checkSettingsWrite({ ...base, data: { "Target Countries": "Mars" }, expect: { "Target Countries": "Turkey" } })).toMatchObject({ ok: false, status: 422 });
     expect(checkSettingsWrite({ ...base, role: "approver", data: { "Sender Title": "CEO" }, expect: { "Sender Title": "x" } })).toEqual({ ok: true });
   });
   it("go-live rule", () => {

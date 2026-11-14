@@ -50,6 +50,30 @@ describe('DB - Settings', () => {
     expect(group.respond).toBe(false);
   });
 
+  it('lets only an admin pick target countries, and normalises the list', async () => {
+    const no = await validate(req({ 'Target Countries': 'Turkey, Brazil' }, { 'Target Countries': 'Turkey' }, approver));
+    expect(no.status).toBe(403);
+    const ok = await plan(req({ 'Target Countries': ' türkiye ; brazil, Brazil' }, { 'Target Countries': 'Turkey' }));
+    expect(ok.update).toEqual({ row_number: 2, 'Target Countries': 'Turkey, Brazil' });
+    const bad = await validate(req({ 'Target Countries': 'Turkey, Mars' }, { 'Target Countries': 'Turkey' }));
+    expect(bad.status).toBe(422);
+    expect(bad.body.errors[0]).toMatch(/unknown country Mars/);
+    const empty = await validate(req({ 'Target Countries': '' }, { 'Target Countries': 'Turkey' }));
+    expect(empty.body.errors[0]).toMatch(/at least one country/);
+  });
+
+  it('turns the planned update into Sheets API cell writes by header position', async () => {
+    const settings = settingsRow();
+    const p = await plan(req({ 'Target Countries': 'Turkey, Brazil', 'Sender Title': 'CEO' }, { 'Target Countries': 'Turkey', 'Sender Title': 'Founder' }), { settings });
+    const [item] = await runNode('settings/update-item', { nodes: { 'Plan Settings': [p], 'Read Settings': [settings] } });
+    expect(item).toEqual({ valueInputOption: 'RAW', data: [
+      { range: 'Settings!U2', values: [['Turkey, Brazil']] },
+      { range: 'Settings!B2', values: [['CEO']] },
+    ] });
+    const noCol = Object.assign({}, settings); delete noCol['Target Countries'];
+    await expect(runNode('settings/update-item', { nodes: { 'Plan Settings': [p], 'Read Settings': [noCol] } })).rejects.toThrow(/no column for: Target Countries/);
+  });
+
   it('needs the before value of every changed field', async () => {
     const out = await validate(req({ 'Sender Title': 'CEO' }, {}));
     expect(out.body.errors[0]).toMatch(/expect\["Sender Title"\]/);

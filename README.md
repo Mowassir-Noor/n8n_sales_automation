@@ -24,6 +24,10 @@ This repository holds the workflow exports in n8n's import format plus the docum
 | `docs/setup.md` | Import, credentials, test mode, manual test order, go-live checklist |
 | `docs/manager-guide.md` | The daily routine for the person approving emails (no n8n access needed) |
 | `docs/design-decisions.md` | Why it is built this way, deviations from the original plan, known limits, cost |
+| `dashboard/` | Approval dashboard for the manager (Next.js app): approve, edit or reject emails with the exact HTML preview, follow-ups, Hot replies, Settings, go-live. Developer notes in `dashboard/README.md` |
+| `DB-*.json` | The five `DB - …` n8n webhook workflows the dashboard reads and writes the sheet through |
+| `deploy/` | Compose override and Caddyfile snippet for running the dashboard next to n8n |
+| `docs/dashboard.md` | Dashboard setup, deployment and handover guide, including how Nil uses it |
 
 ## How the pipeline fits together
 
@@ -141,6 +145,7 @@ What changes with SMTP:
 - Anthropic Claude via n8n's Anthropic node and chat-model sub-nodes (Sonnet 5.5, Haiku 5.5, with a second-account fallback on every call)
 - Google Sheets (source of truth), the texprove.com mailbox over SMTP/IMAP (or Gmail) for sending and the reply trigger, HubSpot free plan (contact and engagement log)
 - A Telegram bot (and email) for manager notifications
+- Optional approval dashboard: Next.js in a container behind Caddy, talking only to the `DB - …` webhook workflows ([docs/dashboard.md](docs/dashboard.md))
 
 ## Status
 
@@ -148,5 +153,6 @@ Built and tested end to end with test addresses in October 2026 (WF2 → WF3 →
 
 ## Export history
 
+- 2026-11-14: added the five `DB - …` dashboard workflows (created on n8n.mowassirnoor.tech in folder Dashboard, inactive until credentials are attached). WF0–WF6 unchanged.
 - 2026-11-14: re-exported from the new self-hosted server (n8n.mowassirnoor.tech) after the 2026-11-13 changes: company mail (SMTP/IMAP enabled, Gmail nodes disabled), WhatsApp notification nodes removed from WF2, WF4, WF5 and WF6, WF2 greeting rule (company-team greeting when no contact name is known), WF3 inbox-placement copy (`Seed check`, `Send Seed Copy (SMTP)`), and credential names for every node including `Anthropic account 2` on the fallback models.
 - 2026-11-13: re-exported from the self-hosted Railway instance before moving to a new n8n server. Workflow logic is unchanged from the 2026-11-05 exports (WF3 and WF4 were checked node by node against the live versions); credential ids were removed so the files import cleanly on any instance, and the Telegram group test workflow was added.

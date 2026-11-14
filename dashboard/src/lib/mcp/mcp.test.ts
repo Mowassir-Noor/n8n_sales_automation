@@ -5,24 +5,29 @@ import { join } from "node:path";
 import { resetEnvCache } from "../env";
 import { resetRateLimit } from "../guards";
 import { resetSnapshotCache } from "../snapshot";
-import { hashKey, parseMcpKeys, userForKey } from "./keys";
+import { keyFor, userForKey } from "./keys";
 import { handleMcpPost, handleRpc } from "./server";
 import type { SessionUser } from "../types";
 
 const lists = { approverEmails: ["nil@example.com"], adminEmails: ["admin@example.com"] };
-const KEY = "k".repeat(43);
 
 describe("MCP keys", () => {
-  const raw = `nil@example.com:${hashKey(KEY)}, bad-entry, admin@example.com:${hashKey("a".repeat(43))}`;
-  it("parses entries and ignores broken ones", () => {
-    expect(parseMcpKeys(raw).map((e) => e.email)).toEqual(["nil@example.com", "admin@example.com"]);
+  const secret = "s".repeat(32);
+  it("derives a stable key per email, none without a secret", () => {
+    expect(keyFor("Nil@Example.com", secret)).toBe(keyFor("nil@example.com", secret));
+    expect(keyFor("nil@example.com", secret)).not.toBe(keyFor("admin@example.com", secret));
+    expect(keyFor("nil@example.com", secret)).not.toBe(keyFor("nil@example.com", "other-secret"));
+    expect(keyFor("nil@example.com", "")).toBeNull();
   });
   it("maps a key to its user with the allowlist role", () => {
-    expect(userForKey(KEY, raw, lists)).toEqual({ email: "nil@example.com", role: "approver" });
-    expect(userForKey("a".repeat(43), raw, lists)).toEqual({ email: "admin@example.com", role: "admin" });
-    expect(userForKey("x".repeat(43), raw, lists)).toBeNull();
-    expect(userForKey("", raw, lists)).toBeNull();
-    expect(userForKey(KEY, raw, { approverEmails: [], adminEmails: [] })).toBeNull(); // removed from the allowlists
+    const nilKey = keyFor("nil@example.com", secret)!;
+    expect(userForKey(nilKey, secret, lists)).toEqual({ email: "nil@example.com", role: "approver" });
+    expect(userForKey(keyFor("admin@example.com", secret), secret, lists)).toEqual({ email: "admin@example.com", role: "admin" });
+    expect(userForKey("x".repeat(43), secret, lists)).toBeNull();
+    expect(userForKey("", secret, lists)).toBeNull();
+    expect(userForKey(nilKey, "other-secret", lists)).toBeNull(); // secret changed
+    expect(userForKey(nilKey, "", lists)).toBeNull(); // connector off
+    expect(userForKey(nilKey, secret, { approverEmails: [], adminEmails: [] })).toBeNull(); // removed from the allowlists
   });
 });
 

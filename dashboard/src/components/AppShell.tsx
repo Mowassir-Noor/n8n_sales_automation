@@ -20,6 +20,7 @@ const T = {
     { href: "/suppression", label: "Suppression" },
     { href: "/social", label: "LinkedIn" },
     { href: "/activity", label: "Activity" },
+    { href: "/connect", label: "Connect Claude" },
   ],
   mainNav: "Main",
   signOut: "Sign out",

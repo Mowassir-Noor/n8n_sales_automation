@@ -11,7 +11,7 @@ const unauthorized = () =>
 export async function mcpPost(req: Request, key: string | null): Promise<Response> {
   const t0 = Date.now();
   const e = env();
-  const user = userForKey(key, e.mcpKeys, { approverEmails: e.approverEmails, adminEmails: e.adminEmails });
+  const user = userForKey(key, e.mcpSecret, { approverEmails: e.approverEmails, adminEmails: e.adminEmails });
   const res = user ? await handleMcpPost(req, user) : unauthorized();
   logRequest({ user: user?.email, method: "POST", route: "/api/mcp", status: res.status, ms: Date.now() - t0 });
   return res;

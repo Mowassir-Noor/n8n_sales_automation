@@ -1,34 +1,27 @@
-// Claude (MCP) access keys. MCP_KEYS holds "email:sha256(key)" entries; the key itself is only ever shown
-// once, by scripts/mcp-key.mjs. The email's role comes from ADMIN_EMAILS / APPROVER_EMAILS, as for sign-in.
-import { createHash, timingSafeEqual } from "node:crypto";
+// Claude (MCP) connector keys. Each person's key is derived from their email and a server secret
+// (MCP_SECRET, or AUTH_SECRET when that is empty), so nothing is stored: a signed-in person sees their own
+// connector URL on the "Connect Claude" page. The role still comes from ADMIN_EMAILS / APPROVER_EMAILS, so
+// taking someone off the allowlists also stops their key. Changing the secret replaces every key.
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { roleFor, type Allowlists } from "../roles";
 import type { SessionUser } from "../types";
 
-export function hashKey(key: string): string {
-  return createHash("sha256").update(key, "utf8").digest("hex");
-}
+const LABEL = "texprove-dashboard-mcp-v1:";
 
-export function parseMcpKeys(raw: string): { email: string; hash: string }[] {
-  const out: { email: string; hash: string }[] = [];
-  for (const part of String(raw ?? "").split(",")) {
-    const p = part.trim();
-    const i = p.lastIndexOf(":");
-    if (i <= 0) continue;
-    const email = p.slice(0, i).trim().toLowerCase();
-    const hash = p.slice(i + 1).trim().toLowerCase();
-    if (email.includes("@") && /^[0-9a-f]{64}$/.test(hash)) out.push({ email, hash });
-  }
-  return out;
+/** The connector key for an email, or null when the connector is off (no secret). */
+export function keyFor(email: string, secret: string): string | null {
+  if (!secret) return null;
+  return createHmac("sha256", secret).update(LABEL + email.trim().toLowerCase(), "utf8").digest("base64url");
 }
 
 /** The user a key belongs to, with the role from the allowlists; null when the key or the role is unknown. */
-export function userForKey(key: string | null | undefined, raw: string, lists: Allowlists): SessionUser | null {
-  const k = String(key ?? "").trim();
-  if (k.length < 20) return null;
-  const h = Buffer.from(hashKey(k), "hex");
+export function userForKey(key: string | null | undefined, secret: string, lists: Allowlists): SessionUser | null {
+  const k = Buffer.from(String(key ?? "").trim(), "utf8");
+  if (!secret || k.length < 20) return null;
   let email: string | null = null;
-  for (const e of parseMcpKeys(raw)) {
-    if (timingSafeEqual(h, Buffer.from(e.hash, "hex"))) email = e.email;
+  for (const e of new Set([...lists.adminEmails, ...lists.approverEmails].map((x) => x.trim().toLowerCase()))) {
+    const want = Buffer.from(keyFor(e, secret) ?? "", "utf8");
+    if (want.length === k.length && timingSafeEqual(want, k)) email = e;
   }
   if (!email) return null;
   const role = roleFor(email, lists);

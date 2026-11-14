@@ -230,15 +230,14 @@ A removed person cannot sign in again. To also end a session they still have ope
 
 ### Using the dashboard from Claude (connector)
 
-**[You]** The dashboard has an MCP endpoint, so a person can approve, edit and check leads by chatting with Claude. Claude gets exactly the role of that person's email: an admin can do everything the admin can do on the website (including Settings, go-live and the test-sent cleanup), an approver only what an approver can. Every change goes through the same checks as the buttons and is written to the Log tab as `mcp_tool`.
+The dashboard has an MCP endpoint, so a person can approve, edit and check leads by chatting with Claude. Nothing to set up on the server: it is on by default.
 
-1. Make a key for the person: `cd ~/n8n && docker compose exec dashboard node scripts/mcp-key.mjs nil@example.com`. It prints three things: the key, an `MCP_KEYS` entry and the connector URL.
-2. Add the entry to `MCP_KEYS=` in `~/n8n/dashboard.env` (comma-separated for several people). For full access the same email must be in `ADMIN_EMAILS`.
-3. Restart: `docker compose up -d --force-recreate dashboard`.
-4. Send the person the connector URL privately (it contains the key; treat it like a password). They add it in Claude: **Settings → Connectors → Add custom connector**, name it "Texprove dashboard", paste the URL, save. In a chat they turn the connector on and ask things like "what is waiting for approval?" or "show me L041's email and approve it".
-5. To revoke: delete that entry from `MCP_KEYS` and restart. Each person has their own key, so revoking one does not affect others.
+1. **[Nil]** Sign in to the dashboard and open **Connect Claude** in the menu. Press **Copy**.
+2. **[Nil]** In Claude: **Settings → Connectors → Add custom connector**, name it "Texprove dashboard", paste the URL, save. In a chat, turn the connector on and ask things like "what is waiting for approval?" or "show me L041's email and approve it".
 
-Claude is told to show the email before approving and never to switch off Test Email unless the person clearly asks; switching off Test Email also needs an explicit go-live confirmation in the tool call, like the go-live dialog on the website.
+Claude gets exactly the role of that person's email: an admin can do everything the admin can do on the website (Settings, go-live, the test-sent cleanup), an approver only what an approver can. For Nil to have full access, put Nil's email in `ADMIN_EMAILS`. Every change goes through the same checks as the buttons and is written to the Log tab as `mcp_tool`. Claude is told to show the email before approving and never to switch off Test Email unless the person clearly asks; switching it off also needs an explicit go-live confirmation in the tool call.
+
+The URL contains a key derived from the person's email and `MCP_SECRET` (or `AUTH_SECRET` when that is empty), so nothing is stored. Removing someone from the allowlists also stops their URL. If a URL leaks, set `MCP_SECRET` in `dashboard.env` to a new value (`openssl rand -base64 32`) and restart: every URL changes and each person copies their new one. `MCP_SECRET=off` switches the connector off.
 
 ## 5. Updating and rolling back
 

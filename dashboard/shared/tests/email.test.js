@@ -192,6 +192,7 @@ describe('checkDraft', () => {
       .toMatchObject({ status: 'Blocked', notes: ['Email domain on suppression list'] });
     expect(run({ lead: lead({ Email: 'a@elsewhere.example.org' }) }).notes).toEqual(['Email domain does not match website domain']);
     expect(run({ lead: lead({ Country: 'Germany' }) }).notes).toEqual(['Country not allowed']);
+    expect(run({ lead: lead({ Country: 'Bangladesh' }) }).notes).not.toContain('Country not allowed');
     for (const c of ['Türkiye', ' turkiye ', 'TURKEY']) expect(run({ lead: lead({ Country: c }) }).status).toBe('OK');
   });
 

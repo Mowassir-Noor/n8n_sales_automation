@@ -34,10 +34,10 @@ const T = {
   waited: (t: string) => `waited ${t}`,
   sends: (t: string) => `sends ${t}`,
   noContact: "No contact name",
-  bulk: (n: number) => `Approve ${n} OK drafts`,
-  bulkTitle: "Approve several drafts",
+  bulk: (n: number) => `Approve all (${n})`,
+  bulkTitle: "Approve all waiting drafts",
   bulkIntro: (n: number) =>
-    `Approve ${n} drafts that pass every check and have not been edited? Each one is approved separately and logged under your name.`,
+    `Approve these ${n} drafts? Only drafts that pass every check are included; Needs fix, Blocked, opted-out and \"marked for edit\" drafts are left in the queue. Each one is approved separately and logged under your name.`,
   bulkConfirm: (n: number) => `Approve ${n}`,
   bulkDone: (ok: number, n: number) => `${ok} of ${n} approved.`,
   cancel: "Cancel",
@@ -125,15 +125,13 @@ export function QueueView() {
     return () => window.removeEventListener("keydown", onKey);
   }, [move]);
 
-  // ---- Bulk approve: OK on the sheet AND on the live re-check, never edited, not opted out ----
+  // ---- Approve all: OK on the sheet AND on the live re-check, not marked for edit, not opted out ----
   const bulkEligible = useMemo(() => {
     if (!data) return [];
     return queue.waiting.filter((l) => {
       if (l["Compliance Status"] !== "OK") return false;
       if (l.Approved === "Edit") return false;
       if ((l["Opt-out"] || "").trim() === "Yes") return false;
-      // edit_first clears Draft Body EN; a Turkish draft without it has been edited in the dashboard.
-      if ((l.Language || "").trim().toLowerCase() === "tr" && !(l["Draft Body EN"] || "").trim()) return false;
       const c = checkDraft({ subject: l.Subject, body: l["Draft Body"], lead: l, settings: data.settings, suppression: data.suppression });
       return c.status === "OK";
     });
@@ -174,8 +172,8 @@ export function QueueView() {
         <h1 className="text-xl font-semibold tracking-tight">{T.title}</h1>
         <div className="flex items-center gap-2">
           <span className="hidden text-xs text-muted lg:inline">{T.keys}</span>
-          {tab === "waiting" && bulkEligible.length > 1 ? (
-            <Button size="sm" variant="secondary" disabled={guard.disabled} title={guard.reason ?? undefined} onClick={() => setBulkOpen(true)}>
+          {tab === "waiting" && bulkEligible.length > 0 ? (
+            <Button size="sm" variant="ok" disabled={guard.disabled} title={guard.reason ?? undefined} onClick={() => setBulkOpen(true)}>
               {T.bulk(bulkEligible.length)}
             </Button>
           ) : null}

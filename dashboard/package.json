@@ -11,7 +11,7 @@
     "test:drift": "node scripts/drift.mjs",
     "sync:n8n": "node scripts/sync-n8n.mjs",
     "check:n8n": "node scripts/sync-n8n.mjs --check",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "mock:n8n": "node dev/mock-n8n.mjs"
   },
   "dependencies": {

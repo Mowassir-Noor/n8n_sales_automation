@@ -1,0 +1,624 @@
+{
+  "name": "DB - Read",
+  "nodes": [
+    {
+      "id": "99645e9c-9915-4f90-b6e7-a1202a7849ea",
+      "name": "Webhook Snapshot",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        720
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "dash/snapshot",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "78bbf064-dadf-4ac4-813d-09f5553d8d35"
+    },
+    {
+      "id": "97b93225-6341-47e6-ae9b-8239dbc8fe39",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        224,
+        816
+      ],
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cfg-document",
+              "name": "documentId",
+              "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM",
+              "type": "string"
+            },
+            {
+              "id": "cfg-route",
+              "name": "route",
+              "value": "={{ String($json.webhookUrl || \"\").replace(/\\/+$/, \"\").split(\"/\").pop() }}",
+              "type": "string"
+            },
+            {
+              "id": "cfg-body",
+              "name": "body",
+              "value": "={{ $json.body }}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "fb179e5d-d35c-4a2e-b860-9443672ef80c",
+      "name": "Webhook Log",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        912
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "dash/log",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "b9e314ce-2a28-4152-8141-68b2fafd05a4"
+    },
+    {
+      "id": "9a910f84-74ff-4ef0-b843-227d03d05909",
+      "name": "Route",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        448,
+        800
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "outputKey": "snapshot",
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "route-snapshot",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "snapshot",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "outputKey": "log",
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "route-log",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "log",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "Unknown route"
+        }
+      }
+    },
+    {
+      "id": "70e4eb48-934f-4120-9c9b-20568517f4ee",
+      "name": "Read Leads",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        672,
+        288
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Config').first().json.documentId }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Leads"
+        },
+        "options": {
+          "outputFormatting": {
+            "values": {
+              "general": "FORMATTED_VALUE",
+              "date": "FORMATTED_STRING"
+            }
+          }
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "sFrPcvpn5K1JgYYK",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "9dc659e7-f2ec-401f-9f44-7876343a4229",
+      "name": "Read Settings",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        896,
+        224
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Config').first().json.documentId }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Settings"
+        },
+        "options": {
+          "outputFormatting": {
+            "values": {
+              "general": "FORMATTED_VALUE",
+              "date": "FORMATTED_STRING"
+            }
+          }
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "sFrPcvpn5K1JgYYK",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "db2161b9-7050-4687-9be9-0b09f8c5cc15",
+      "name": "Read Suppression",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1120,
+        144
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Config').first().json.documentId }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Suppression"
+        },
+        "options": {
+          "outputFormatting": {
+            "values": {
+              "general": "FORMATTED_VALUE",
+              "date": "FORMATTED_STRING"
+            }
+          }
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "sFrPcvpn5K1JgYYK",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "c04166ca-40cf-427b-b65e-f1e031ba4381",
+      "name": "Read Social",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1344,
+        80
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Config').first().json.documentId }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Social"
+        },
+        "options": {
+          "outputFormatting": {
+            "values": {
+              "general": "FORMATTED_VALUE",
+              "date": "FORMATTED_STRING"
+            }
+          }
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "sFrPcvpn5K1JgYYK",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "6c252479-4767-4992-bffe-09e4934ad8fe",
+      "name": "Build Snapshot",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1568,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// DB - Read / snapshot: Leads, Settings, Suppression and Social in one response.\n// Inputs: 'Read Leads', 'Read Settings', 'Read Suppression', 'Read Social' (all alwaysOutputData,\n// so an empty tab arrives as one `{}` item, dropped by sheetRows()).\n\n// <lib:common>\n// Helpers shared by the Code nodes of the five `DB - …` workflows.\n// Pure functions, no n8n globals: sync-n8n.mjs pastes this file (minus the export line) between\n// `// <lib:common>` and `// </lib:common>` markers. Tests import it directly.\n\nconst LEAD_HEADERS = [\n  'Lead ID', 'Company', 'Website', 'Country', 'Segment',\n  'Contact Name', 'Contact Title', 'Email', 'LinkedIn',\n  'Research Notes', 'Personalisation Hook', 'Language',\n  'Compliance Status', 'Compliance Notes',\n  'Subject', 'Draft Body', 'Draft Body EN',\n  'Approved', 'Nil Notes', 'Stage',\n  'Sent At', 'Gmail Thread ID', 'Follow-up Count', 'Next Follow-up Date',\n  'Reply Category', 'Reply Summary', 'HubSpot Contact ID', 'Opt-out',\n  'Last Updated', 'Source URL', 'Source Date', 'Confidence', 'Follow-up Draft',\n];\nconst HOT_HANDLED = 'Hot Handled';\nconst SETTINGS_HEADERS = [\n  'Sender Name', 'Sender Title', 'Company Legal Name', 'Company Address',\n  'Opt-out TR', 'Opt-out EN', 'Nil Email', 'Sheet URL',\n  'HubSpot Monthly Limit', 'HubSpot Pause Percent', 'Test Email',\n  'Nil WhatsApp', 'WhatsApp Phone Number ID', 'Nil Telegram Chat ID',\n  'Company Website', 'HubSpot Owner ID', 'Mail Provider', 'SMTP From',\n  'Seed Email', 'Seed Every',\n];\nconst SUPPRESSION_HEADERS = ['Email', 'Domain', 'Reason', 'Date'];\nconst SOCIAL_HEADERS = ['Week', 'Topic', 'Draft', 'Approved', 'Nil Notes', 'Posted'];\nconst LOG_HEADERS = ['Timestamp', 'Workflow', 'Lead ID', 'Company', 'Step', 'Input', 'Output', 'Reason'];\n\nconst DEDUPE_MS = 10 * 60 * 1000;\nconst DEDUPE_MAX = 300;\n\nfunction str(v) {\n  return v == null ? '' : String(v);\n}\n\nfunction isPlainObject(v) {\n  return v !== null && typeof v === 'object' && !Array.isArray(v);\n}\n\n// Items of a Sheets read -> plain row objects. Drops the synthetic `{}` item that alwaysOutputData\n// adds for an empty tab, and error items from onError: continueRegularOutput.\nfunction sheetRows(items) {\n  return (items || [])\n    .map(i => (i && i.json) || {})\n    .filter(j => !('error' in j) && Object.keys(j).some(k => k !== 'row_number'));\n}\n\n// One row with exactly `headers` as keys (string values, \"\" when absent) plus row_number.\nfunction normalizeRow(raw, headers) {\n  const out = {};\n  for (const h of headers) out[h] = str(raw && raw[h]);\n  const rn = Number(raw && raw.row_number);\n  if (Number.isFinite(rn) && rn > 0) out.row_number = rn;\n  return out;\n}\n\n// Header row as n8n saw it: the keys of the row object with the most keys (n8n may leave out\n// trailing empty cells on some rows), in sheet order, without row_number.\nfunction detectHeaders(rows) {\n  let best = [];\n  for (const r of rows || []) {\n    const keys = Object.keys(r || {}).filter(k => k !== 'row_number');\n    if (keys.length > best.length) best = keys;\n  }\n  return best;\n}\n\nfunction colLetter(i) {\n  let n = i + 1;\n  let s = '';\n  while (n > 0) {\n    const m = (n - 1) % 26;\n    s = String.fromCharCode(65 + m) + s;\n    n = Math.floor((n - 1) / 26);\n  }\n  return s;\n}\n\n// Leads headers A..AG must equal LEAD_HEADERS in order. AH 'Hot Handled' is optional.\nfunction checkLeadHeaders(headers) {\n  const problems = [];\n  const hs = headers || [];\n  if (!hs.length) {\n    problems.push('Leads tab has no data rows, so its headers could not be checked');\n  } else {\n    for (let i = 0; i < LEAD_HEADERS.length; i++) {\n      const found = hs[i];\n      if (found !== LEAD_HEADERS[i]) {\n        problems.push('Column ' + colLetter(i) + ': expected \"' + LEAD_HEADERS[i] + '\", found ' + (found == null ? 'nothing' : '\"' + found + '\"'));\n      }\n    }\n  }\n  return { ok: problems.length === 0, problems, hasHotHandled: hs.indexOf(HOT_HANDLED) !== -1 };\n}\n\nfunction cut(s, n) {\n  const t = str(s);\n  const max = n || 3000;\n  return t.length > max ? t.slice(0, max) : t;\n}\n\n// Log tab row, as CONTRACT.md fixes it.\nfunction logRow(args) {\n  return {\n    Timestamp: str(args.nowIso),\n    Workflow: 'Dashboard',\n    'Lead ID': str(args.leadId),\n    Company: str(args.company),\n    Step: str(args.step),\n    Input: cut(JSON.stringify(args.before || {}), 3000),\n    Output: cut(JSON.stringify(args.after || {}), 3000),\n    Reason: 'by ' + str(args.actor) + (args.adminApproval ? ' (admin)' : ''),\n  };\n}\n\n// The time in Istanbul as plain values, from n8n's Luxon `$now`.\nfunction nowInfo(now) {\n  const t = now.setZone('Europe/Istanbul');\n  return {\n    iso: t.toISO(),\n    date: t.toFormat('yyyy-MM-dd'),\n    ms: t.toMillis(),\n    weekday: t.weekday, // 1 = Monday … 7 = Sunday\n    minuteOfDay: t.hour * 60 + t.minute + t.second / 60,\n  };\n}\n\n// requestId dedupe in workflow static data (survives between production executions).\nfunction dedupeStore(staticData) {\n  if (!isPlainObject(staticData.dashRequests)) staticData.dashRequests = {};\n  return staticData.dashRequests;\n}\n\nfunction dedupePrune(staticData, nowMs) {\n  const store = dedupeStore(staticData);\n  for (const id of Object.keys(store)) {\n    if (!store[id] || nowMs - Number(store[id].at) > DEDUPE_MS) delete store[id];\n  }\n  const ids = Object.keys(store);\n  if (ids.length > DEDUPE_MAX) {\n    ids.sort((a, b) => store[a].at - store[b].at);\n    for (const id of ids.slice(0, ids.length - DEDUPE_MAX)) delete store[id];\n  }\n  return store;\n}\n\nfunction dedupeGet(staticData, requestId, nowMs) {\n  if (!requestId) return null;\n  const store = dedupePrune(staticData, nowMs);\n  const hit = store[requestId];\n  return hit ? { status: hit.status, body: hit.body } : null;\n}\n\nfunction dedupeSet(staticData, requestId, status, body, nowMs) {\n  if (!requestId) return;\n  const store = dedupePrune(staticData, nowMs);\n  store[requestId] = { at: nowMs, status, body };\n}\n\n// Item that ends a path: the Finish node stores it for dedupe and Respond sends it.\nfunction reply(status, body, requestId, store) {\n  return { respond: true, status, body, requestId: str(requestId), store: store !== false };\n}\n\nconst EMAIL_RE = /^[^\\s@\"'<>(),;:]+@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/i;\nconst DOMAIN_RE = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/i;\n\nfunction isEmail(s) {\n  const t = str(s).trim();\n  return t.length <= 254 && EMAIL_RE.test(t);\n}\n\nfunction isDomain(s) {\n  const t = str(s).trim();\n  return t.length <= 253 && DOMAIN_RE.test(t);\n}\n\n// Common checks on the actor fields the app adds to every write.\nfunction actorErrors(body) {\n  const errors = [];\n  if (!isEmail(body.actor)) errors.push('actor must be the signed-in user\\'s email');\n  if (body.actorRole !== 'approver' && body.actorRole !== 'admin') errors.push('actorRole must be \"approver\" or \"admin\"');\n  if (typeof body.requestId !== 'string' || body.requestId.length < 8 || body.requestId.length > 100) errors.push('requestId must be a string of 8 to 100 characters');\n  return errors;\n}\n// </lib:common>\n\nconst now = nowInfo($now);\nconst leadRows = sheetRows($('Read Leads').all());\nconst headerCheck = checkLeadHeaders(detectHeaders(leadRows));\nconst leadHeaders = LEAD_HEADERS.concat([HOT_HANDLED]);\n\nconst leads = leadRows\n  .filter(r => str(r['Lead ID']).trim() !== '')\n  .map(r => normalizeRow(r, leadHeaders));\n\nconst settingsRows = sheetRows($('Read Settings').all());\nconst settingsRow = normalizeRow(settingsRows[0] || {}, SETTINGS_HEADERS);\ndelete settingsRow.row_number;\n\nconst suppression = sheetRows($('Read Suppression').all())\n  .map(r => normalizeRow(r, SUPPRESSION_HEADERS))\n  .filter(r => r.Email.trim() !== '' || r.Domain.trim() !== '');\n\nconst social = sheetRows($('Read Social').all())\n  .map(r => normalizeRow(r, SOCIAL_HEADERS))\n  .filter(r => SOCIAL_HEADERS.some(h => r[h].trim() !== ''));\n\nreturn [{\n  json: reply(200, {\n    ok: true,\n    fetchedAt: now.iso,\n    headersOk: headerCheck.ok,\n    headerProblems: headerCheck.problems,\n    leads,\n    settings: settingsRow,\n    suppression,\n    social,\n  }, '', false),\n}];\n"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "cc96e050-0380-4970-95e0-2711e94b7249",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1792,
+        80
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.body) }}",
+        "options": {
+          "responseCode": "={{ $json.status }}"
+        }
+      }
+    },
+    {
+      "id": "5ea22d51-0762-4aff-8971-2d43eaeddd63",
+      "name": "Read Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1344,
+        816
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Config').first().json.documentId }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Log"
+        },
+        "options": {
+          "outputFormatting": {
+            "values": {
+              "general": "FORMATTED_VALUE",
+              "date": "FORMATTED_STRING"
+            }
+          }
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "sFrPcvpn5K1JgYYK",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "294502ef-424b-48dd-9b19-e597751a1c9f",
+      "name": "Filter Log",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1568,
+        704
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// DB - Read / log: Log rows filtered by lead, workflow and date, newest first, paged.\n// Request (LogQuery): { leadId?, workflow?, from?, to?, page?, pageSize? }\n//   leadId   exact match on 'Lead ID'\n//   workflow case-insensitive substring of 'Workflow' (so \"WF3\" matches \"WF3 Send approved emails\")\n//   from/to  yyyy-MM-dd, inclusive, compared with the first 10 characters of 'Timestamp'\n// Newest first = by sheet row, last row first (rows are only ever appended).\n\n// <lib:common>\n// Helpers shared by the Code nodes of the five `DB - …` workflows.\n// Pure functions, no n8n globals: sync-n8n.mjs pastes this file (minus the export line) between\n// `// <lib:common>` and `// </lib:common>` markers. Tests import it directly.\n\nconst LEAD_HEADERS = [\n  'Lead ID', 'Company', 'Website', 'Country', 'Segment',\n  'Contact Name', 'Contact Title', 'Email', 'LinkedIn',\n  'Research Notes', 'Personalisation Hook', 'Language',\n  'Compliance Status', 'Compliance Notes',\n  'Subject', 'Draft Body', 'Draft Body EN',\n  'Approved', 'Nil Notes', 'Stage',\n  'Sent At', 'Gmail Thread ID', 'Follow-up Count', 'Next Follow-up Date',\n  'Reply Category', 'Reply Summary', 'HubSpot Contact ID', 'Opt-out',\n  'Last Updated', 'Source URL', 'Source Date', 'Confidence', 'Follow-up Draft',\n];\nconst HOT_HANDLED = 'Hot Handled';\nconst SETTINGS_HEADERS = [\n  'Sender Name', 'Sender Title', 'Company Legal Name', 'Company Address',\n  'Opt-out TR', 'Opt-out EN', 'Nil Email', 'Sheet URL',\n  'HubSpot Monthly Limit', 'HubSpot Pause Percent', 'Test Email',\n  'Nil WhatsApp', 'WhatsApp Phone Number ID', 'Nil Telegram Chat ID',\n  'Company Website', 'HubSpot Owner ID', 'Mail Provider', 'SMTP From',\n  'Seed Email', 'Seed Every',\n];\nconst SUPPRESSION_HEADERS = ['Email', 'Domain', 'Reason', 'Date'];\nconst SOCIAL_HEADERS = ['Week', 'Topic', 'Draft', 'Approved', 'Nil Notes', 'Posted'];\nconst LOG_HEADERS = ['Timestamp', 'Workflow', 'Lead ID', 'Company', 'Step', 'Input', 'Output', 'Reason'];\n\nconst DEDUPE_MS = 10 * 60 * 1000;\nconst DEDUPE_MAX = 300;\n\nfunction str(v) {\n  return v == null ? '' : String(v);\n}\n\nfunction isPlainObject(v) {\n  return v !== null && typeof v === 'object' && !Array.isArray(v);\n}\n\n// Items of a Sheets read -> plain row objects. Drops the synthetic `{}` item that alwaysOutputData\n// adds for an empty tab, and error items from onError: continueRegularOutput.\nfunction sheetRows(items) {\n  return (items || [])\n    .map(i => (i && i.json) || {})\n    .filter(j => !('error' in j) && Object.keys(j).some(k => k !== 'row_number'));\n}\n\n// One row with exactly `headers` as keys (string values, \"\" when absent) plus row_number.\nfunction normalizeRow(raw, headers) {\n  const out = {};\n  for (const h of headers) out[h] = str(raw && raw[h]);\n  const rn = Number(raw && raw.row_number);\n  if (Number.isFinite(rn) && rn > 0) out.row_number = rn;\n  return out;\n}\n\n// Header row as n8n saw it: the keys of the row object with the most keys (n8n may leave out\n// trailing empty cells on some rows), in sheet order, without row_number.\nfunction detectHeaders(rows) {\n  let best = [];\n  for (const r of rows || []) {\n    const keys = Object.keys(r || {}).filter(k => k !== 'row_number');\n    if (keys.length > best.length) best = keys;\n  }\n  return best;\n}\n\nfunction colLetter(i) {\n  let n = i + 1;\n  let s = '';\n  while (n > 0) {\n    const m = (n - 1) % 26;\n    s = String.fromCharCode(65 + m) + s;\n    n = Math.floor((n - 1) / 26);\n  }\n  return s;\n}\n\n// Leads headers A..AG must equal LEAD_HEADERS in order. AH 'Hot Handled' is optional.\nfunction checkLeadHeaders(headers) {\n  const problems = [];\n  const hs = headers || [];\n  if (!hs.length) {\n    problems.push('Leads tab has no data rows, so its headers could not be checked');\n  } else {\n    for (let i = 0; i < LEAD_HEADERS.length; i++) {\n      const found = hs[i];\n      if (found !== LEAD_HEADERS[i]) {\n        problems.push('Column ' + colLetter(i) + ': expected \"' + LEAD_HEADERS[i] + '\", found ' + (found == null ? 'nothing' : '\"' + found + '\"'));\n      }\n    }\n  }\n  return { ok: problems.length === 0, problems, hasHotHandled: hs.indexOf(HOT_HANDLED) !== -1 };\n}\n\nfunction cut(s, n) {\n  const t = str(s);\n  const max = n || 3000;\n  return t.length > max ? t.slice(0, max) : t;\n}\n\n// Log tab row, as CONTRACT.md fixes it.\nfunction logRow(args) {\n  return {\n    Timestamp: str(args.nowIso),\n    Workflow: 'Dashboard',\n    'Lead ID': str(args.leadId),\n    Company: str(args.company),\n    Step: str(args.step),\n    Input: cut(JSON.stringify(args.before || {}), 3000),\n    Output: cut(JSON.stringify(args.after || {}), 3000),\n    Reason: 'by ' + str(args.actor) + (args.adminApproval ? ' (admin)' : ''),\n  };\n}\n\n// The time in Istanbul as plain values, from n8n's Luxon `$now`.\nfunction nowInfo(now) {\n  const t = now.setZone('Europe/Istanbul');\n  return {\n    iso: t.toISO(),\n    date: t.toFormat('yyyy-MM-dd'),\n    ms: t.toMillis(),\n    weekday: t.weekday, // 1 = Monday … 7 = Sunday\n    minuteOfDay: t.hour * 60 + t.minute + t.second / 60,\n  };\n}\n\n// requestId dedupe in workflow static data (survives between production executions).\nfunction dedupeStore(staticData) {\n  if (!isPlainObject(staticData.dashRequests)) staticData.dashRequests = {};\n  return staticData.dashRequests;\n}\n\nfunction dedupePrune(staticData, nowMs) {\n  const store = dedupeStore(staticData);\n  for (const id of Object.keys(store)) {\n    if (!store[id] || nowMs - Number(store[id].at) > DEDUPE_MS) delete store[id];\n  }\n  const ids = Object.keys(store);\n  if (ids.length > DEDUPE_MAX) {\n    ids.sort((a, b) => store[a].at - store[b].at);\n    for (const id of ids.slice(0, ids.length - DEDUPE_MAX)) delete store[id];\n  }\n  return store;\n}\n\nfunction dedupeGet(staticData, requestId, nowMs) {\n  if (!requestId) return null;\n  const store = dedupePrune(staticData, nowMs);\n  const hit = store[requestId];\n  return hit ? { status: hit.status, body: hit.body } : null;\n}\n\nfunction dedupeSet(staticData, requestId, status, body, nowMs) {\n  if (!requestId) return;\n  const store = dedupePrune(staticData, nowMs);\n  store[requestId] = { at: nowMs, status, body };\n}\n\n// Item that ends a path: the Finish node stores it for dedupe and Respond sends it.\nfunction reply(status, body, requestId, store) {\n  return { respond: true, status, body, requestId: str(requestId), store: store !== false };\n}\n\nconst EMAIL_RE = /^[^\\s@\"'<>(),;:]+@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/i;\nconst DOMAIN_RE = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/i;\n\nfunction isEmail(s) {\n  const t = str(s).trim();\n  return t.length <= 254 && EMAIL_RE.test(t);\n}\n\nfunction isDomain(s) {\n  const t = str(s).trim();\n  return t.length <= 253 && DOMAIN_RE.test(t);\n}\n\n// Common checks on the actor fields the app adds to every write.\nfunction actorErrors(body) {\n  const errors = [];\n  if (!isEmail(body.actor)) errors.push('actor must be the signed-in user\\'s email');\n  if (body.actorRole !== 'approver' && body.actorRole !== 'admin') errors.push('actorRole must be \"approver\" or \"admin\"');\n  if (typeof body.requestId !== 'string' || body.requestId.length < 8 || body.requestId.length > 100) errors.push('requestId must be a string of 8 to 100 characters');\n  return errors;\n}\n// </lib:common>\n\nconst q = $('Config').first().json.body || {};\nconst errors = [];\nconst DATE_RE = /^\\d{4}-\\d{2}-\\d{2}$/;\nconst leadId = str(q.leadId).trim();\nconst workflow = str(q.workflow).trim().toLowerCase();\nconst from = str(q.from).trim().slice(0, 10);\nconst to = str(q.to).trim().slice(0, 10);\nif (from && !DATE_RE.test(from)) errors.push('from must be yyyy-MM-dd');\nif (to && !DATE_RE.test(to)) errors.push('to must be yyyy-MM-dd');\nconst page = q.page == null || q.page === '' ? 1 : Number(q.page);\nconst pageSize = q.pageSize == null || q.pageSize === '' ? 50 : Number(q.pageSize);\nif (!Number.isInteger(page) || page < 1) errors.push('page must be a whole number from 1');\nif (!Number.isInteger(pageSize) || pageSize < 1 || pageSize > 500) errors.push('pageSize must be a whole number from 1 to 500');\nif (errors.length) return [{ json: reply(422, { errors }, '', false) }];\n\nconst rows = sheetRows($('Read Log').all())\n  .map(r => normalizeRow(r, LOG_HEADERS))\n  .filter(r => LOG_HEADERS.some(h => r[h] !== ''))\n  .filter(r => !leadId || r['Lead ID'].trim() === leadId)\n  .filter(r => !workflow || r.Workflow.toLowerCase().includes(workflow))\n  .filter(r => {\n    const day = r.Timestamp.slice(0, 10);\n    if (from && !(day >= from)) return false;\n    if (to && !(day <= to)) return false;\n    return true;\n  })\n  .sort((a, b) => (b.row_number || 0) - (a.row_number || 0));\n\nconst start = (page - 1) * pageSize;\nreturn [{\n  json: reply(200, { ok: true, rows: rows.slice(start, start + pageSize), total: rows.length, page, pageSize }, '', false),\n}];\n"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "424b9a6d-21cc-437b-9867-a37d26aacb5a",
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1792,
+        480
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ error: \"n8n: \" + String($json.error?.message ?? $json.error ?? $json.message ?? \"unexpected error\") }) }}",
+        "options": {
+          "responseCode": 500
+        }
+      }
+    },
+    {
+      "id": "8eab85e0-9287-48f4-aa2b-725a4b13aeb3",
+      "name": "Sticky Note 2d21e3f3",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -32,
+        624
+      ],
+      "parameters": {
+        "content": "## DB - Read\nPOST /webhook/dash/snapshot and /webhook/dash/log (Header Auth). Snapshot reads the Leads, Settings, Suppression and Social tabs whole and shapes them in Build Snapshot (header check A..AG). Log filters and pages the Log tab. Read-only. Source: dashboard/n8n in the repo.",
+        "color": 4,
+        "width": 384,
+        "height": 416
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Snapshot": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Log": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route": {
+      "main": [
+        [
+          {
+            "node": "Read Leads",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read Log",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Leads": {
+      "main": [
+        [
+          {
+            "node": "Read Settings",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Settings": {
+      "main": [
+        [
+          {
+            "node": "Read Suppression",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Suppression": {
+      "main": [
+        [
+          {
+            "node": "Read Social",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Social": {
+      "main": [
+        [
+          {
+            "node": "Build Snapshot",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Snapshot": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Log": {
+      "main": [
+        [
+          {
+            "node": "Filter Log",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Log": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "timezone": "Europe/Istanbul",
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp"
+  }
+}

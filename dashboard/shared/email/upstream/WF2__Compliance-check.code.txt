@@ -1,0 +1,45 @@
+const leads = $('Limit 20').all();
+const freeDomains = ['gmail.com', 'hotmail.com', 'yahoo.com', 'outlook.com', 'yandex.com', 'icloud.com'];
+const allowedCountries = ['turkey', 'türkiye', 'turkiye'];
+
+// Suppression tab: emails and domains that must never be contacted (İYS "ret" opt-outs, manual do-not-contact, bounces).
+const supp = $('Read Suppression').all().map(i => i.json).filter(r => r && (r.Email || r.Domain));
+const suppEmails = new Set(supp.map(r => String(r.Email || '').toLowerCase().trim()).filter(Boolean));
+const suppDomains = supp.map(r => String(r.Domain || '').toLowerCase().replace(/^@/, '').trim()).filter(Boolean);
+
+function domainOf(url) {
+  return String(url || '')
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/^www\./, '')
+    .split('/')[0]
+    .split(':')[0]
+    .trim();
+}
+
+return leads.map((item) => {
+  const lead = item.json;
+  const reasons = [];
+  const email = String(lead.Email || '').trim().toLowerCase();
+  const emailDomain = email.includes('@') ? email.split('@')[1] : '';
+  const siteDomain = domainOf(lead.Website);
+
+  if (!email) reasons.push('Email is empty');
+  if (emailDomain && freeDomains.includes(emailDomain)) reasons.push('Free or personal email domain');
+  if (String(lead['Opt-out'] || '').trim().toLowerCase() === 'yes') reasons.push('Lead opted out');
+  if (email && suppEmails.has(email)) reasons.push('On suppression list (İYS ret / do-not-contact)');
+  else if (emailDomain && suppDomains.some(sd => emailDomain === sd || emailDomain.endsWith('.' + sd))) reasons.push('Email domain on suppression list');
+  if (emailDomain && siteDomain && !freeDomains.includes(emailDomain)) {
+    const matches = emailDomain === siteDomain || emailDomain.endsWith('.' + siteDomain) || siteDomain.endsWith('.' + emailDomain);
+    if (!matches) reasons.push('Email domain does not match website domain');
+  }
+  if (!allowedCountries.includes(String(lead.Country || '').trim().toLowerCase())) reasons.push('Country not allowed');
+
+  return {
+    json: {
+      ...lead,
+      'Compliance Status': reasons.length ? 'Blocked' : 'OK',
+      'Compliance Notes': reasons.join('; '),
+    },
+  };
+});

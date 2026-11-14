@@ -116,3 +116,18 @@ export type ExecutionInfo = {
   startedAt: string; stoppedAt: string | null; error: string | null;
 };
 export type StatusResponse = { ok: true; executions: ExecutionInfo[]; running: { wf3: boolean; wf5: boolean } };
+
+// ---- Appended by backend (additive only) ---------------------------------
+
+/** GET /api/me: the SessionUser plus non-secret app config the UI needs. */
+export type MeResponse = SessionUser & {
+  config: {
+    weeklyFirstEmailCap: number;   // WEEKLY_FIRST_EMAIL_CAP (soft warning)
+    dailyWarmupCap: number;        // DAILY_WARMUP_CAP (soft warning)
+    hubspotPortalId: string | null; // HUBSPOT_PORTAL_ID, enables "open in HubSpot" links
+    sheetEnv: "live" | "staging";
+  };
+};
+
+/** Error bodies the app adds on top of WriteResult: 429 rate limit (60 writes/min/user). */
+export type RateLimited = { status: 429; error: string };

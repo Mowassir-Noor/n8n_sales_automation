@@ -1,0 +1,4 @@
+{
+  "toEmail": "={{ $('Read Settings').first().json['Test Email'] || $json.Email }}",
+  "subject": "={{ $json.Subject }}"
+}

@@ -323,6 +323,8 @@ This part is for Nil. Nothing here needs n8n or the Google Sheet.
 
 **Every weekday morning (after the drafts notification, about 09:30): first emails.**
 
+The Telegram and email notifications carry a link straight to the right page (new drafts → First emails, follow-ups → Follow-ups, hot replies → Replies, LinkedIn drafts → LinkedIn).
+
 1. Open **Approvals** (first emails). Each card is one company, with the email shown exactly as the prospect will see it, the address it goes to, and its compliance status.
 2. For each draft choose one:
    - **Approve**: it goes out at the next send time shown on the card (10:00 or 14:00 on weekdays). You can un-approve it until then.

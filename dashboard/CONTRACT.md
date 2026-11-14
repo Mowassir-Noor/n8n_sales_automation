@@ -41,6 +41,7 @@ Do not edit files outside your area. If you need something from another area, wr
 | `DEV_LOGIN_EMAIL` | Dev only: when set AND `NODE_ENV !== "production"`, a "Dev sign-in" button signs in as this email (role from the allowlists). Ignored in production builds |
 | `WEEKLY_FIRST_EMAIL_CAP` (100), `DAILY_WARMUP_CAP` (20) | Soft warnings only |
 | `HUBSPOT_PORTAL_ID` | Optional; enables "open in HubSpot" links |
+| `MCP_KEYS` | Optional; comma-separated `email:sha256(key)` entries for the Claude connector (`scripts/mcp-key.mjs`). Empty = `/api/mcp` refuses everything |
 
 ## n8n webhook API (app → n8n)
 
@@ -126,6 +127,11 @@ Settings fields `Test Email`, `HubSpot Monthly Limit`, `HubSpot Pause Percent`, 
 `Test Email` is only allowed through the go-live flow (request carries `data["Test Email"] = ""` plus header `X-Go-Live: confirm`,
 admin only, and the server refuses while the go-live list below is not empty);
 `Mail Provider`, `SMTP From`, `Sheet URL`, `Nil WhatsApp`, `WhatsApp Phone Number ID`, `HubSpot Owner ID` are never writable. Suppression remove is admin only.
+
+MCP endpoint (Claude connector): `POST /api/mcp` with `Authorization: Bearer <key>`, or `POST /api/mcp/<key>` (custom connectors cannot send headers).
+Stateless Streamable HTTP, JSON responses only (no SSE); GET/DELETE return 405. The key maps to an email via `MCP_KEYS`, the role comes from the allowlists
+as for sign-in. Tools (src/lib/mcp/tools.ts) call the same write functions as the routes (src/lib/writes.ts), so role rules, validation, rate limit
+and the go-live check are identical; `update_settings` needs `confirmGoLive: true` to clear Test Email. Each call is logged as `mcp_tool`.
 
 Queue derivation (put in `src/lib/queues.ts`, pure, used by pages and tests):
 - First-email queue: `Stage === "Drafted"`; tab Waiting = Approved in `"", "Pending", "Edit"`, Approved = `Yes`, Rejected = `No`.

@@ -7,15 +7,8 @@ import { originAllowed, rateLimit } from "./guards";
 export { originAllowed, rateLimit, RATE_LIMIT } from "./guards";
 import type { SessionUser } from "./types";
 
-export type ErrorBody = { status: number; error?: string; errors?: string[] };
-
-export function json(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
-  return Response.json(body, { status, headers: { "Cache-Control": "no-store", ...headers } });
-}
-
-export function errorResponse(status: number, error: string): Response {
-  return json({ status, error }, status);
-}
+import { errorResponse, json, logRequest } from "./http";
+export { errorResponse, json, logRequest, relay, type ErrorBody } from "./http";
 
 /** The signed-in user with the role re-read from the allowlists, or null. */
 export async function currentUser(): Promise<SessionUser | null> {
@@ -26,12 +19,6 @@ export async function currentUser(): Promise<SessionUser | null> {
   const role = roleFor(email, { approverEmails: e.approverEmails, adminEmails: e.adminEmails });
   if (!role) return null;
   return { email: email.toLowerCase(), name: session.user?.name ?? undefined, role };
-}
-
-// ---- Request log (stdout, one JSON line; never draft text) -----------------
-
-export function logRequest(entry: { user?: string; method: string; route: string; status: number; ms: number; action?: string; leadId?: string; note?: string }) {
-  console.log(JSON.stringify({ t: new Date().toISOString(), event: "request", ...entry }));
 }
 
 // ---- Wrappers -------------------------------------------------------------
@@ -91,9 +78,4 @@ export function withWrite<S extends z.ZodType>(route: string, schema: S, handler
     logRequest({ user: user?.email, method: req.method, route, status: res.status, ms: Date.now() - t0, ...log });
     return res;
   };
-}
-
-/** Sends an n8n result body back with the same HTTP status. */
-export function relay(body: { status: number }): Response {
-  return json(body, body.status);
 }

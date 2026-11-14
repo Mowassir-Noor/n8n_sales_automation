@@ -97,6 +97,14 @@ Without them the app loads but shows "cannot reach n8n":
 3. Type `Hot Handled` in cell AI1 of the Leads tab (AH already holds the old `HubSpot Task ID` column; leave it).
 4. Switch on the five `DB - …` workflows.
 
+## Optional: use the dashboard from Claude
+
+```bash
+cd ~/n8n && docker compose exec dashboard node scripts/mcp-key.mjs nil@example.com
+```
+
+Put the printed `MCP_KEYS` entry in `dashboard.env` (the email must also be in `ADMIN_EMAILS` for full access), run `docker compose up -d dashboard`, and paste the printed URL into Claude: Settings → Connectors → Add custom connector. The URL contains the key, so share it only with that person. Details in `docs/dashboard.md`, section 4.
+
 ## Updating later
 
 ```bash

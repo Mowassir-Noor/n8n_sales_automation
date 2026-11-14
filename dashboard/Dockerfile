@@ -42,6 +42,7 @@ COPY --from=build --chown=nextjs:nextjs /app/.next/static ./.next/static
 COPY --from=build --chown=nextjs:nextjs /app/public ./public
 # Password hashing helper: docker compose exec dashboard node scripts/hash-password.mjs <email>
 COPY --from=build --chown=nextjs:nextjs /app/scripts/hash-password.mjs ./scripts/hash-password.mjs
+COPY --from=build --chown=nextjs:nextjs /app/scripts/mcp-key.mjs ./scripts/mcp-key.mjs
 
 USER nextjs
 EXPOSE 3000

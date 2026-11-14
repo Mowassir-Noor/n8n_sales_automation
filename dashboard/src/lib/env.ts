@@ -44,6 +44,8 @@ const schema = z.object({
   HUBSPOT_PORTAL_ID: z.string().optional(),
   /** Email + password sign-in: comma-separated "email:salt:hash" entries from scripts/hash-password.mjs. */
   DASH_USERS: z.string().optional(),
+  /** Claude (MCP) access keys: comma-separated "email:sha256" entries from scripts/mcp-key.mjs. */
+  MCP_KEYS: z.string().optional(),
 });
 
 export type Env = {
@@ -65,6 +67,8 @@ export type Env = {
   googleConfigured: boolean;
   /** Raw DASH_USERS value ("" when unset); parsed by lib/passwords.ts. */
   dashUsers: string;
+  /** Raw MCP_KEYS value ("" when unset); parsed by lib/mcp/keys.ts. */
+  mcpKeys: string;
 };
 
 let cached: Env | null = null;
@@ -105,6 +109,7 @@ export function readEnv(source: Record<string, string | undefined> = process.env
     hubspotPortalId: e.HUBSPOT_PORTAL_ID?.trim() || undefined,
     googleConfigured: Boolean(e.AUTH_GOOGLE_ID && e.AUTH_GOOGLE_SECRET),
     dashUsers: e.DASH_USERS?.trim() ?? "",
+    mcpKeys: e.MCP_KEYS?.trim() ?? "",
   };
 }
 

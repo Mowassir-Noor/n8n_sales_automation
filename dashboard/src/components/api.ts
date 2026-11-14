@@ -3,7 +3,7 @@
 // Browser-side access to the app's HTTP API (CONTRACT.md "App HTTP API").
 // Pages never talk to n8n; they only use these hooks.
 import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
-import type { LogPage, LogQuery, SessionUser, Snapshot, StatusResponse } from "@/lib/types";
+import type { LogPage, LogQuery, MeResponse, Snapshot, StatusResponse } from "@/lib/types";
 
 export type SnapshotResponse = Snapshot & { stale?: boolean; ageSeconds?: number };
 
@@ -101,7 +101,7 @@ export function useRefreshSnapshot() {
 export function useMe() {
   return useQuery({
     queryKey: ["me"],
-    queryFn: () => getJson<SessionUser>("/api/me"),
+    queryFn: () => getJson<MeResponse>("/api/me"),
     staleTime: 5 * 60_000,
   });
 }

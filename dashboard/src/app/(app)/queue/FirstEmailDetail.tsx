@@ -5,9 +5,9 @@ import Link from "next/link";
 import type { LeadRow } from "@/lib/types";
 import { checkDraft, firstEmailSubject, isSuppressed } from "@shared/email";
 import type { SnapshotResponse } from "@/components/api";
-import { useLeadAction, useRole, useWf3Running, useWriteGuard } from "@/components/actions";
+import { useLeadAction, useRole, useSoftCaps, useWf3Running, useWriteGuard } from "@/components/actions";
 import { ComplianceBadge } from "@/components/badges";
-import { ago, capStatus, fmtDateTimeIst, fmtRun, languageFlag, SOFT_CAPS, type FirstEmailTab } from "@/components/derive";
+import { ago, capStatus, fmtDateTimeIst, fmtRun, languageFlag, type FirstEmailTab } from "@/components/derive";
 import { HtmlPreview, MailHeader, PlainTextPreview } from "@/components/EmailPreview";
 import { Badge, Button, DataList, Dialog, Field, Notice, Tabs, TabPanel, inputClass, isTypingTarget } from "@/components/ui";
 
@@ -118,6 +118,7 @@ export function FirstEmailDetail({
   const guard = useWriteGuard();
   const { isAdmin } = useRole();
   const wf3Running = useWf3Running();
+  const caps = useSoftCaps();
   const { run, isBusy } = useLeadAction();
   const ids = useId();
 
@@ -155,7 +156,7 @@ export function FirstEmailDetail({
 
   const doApprove = async (force = false) => {
     if (!canApprove) return;
-    const warnings = capStatus(snapshot.leads, SOFT_CAPS, now, 1).warnings;
+    const warnings = capStatus(snapshot.leads, caps, now, 1).warnings;
     if (warnings.length && !force) {
       setCapOpen(warnings);
       return;

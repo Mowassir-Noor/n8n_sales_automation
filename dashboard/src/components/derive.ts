@@ -29,8 +29,16 @@ export {
 } from "@/lib/queues";
 export type { FirstEmailTab, FollowupTab, ScheduleKey } from "@/lib/queues";
 
-/** Soft caps: server env WEEKLY_FIRST_EMAIL_CAP / DAILY_WARMUP_CAP are not exposed to the browser; defaults from the plan. */
+/** Fallback soft caps (plan defaults) until /api/me's config has loaded; see useSoftCaps(). */
 export const SOFT_CAPS = { weekly: 100, daily: 20 };
+
+/** HubSpot contact record URL, or null when the portal ID or the contact ID is missing. */
+export function hubspotContactUrl(portalId: string | null | undefined, contactId: string | null | undefined): string | null {
+  const p = String(portalId ?? "").trim();
+  const c = String(contactId ?? "").trim();
+  if (!p || !c) return null;
+  return `https://app.hubspot.com/contacts/${encodeURIComponent(p)}/record/0-1/${encodeURIComponent(c)}`;
+}
 
 /** WF3 sends at most 15 first emails per run ('Limit 15' node), in sheet order. */
 export const WF3_PER_RUN = 15;

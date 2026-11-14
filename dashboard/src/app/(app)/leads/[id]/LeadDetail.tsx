@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import type { LeadHeader, LeadRow, LogRow } from "@/lib/types";
 import { useLog, useSnapshot } from "@/components/api";
+import { useHubspotUrl } from "@/components/actions";
 import { CategoryBadge, ComplianceBadge, StageBadge } from "@/components/badges";
 import { findLead, firstEmailTab, fmtDateTimeIst, isFollowupPending, isHot } from "@/components/derive";
 import { Button, Card, DataList, Empty, Notice, Spinner } from "@/components/ui";
@@ -26,6 +27,7 @@ const T = {
   inQueue: "Open in first-email queue",
   inFollowups: "Open in follow-ups",
   inReplies: "Open in replies",
+  hubspot: "Open in HubSpot",
   staleDraft: "Not sent: the lead replied while this follow-up was waiting.",
   input: "Input",
   output: "Output",
@@ -61,7 +63,11 @@ export function LeadDetail({ id }: { id: string }) {
   const snap = useSnapshot();
   const data = snap.data;
   if (!data) return <div className="flex items-center gap-2 text-muted">{snap.isError ? null : <><Spinner /> {T.loading}</>}</div>;
-  const lead = findLead(data.leads, id);
+  return <LeadBody id={id} lead={findLead(data.leads, id)} />;
+}
+
+function LeadBody({ id, lead }: { id: string; lead: LeadRow | undefined }) {
+  const hubspotUrl = useHubspotUrl(lead?.["HubSpot Contact ID"]);
 
   return (
     <div className="space-y-4">
@@ -95,6 +101,11 @@ export function LeadDetail({ id }: { id: string }) {
                 <Link className="text-sm font-medium text-accent hover:underline" href="/replies">
                   {T.inReplies}
                 </Link>
+              ) : null}
+              {hubspotUrl ? (
+                <a className="text-sm font-medium text-accent hover:underline" href={hubspotUrl} target="_blank" rel="noopener noreferrer">
+                  {T.hubspot}
+                </a>
               ) : null}
               {isHot(lead) ? <CategoryBadge category="Hot" /> : null}
             </div>

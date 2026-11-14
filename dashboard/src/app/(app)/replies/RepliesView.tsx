@@ -4,7 +4,7 @@ import { useId, useMemo, useState } from "react";
 import Link from "next/link";
 import type { LeadRow } from "@/lib/types";
 import { useLog, useSnapshot } from "@/components/api";
-import { useLeadAction, useWriteGuard } from "@/components/actions";
+import { useHubspotUrl, useLeadAction, useWriteGuard } from "@/components/actions";
 import { CategoryBadge, useNow } from "@/components/badges";
 import { ago, fmtDateTimeIst, isHot, replyList } from "@/components/derive";
 import { Badge, Button, Dialog, Empty, Field, Notice, Spinner, Tabs, TabPanel, inputClass, cx } from "@/components/ui";
@@ -30,6 +30,7 @@ const T = {
   save: "Save",
   cancel: "Cancel",
   replyMail: "Reply in mailbox",
+  hubspot: "Open in HubSpot",
   openLead: "View lead",
   optOutTitle: "Mark this lead as opted out?",
   optOutBody:
@@ -99,6 +100,7 @@ function ReplyCard({ lead, now }: { lead: LeadRow; now: Date }) {
   const [cat, setCat] = useState<string>(SETTABLE.includes(lead["Reply Category"] as (typeof SETTABLE)[number]) ? lead["Reply Category"] : "Warm");
 
   const optedOut = (lead["Opt-out"] || "").trim() === "Yes";
+  const hubspotUrl = useHubspotUrl(lead["HubSpot Contact ID"]);
   const mailto = lead.Email
     ? `mailto:${encodeURIComponent(lead.Email)}?subject=${encodeURIComponent(/^re:/i.test(lead.Subject) ? lead.Subject : `Re: ${lead.Subject}`)}`
     : null;
@@ -174,6 +176,16 @@ function ReplyCard({ lead, now }: { lead: LeadRow; now: Date }) {
             <Button variant="danger" disabled={guard.disabled} onClick={() => setOptOpen(true)}>
               {T.optOut}
             </Button>
+          ) : null}
+{hubspotUrl ? (
+            <a
+              href={hubspotUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-9 items-center rounded-md px-3 text-sm font-medium text-accent hover:bg-surface-2"
+            >
+              {T.hubspot}
+            </a>
           ) : null}
           {mailto ? (
             <a href={mailto} className="inline-flex h-9 items-center rounded-md px-3 text-sm font-medium text-accent hover:bg-surface-2">

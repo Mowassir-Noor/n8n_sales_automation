@@ -6,7 +6,7 @@ import type { LeadRow } from "@/lib/types";
 import { checkDraft } from "@shared/email";
 import { useSnapshot } from "@/components/api";
 import { useToast } from "@/components/toast";
-import { useLeadAction, useWriteGuard } from "@/components/actions";
+import { useLeadAction, useSoftCaps, useWriteGuard } from "@/components/actions";
 import { ComplianceBadge, useNow } from "@/components/badges";
 import {
   ago,
@@ -16,7 +16,6 @@ import {
   fmtRun,
   hubspotUsage,
   languageFlag,
-  SOFT_CAPS,
   type FirstEmailTab,
 } from "@/components/derive";
 import { Button, Dialog, Empty, Notice, Spinner, Tabs, TabPanel, cx, isTypingTarget } from "@/components/ui";
@@ -59,6 +58,7 @@ export function QueueView() {
   const guard = useWriteGuard();
   const { run } = useLeadAction();
   const toast = useToast();
+  const caps = useSoftCaps();
 
   const [tab, setTab] = useState<FirstEmailTab>(() => {
     const t = sp.get("tab");
@@ -140,7 +140,7 @@ export function QueueView() {
   }, [data, queue.waiting]);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkBusy, setBulkBusy] = useState<{ done: number; total: number } | null>(null);
-  const bulkWarnings = data ? capStatus(data.leads, SOFT_CAPS, now, bulkEligible.length).warnings : [];
+  const bulkWarnings = data ? capStatus(data.leads, caps, now, bulkEligible.length).warnings : [];
 
   const doBulk = async () => {
     const items = [...bulkEligible];

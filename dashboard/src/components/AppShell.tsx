@@ -30,6 +30,8 @@ const T = {
   loadFailed: "Could not load data from n8n. Retrying every 30 seconds.",
   headers: "The Leads tab's columns do not match what the dashboard expects. Changes are disabled until this is fixed in the sheet:",
   sendingNow: "Sending now",
+  staging: "staging",
+  stagingTitle: "Connected to the staging sheet (SHEET_ENV=staging)",
   skip: "Skip to content",
 };
 
@@ -79,6 +81,11 @@ export function AppShell({ children }: { children: ReactNode }) {
             <span className="inline-block size-5 rounded bg-accent" aria-hidden="true" />
             <span className="hidden sm:inline">{T.brand}</span>
           </Link>
+          {me.data?.config?.sheetEnv === "staging" ? (
+            <span title={T.stagingTitle} className="rounded-full border border-warn/40 bg-warn-soft px-2 py-0.5 text-xs font-medium text-warn">
+              {T.staging}
+            </span>
+          ) : null}
           <SendingBadge />
           <div className="ml-auto flex min-w-0 items-center gap-2 text-xs">
             {me.data ? (

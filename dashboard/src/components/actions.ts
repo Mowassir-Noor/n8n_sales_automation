@@ -6,6 +6,7 @@ import type { Expect, LeadAction, LeadActionRequest, LeadRow } from "@/lib/types
 import { hashFirst, hashFollowup } from "@shared/email";
 import { newRequestId, postJson, SNAPSHOT_KEY, useMe, useSnapshot, useStatus, type SnapshotResponse } from "./api";
 import { useFeedback } from "./feedback";
+import { SOFT_CAPS, hubspotContactUrl } from "./derive";
 
 const FIRST_ACTIONS: LeadAction[] = ["approve_first", "reject_first", "edit_first", "unapprove_first"];
 const FOLLOWUP_ACTIONS: LeadAction[] = ["approve_followup", "edit_followup", "rewrite_followup", "decline_followup"];
@@ -90,4 +91,19 @@ export function useLeadAction() {
   }, [busy]);
 
   return { run, busy, isBusy };
+}
+
+/** Soft caps from the server env (WEEKLY_FIRST_EMAIL_CAP, DAILY_WARMUP_CAP) via /api/me; plan defaults as fallback. */
+export function useSoftCaps(): { weekly: number; daily: number } {
+  const cfg = useMe().data?.config;
+  return {
+    weekly: Number(cfg?.weeklyFirstEmailCap) > 0 ? Number(cfg?.weeklyFirstEmailCap) : SOFT_CAPS.weekly,
+    daily: Number(cfg?.dailyWarmupCap) > 0 ? Number(cfg?.dailyWarmupCap) : SOFT_CAPS.daily,
+  };
+}
+
+/** "Open in HubSpot" URL for a lead, when HUBSPOT_PORTAL_ID is configured and the lead has a contact ID. */
+export function useHubspotUrl(contactId: string | undefined): string | null {
+  const portal = useMe().data?.config?.hubspotPortalId;
+  return hubspotContactUrl(portal, contactId);
 }

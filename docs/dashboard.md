@@ -110,14 +110,14 @@ In n8n at https://n8n.mowassirnoor.tech:
 
 ### Step 4. The five DB workflows **[You or Claude]**
 
-If the five `DB - …` workflows are not in n8n yet, import them: **Workflows → ⋯ → Import from File**, one file at a time, from the `DB-*.json` files at the root of the repo. Put them in their own folder, for example `Dashboard`.
+The five workflows already exist on n8n.mowassirnoor.tech in the folder **Dashboard** (inactive): DB - Read `b3SogIDzguU5WnmR`, DB - Status `eklqnG8SJQQAcdcl`, DB - Settings `dEUqnS08f5NowmGD`, DB - Lists `zcMol8T7wdDlQtFT`, DB - Lead action `AdVONuJtZh6taVjk` (open `https://n8n.mowassirnoor.tech/workflow/<id>`). Every Google Sheets node already has `Google Sheets account` attached. On another server, import them: **Workflows → ⋯ → Import from File**, one file at a time, from the `DB-*.json` files at the root of the repo. Put them in their own folder, for example `Dashboard`.
 
 Then open each one and attach credentials:
 
 | Workflow | Webhook nodes | Google Sheets nodes | n8n nodes |
 | --- | --- | --- | --- |
 | DB - Read | `Dashboard key` | `Google Sheets account`, sheet `Texprove Leads` | – |
-| DB - Lead action | `Dashboard key` | `Google Sheets account` | – |
+| DB - Lead action | `Dashboard key` | `Google Sheets account` | `n8n API` (Check WF3 Running, Last WF3 Runs) |
 | DB - Settings | `Dashboard key` | `Google Sheets account` | – |
 | DB - Lists | `Dashboard key` | `Google Sheets account` | – |
 | DB - Status | `Dashboard key` | – | `n8n API` |
@@ -128,7 +128,7 @@ The webhook nodes are built from the sources in `dashboard/n8n/`; Claude regener
 
 ### Step 5. The sheet column and publishing **[You]**
 
-1. In the `Texprove Leads` sheet, `Leads` tab, type `Hot Handled` in cell **AH1** (right after `Last Updated` in AG). Format the column as Plain text like the rest. WF0 to WF6 ignore it; the dashboard writes "<time> by <email>" there when a Hot reply has been dealt with.
+1. In the `Texprove Leads` sheet, `Leads` tab, type `Hot Handled` in cell **AH1** (right after `Follow-up Draft` in AG). Format the column as Plain text like the rest. WF0 to WF6 ignore it; the dashboard writes "<time> by <email>" there when a Hot reply has been dealt with.
 2. In n8n, **publish (activate)** the five DB workflows with the toggle at the top right of each. They only answer webhooks while active. Activating them does not send anything; they only run when the dashboard calls them.
 
 ### Step 6. Server: `dashboard.env` **[You]**

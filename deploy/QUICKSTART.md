@@ -89,7 +89,7 @@ Without them the app loads but shows "cannot reach n8n":
 
 1. In n8n, create a credential of type **Header Auth**: name `Dashboard key`, header name `X-Dash-Key`, value = the `DASH_KEY` from step 4. Select it on the webhook node(s) of the five `DB - …` workflows (folder **Dashboard**).
 2. For `DB - Status` and `DB - Lead action`: create an **n8n API** key (Settings → n8n API) and an `n8n API` credential with base URL `http://localhost:5678/api/v1`, and select it on their n8n nodes.
-3. Type `Hot Handled` in cell AH1 of the Leads tab.
+3. Type `Hot Handled` in cell AI1 of the Leads tab (AH already holds the old `HubSpot Task ID` column; leave it).
 4. Switch on the five `DB - …` workflows.
 
 ## Updating later

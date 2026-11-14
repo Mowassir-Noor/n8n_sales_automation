@@ -128,7 +128,7 @@ The webhook nodes are built from the sources in `dashboard/n8n/`; Claude regener
 
 ### Step 5. The sheet column and publishing **[You]**
 
-1. In the `Texprove Leads` sheet, `Leads` tab, type `Hot Handled` in cell **AH1** (right after `Follow-up Draft` in AG). Format the column as Plain text like the rest. WF0 to WF6 ignore it; the dashboard writes "<time> by <email>" there when a Hot reply has been dealt with.
+1. In the `Texprove Leads` sheet, `Leads` tab, type `Hot Handled` in the first empty header cell after `Follow-up Draft` (on the live sheet that is **AI1**, because AH already holds an old `HubSpot Task ID` column; the dashboard finds the column by its name). Format the column as Plain text like the rest. WF0 to WF6 ignore it; the dashboard writes "<time> by <email>" there when a Hot reply has been dealt with.
 2. In n8n, **publish (activate)** the five DB workflows with the toggle at the top right of each. They only answer webhooks while active. Activating them does not send anything; they only run when the dashboard calls them.
 
 ### Step 6. Server: `dashboard.env` **[You]**
@@ -276,7 +276,7 @@ Start with the logs: `cd ~/n8n && docker compose logs --tail 100 dashboard`. In 
 | "n8n rejected the key" or 401/403 from n8n in the logs | `DASH_KEY` in `dashboard.env` differs from the `Dashboard key` credential, or a Webhook node has no Header Auth / the wrong credential | Make the two values equal (section 6) and check every Webhook node; recreate the container |
 | 404 from n8n in the logs | The DB workflow is not published (active), or its webhook path is wrong, or `SHEET_ENV` points at staging workflows that do not exist | Activate the workflow; check the paths are `dash/snapshot`, `dash/log`, `dash/lead`, `dash/settings`, `dash/suppression`, `dash/social`, `dash/status` |
 | Yellow "data may be out of date" banner, buttons disabled | n8n is down, restarting or very slow; the dashboard shows its last copy read-only | `docker compose ps n8n`, `docker compose logs n8n`; it recovers on its own once n8n answers |
-| "Sheet headers changed" banner, writes refused | A column in the sheet was renamed, moved or deleted (often AH `Hot Handled` missing) | Put the headers back exactly as in `docs/google-sheet.md`; the banner goes away on the next refresh |
+| "Sheet headers changed" banner, writes refused | A column in the sheet was renamed, moved or deleted (or the `Hot Handled` header is missing) | Put the headers back exactly as in `docs/google-sheet.md`; the banner goes away on the next refresh |
 | "Not authorised" after Google sign-in | The Google address is not in `APPROVER_EMAILS` / `ADMIN_EMAILS`, or a typo | Fix the list and recreate the container (section 4) |
 | Google says `redirect_uri_mismatch` | Redirect URI in Google Cloud differs from `https://dash.mowassirnoor.tech/api/auth/callback/google`, or `AUTH_URL` is wrong | Make them match exactly, no trailing slash |
 | Browser shows a certificate error for dash | DNS was not ready when Caddy first tried | Check `dig`, then `docker compose restart caddy` |

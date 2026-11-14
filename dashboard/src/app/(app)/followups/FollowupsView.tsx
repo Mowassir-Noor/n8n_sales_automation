@@ -7,6 +7,7 @@ import { checkFollowup, followupSubject, recipientFor } from "@shared/email";
 import { useSnapshot } from "@/components/api";
 import { useLeadAction, useRole, useWf5Running, useWriteGuard } from "@/components/actions";
 import { useNow } from "@/components/badges";
+import { useToast } from "@/components/toast";
 import {
   ago,
   fmtDateTimeIst,
@@ -67,6 +68,12 @@ const T = {
   declinedToast: "Follow-up declined.",
   nilNotes: "Nil Notes",
   openLead: "Open lead",
+  bulk: (n: number) => `Approve all (${n})`,
+  bulkTitle: "Approve all waiting follow-ups",
+  bulkIntro: (n: number) =>
+    `Approve these ${n} follow-ups? Only follow-ups that pass the WF5 check and whose lead has not opted out are included. Each is approved separately and logged under your name; WF5 sends them at its next run (weekdays 11:00).`,
+  bulkConfirm: (n: number) => `Approve ${n}`,
+  bulkDone: (ok: number, n: number) => `${ok} of ${n} follow-ups approved.`,
 };
 
 export function FollowupsView() {
@@ -85,6 +92,34 @@ export function FollowupsView() {
     return g;
   }, [data]);
 
+  const guard = useWriteGuard();
+  const toast = useToast();
+  const { run } = useLeadAction();
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkBusy, setBulkBusy] = useState<{ done: number; total: number } | null>(null);
+  const bulkEligible = useMemo(() => {
+    if (!data) return [];
+    return groups.waiting.filter(
+      (l) =>
+        (l["Opt-out"] || "").trim() !== "Yes" &&
+        checkFollowup({ body: l["Follow-up Draft"], lead: l, settings: data.settings, suppression: data.suppression }).ok,
+    );
+  }, [data, groups]);
+  const doBulk = async () => {
+    const items = [...bulkEligible];
+    setBulkBusy({ done: 0, total: items.length });
+    let ok = 0;
+    for (let i = 0; i < items.length; i++) {
+      const row = await run(items[i], "approve_followup", {});
+      if (!row) break;
+      ok++;
+      setBulkBusy({ done: i + 1, total: items.length });
+    }
+    setBulkBusy(null);
+    setBulkOpen(false);
+    if (ok) toast.show(T.bulkDone(ok, items.length), "ok");
+  };
+
   if (!data) {
     return <div className="flex items-center gap-2 text-muted">{snap.isError ? null : <><Spinner /> {T.loading}</>}</div>;
   }
@@ -92,10 +127,41 @@ export function FollowupsView() {
   const list = groups[tab];
   return (
     <div>
-      <div className="mb-3">
-        <h1 className="text-xl font-semibold tracking-tight">{T.title}</h1>
-        <p className="text-muted">{T.subtitle}</p>
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight">{T.title}</h1>
+          <p className="text-muted">{T.subtitle}</p>
+        </div>
+        {tab === "waiting" && bulkEligible.length > 0 ? (
+          <Button size="sm" variant="ok" disabled={guard.disabled} title={guard.reason ?? undefined} onClick={() => setBulkOpen(true)}>
+            {T.bulk(bulkEligible.length)}
+          </Button>
+        ) : null}
       </div>
+      <Dialog
+        open={bulkOpen}
+        onClose={() => (bulkBusy ? undefined : setBulkOpen(false))}
+        title={T.bulkTitle}
+        footer={
+          <>
+            <Button onClick={() => setBulkOpen(false)} disabled={!!bulkBusy}>
+              {T.cancel}
+            </Button>
+            <Button variant="primary" busy={!!bulkBusy} disabled={guard.disabled} onClick={() => void doBulk()}>
+              {bulkBusy ? `${bulkBusy.done}/${bulkBusy.total}` : T.bulkConfirm(bulkEligible.length)}
+            </Button>
+          </>
+        }
+      >
+        <p className="mb-3">{T.bulkIntro(bulkEligible.length)}</p>
+        <ul className="max-h-48 list-disc overflow-y-auto pl-5 text-sm">
+          {bulkEligible.map((l) => (
+            <li key={l["Lead ID"]}>
+              {l.Company} <span className="text-muted">({l["Lead ID"]}, follow-up {followupNumber(l)})</span>
+            </li>
+          ))}
+        </ul>
+      </Dialog>
       <Tabs
         idBase="fu"
         label={T.tabsLabel}

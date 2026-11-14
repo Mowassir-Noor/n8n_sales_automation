@@ -4,14 +4,20 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { Button, Notice } from "@/components/ui";
+import type { FormEvent } from "react";
 
 const T = {
   title: "Texprove approvals",
   intro: "Sign in to review and approve outgoing emails.",
   google: "Sign in with Google",
+  email: "Email",
+  password: "Password",
+  signIn: "Sign in",
+  or: "or",
+  badPassword: "Wrong email or password. After 8 wrong tries the account is locked for 15 minutes.",
   dev: "Dev sign-in",
   devHelp: "Development only: signs in as the address in DEV_LOGIN_EMAIL.",
-  notAuthorised: "Not authorised. This Google account is not on the dashboard's allowlist. Ask the admin to add it, or sign in with another account.",
+  notAuthorised: "Not authorised. This account is not on the dashboard's allowlist. Ask the admin to add it, or sign in with another account.",
   genericError: "Sign-in failed. Try again.",
   configError: "Sign-in is not configured correctly on the server.",
   footer: "Only allowlisted accounts can sign in.",
@@ -55,7 +61,27 @@ export function SignInCard() {
   }, []);
 
   const hasDev = !!providers && "dev" in providers;
-  const hasGoogle = !providers || "google" in providers;
+  const hasGoogle = !!providers && "google" in providers;
+  const hasPassword = !providers || "password" in providers;
+  const [pwError, setPwError] = useState<string | null>(null);
+
+  async function submitPassword(ev: FormEvent<HTMLFormElement>) {
+    ev.preventDefault();
+    const fd = new FormData(ev.currentTarget);
+    setBusy("password");
+    setPwError(null);
+    const res = await signIn("password", {
+      email: String(fd.get("email") ?? ""),
+      password: String(fd.get("password") ?? ""),
+      redirect: false,
+    });
+    if (!res || res.error) {
+      setBusy(null);
+      setPwError(res?.error === "AccessDenied" ? T.notAuthorised : T.badPassword);
+      return;
+    }
+    window.location.href = redirectTo;
+  }
 
   return (
     <div className="w-full max-w-sm rounded-xl border border-line bg-surface p-6 shadow-sm">
@@ -69,10 +95,29 @@ export function SignInCard() {
           {err}
         </Notice>
       ) : null}
+      {hasPassword ? (
+        <form onSubmit={submitPassword} className="mb-4 space-y-3">
+          <label className="block text-sm">
+            <span className="mb-1 block text-muted">{T.email}</span>
+            <input name="email" type="email" required autoComplete="username"
+              className="w-full rounded-md border border-line bg-surface px-3 py-2 focus:outline-2 focus:outline-accent" />
+          </label>
+          <label className="block text-sm">
+            <span className="mb-1 block text-muted">{T.password}</span>
+            <input name="password" type="password" required autoComplete="current-password"
+              className="w-full rounded-md border border-line bg-surface px-3 py-2 focus:outline-2 focus:outline-accent" />
+          </label>
+          {pwError ? <Notice tone="danger">{pwError}</Notice> : null}
+          <Button type="submit" variant="primary" className="w-full" busy={busy === "password"}>
+            {T.signIn}
+          </Button>
+        </form>
+      ) : null}
+      {hasPassword && (hasGoogle || hasDev) ? <p className="mb-3 text-center text-xs text-muted">{T.or}</p> : null}
       <div className="space-y-2">
         {hasGoogle ? (
           <Button
-            variant="primary"
+            variant={hasPassword ? undefined : "primary"}
             className="w-full"
             busy={busy === "google"}
             onClick={() => {

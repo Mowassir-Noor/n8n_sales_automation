@@ -1,10 +1,12 @@
-// Auth.js v5: Google sign-in for allowlisted, verified addresses; JWT sessions carrying the role.
+// Auth.js v5: email + password sign-in (users in DASH_USERS) and/or Google sign-in, both only for
+// allowlisted addresses; JWT sessions carrying the role.
 // Dev only: a Credentials provider with id "dev" signs in as DEV_LOGIN_EMAIL (still allowlist-checked).
 import NextAuth, { type DefaultSession, type NextAuthConfig } from "next-auth";
 import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
 import { env } from "./lib/env";
 import { normaliseEmail, roleFor } from "./lib/roles";
+import { clearFailures, isLocked, parseDashUsers, recordFailure, verifyPassword } from "./lib/passwords";
 import type { Role } from "./lib/types";
 
 declare module "next-auth" {
@@ -23,6 +25,8 @@ declare module "@auth/core/jwt" {
 
 /** Provider id of the dev sign-in (only offered when DEV_LOGIN_EMAIL is set and NODE_ENV !== "production"). */
 export const DEV_PROVIDER_ID = "dev";
+/** Provider id of the email + password sign-in (offered when DASH_USERS is set). */
+export const PASSWORD_PROVIDER_ID = "password";
 /** Idle timeout: the cookie is re-issued with this lifetime on every request through proxy.ts. */
 export const SESSION_IDLE_SECONDS = 12 * 60 * 60;
 /** Absolute session lifetime. */
@@ -33,7 +37,33 @@ function buildConfig(): NextAuthConfig {
   const lists = { approverEmails: e.approverEmails, adminEmails: e.adminEmails };
 
   const providers: NextAuthConfig["providers"] = [];
-  if (e.googleConfigured || e.isProduction) {
+  const users = parseDashUsers(e.dashUsers);
+  if (users.size > 0) {
+    providers.push(
+      Credentials({
+        id: PASSWORD_PROVIDER_ID,
+        name: "Email and password",
+        credentials: { email: { label: "Email", type: "email" }, password: { label: "Password", type: "password" } },
+        authorize: async (creds) => {
+          const email = normaliseEmail(typeof creds?.email === "string" ? creds.email : "");
+          const password = typeof creds?.password === "string" ? creds.password : "";
+          if (!email || !password || password.length > 200) return null;
+          if (isLocked(email)) {
+            console.log(JSON.stringify({ t: new Date().toISOString(), event: "signin_locked", email }));
+            return null;
+          }
+          const entry = users.get(email);
+          if (!entry || !verifyPassword(password, entry)) {
+            recordFailure(email);
+            return null;
+          }
+          clearFailures(email);
+          return { id: email, email, name: email };
+        },
+      }),
+    );
+  }
+  if (e.googleConfigured) {
     providers.push(Google({ authorization: { params: { scope: "openid email profile", prompt: "select_account" } } }));
   }
   const devEmail = e.devLoginEmail; // undefined in production by construction
@@ -60,6 +90,8 @@ function buildConfig(): NextAuthConfig {
         if (account?.provider === "google") {
           if (!profile?.email_verified) return false;
           email = normaliseEmail(profile.email);
+        } else if (account?.provider === PASSWORD_PROVIDER_ID) {
+          email = normaliseEmail(user?.email);
         } else if (account?.provider === DEV_PROVIDER_ID) {
           if (!devEmail) return false;
           email = normaliseEmail(user?.email);

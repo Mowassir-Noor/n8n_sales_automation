@@ -2,27 +2,13 @@
 
 import { useCallback, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import type { Expect, LeadAction, LeadActionRequest, LeadRow } from "@/lib/types";
-import { hashFirst, hashFollowup } from "@shared/email";
+import type { LeadAction, LeadActionRequest, LeadRow } from "@/lib/types";
+import { expectFor } from "@/lib/expect";
 import { newRequestId, postJson, SNAPSHOT_KEY, useMe, useSnapshot, useStatus, type SnapshotResponse } from "./api";
 import { useFeedback } from "./feedback";
 import { SOFT_CAPS, hubspotContactUrl } from "./derive";
 
-const FIRST_ACTIONS: LeadAction[] = ["approve_first", "reject_first", "edit_first", "unapprove_first"];
-const FOLLOWUP_ACTIONS: LeadAction[] = ["approve_followup", "edit_followup", "rewrite_followup", "decline_followup"];
-
-/** The row as the user saw it (CONTRACT.md `expect` check). */
-export function expectFor(lead: LeadRow, action: LeadAction): Expect {
-  let draftHash = "";
-  if (FIRST_ACTIONS.includes(action)) draftHash = hashFirst(lead.Subject, lead["Draft Body"]);
-  else if (FOLLOWUP_ACTIONS.includes(action)) draftHash = hashFollowup(lead["Follow-up Draft"]);
-  return {
-    lastUpdated: lead["Last Updated"] ?? "",
-    stage: lead.Stage ?? "",
-    approved: lead.Approved ?? "",
-    draftHash,
-  };
-}
+export { expectFor };
 
 /** Why writes are disabled right now (stale snapshot, header mismatch, no data), or null. */
 export function useWriteGuard(): { disabled: boolean; reason: string | null } {

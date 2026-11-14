@@ -1,6 +1,6 @@
 // Next.js 16 Proxy (formerly middleware; Node.js runtime).
 // - Unauthenticated page requests -> redirect to /signin; unauthenticated /api/* -> 401 JSON
-//   (except /api/auth/* and /api/health).
+//   (except /api/auth/*, /api/health and /api/mcp, which checks its own key).
 // - Through the Auth.js wrapper, every request re-issues the session cookie, which gives the 12 h idle timeout.
 // - Security headers, including a per-request nonce CSP that Next.js applies to its own scripts.
 //   Pages must be dynamically rendered for the nonce to reach them (see dev/README.md).
@@ -11,7 +11,9 @@ import { auth } from "./auth";
 const PUBLIC_PAGES = new Set(["/signin"]);
 
 function isPublicApi(pathname: string) {
-  return pathname === "/api/health" || pathname === "/api/auth" || pathname.startsWith("/api/auth/");
+  // /api/mcp checks its own key (lib/mcp/keys.ts).
+  return pathname === "/api/health" || pathname === "/api/auth" || pathname.startsWith("/api/auth/") ||
+    pathname === "/api/mcp" || pathname.startsWith("/api/mcp/");
 }
 
 export function buildCsp(nonce: string, isDev: boolean): string {

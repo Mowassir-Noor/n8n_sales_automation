@@ -44,6 +44,8 @@ const schema = z.object({
   HUBSPOT_PORTAL_ID: z.string().optional(),
   /** Email + password sign-in: comma-separated "email:salt:hash" entries from scripts/hash-password.mjs. */
   DASH_USERS: z.string().optional(),
+  /** Claude (MCP) connector: secret the per-person keys are derived from. Empty = AUTH_SECRET; "off" = connector off. */
+  MCP_SECRET: z.string().optional(),
 });
 
 export type Env = {
@@ -65,7 +67,18 @@ export type Env = {
   googleConfigured: boolean;
   /** Raw DASH_USERS value ("" when unset); parsed by lib/passwords.ts. */
   dashUsers: string;
+  /** Secret for Claude connector keys (lib/mcp/keys.ts); "" = connector off. */
+  mcpSecret: string;
 };
+
+function mcpSecretFrom(mcp: string | undefined, auth: string | undefined, isProduction: boolean): string {
+  const m = mcp?.trim() ?? "";
+  if (m.toLowerCase() === "off") return "";
+  if (m) return m;
+  const a = auth?.trim() ?? "";
+  if (a) return a;
+  return isProduction ? "" : "dev-only-mcp-secret";
+}
 
 let cached: Env | null = null;
 
@@ -105,6 +118,7 @@ export function readEnv(source: Record<string, string | undefined> = process.env
     hubspotPortalId: e.HUBSPOT_PORTAL_ID?.trim() || undefined,
     googleConfigured: Boolean(e.AUTH_GOOGLE_ID && e.AUTH_GOOGLE_SECRET),
     dashUsers: e.DASH_USERS?.trim() ?? "",
+    mcpSecret: mcpSecretFrom(e.MCP_SECRET, e.AUTH_SECRET, isProduction),
   };
 }
 

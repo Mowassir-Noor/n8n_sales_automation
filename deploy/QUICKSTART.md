@@ -97,6 +97,10 @@ Without them the app loads but shows "cannot reach n8n":
 3. Type `Hot Handled` in cell AI1 of the Leads tab (AH already holds the old `HubSpot Task ID` column; leave it).
 4. Switch on the five `DB - …` workflows.
 
+## Use the dashboard from Claude
+
+Nothing to set up. Each person signs in, opens **Connect Claude** in the menu, copies their URL and adds it in Claude under Settings → Connectors → Add custom connector. Claude gets that person's role, so put Nil's email in `ADMIN_EMAILS` for full access. If a URL leaks, set `MCP_SECRET=<new random value>` in `dashboard.env` and run `docker compose up -d dashboard`. Details in `docs/dashboard.md`, section 4.
+
 ## Updating later
 
 ```bash

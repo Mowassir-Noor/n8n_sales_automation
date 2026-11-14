@@ -39,7 +39,7 @@ export function LeadsView() {
   const [segment, setSegment] = useState("");
   const [compliance, setCompliance] = useState("");
 
-  const leads = data?.leads ?? [];
+  const leads = useMemo(() => data?.leads ?? [], [data]);
   const options = useMemo(
     () => ({
       stage: uniq([...STAGES, ...leads.map((l) => l.Stage)]),
@@ -126,7 +126,7 @@ export function LeadsView() {
             ))}
           </ul>
           {/* Desktop: table */}
-          <div className="hidden overflow-x-auto rounded-lg border border-line bg-surface md:block">
+          <div className="relative hidden overflow-x-auto rounded-lg border border-line bg-surface md:block">
             <table className="w-full border-collapse text-sm">
               <thead className="bg-surface-2 text-left text-xs text-muted">
                 <tr>

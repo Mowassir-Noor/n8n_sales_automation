@@ -11,6 +11,13 @@ import {
   type KeyboardEvent,
 } from "react";
 
+/** True when a key event comes from a text field (keyboard shortcuts should not fire). */
+export function isTypingTarget(el: EventTarget | null): boolean {
+  if (typeof HTMLElement === "undefined" || !(el instanceof HTMLElement)) return false;
+  const tag = el.tagName;
+  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el.isContentEditable;
+}
+
 export function cx(...parts: Array<string | false | null | undefined>): string {
   return parts.filter(Boolean).join(" ");
 }
@@ -220,7 +227,11 @@ export function Dialog({
   useEffect(() => {
     const d = ref.current;
     if (!d) return;
-    if (open && !d.open) d.showModal();
+    if (open && !d.open) {
+      d.showModal();
+      // React's data-autofocus runs before showModal(); use data-autofocus to pick the initial focus instead.
+      d.querySelector<HTMLElement>("[data-autofocus]")?.focus();
+    }
     if (!open && d.open) d.close();
   }, [open]);
   return (

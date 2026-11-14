@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import type { LeadRow } from "@/lib/types";
 import { checkDraft } from "@shared/email";
@@ -19,12 +19,12 @@ import {
   SOFT_CAPS,
   type FirstEmailTab,
 } from "@/components/derive";
-import { Button, Dialog, Empty, Notice, Spinner, Tabs, TabPanel, cx } from "@/components/ui";
-import { FirstEmailDetail, type DetailCommands } from "./FirstEmailDetail";
+import { Button, Dialog, Empty, Notice, Spinner, Tabs, TabPanel, cx, isTypingTarget } from "@/components/ui";
+import { FirstEmailDetail } from "./FirstEmailDetail";
 
 const T = {
   title: "First emails",
-  tabs: { waiting: "Waiting", approved: "Approved (sends at next run)", rejected: "Rejected" } as Record<FirstEmailTab, string>,
+  tabs: { waiting: "Waiting", approved: "Approved", rejected: "Rejected" } as Record<FirstEmailTab, string>,
   tabsLabel: "First-email queue",
   loading: "Loading drafts…",
   empty: {
@@ -46,14 +46,10 @@ const T = {
     `HubSpot estimate is at ${pct}% of this month's limit (WF3 pauses at ${at}%). Approved emails will not send until the estimate is below that share or the limit is raised.`,
   keys: "Keys: J/K next/previous, A approve, E edit, R reject",
   back: "Back to list",
+  approvedHint: "Approved drafts send at the next WF3 run (weekdays 10:00 and 14:00, up to 15 per run).",
   list: "Drafts",
 };
 
-function isTyping(el: EventTarget | null): boolean {
-  if (!(el instanceof HTMLElement)) return false;
-  const tag = el.tagName;
-  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el.isContentEditable;
-}
 
 export function QueueView() {
   const sp = useSearchParams();
@@ -69,7 +65,7 @@ export function QueueView() {
     return t === "approved" || t === "rejected" ? t : "waiting";
   });
   const [picked, setPicked] = useState<string | null>(sp.get("id"));
-  const deepLinked = useRef(false);
+  const [deepLinked, setDeepLinked] = useState(false);
 
   const queue = useMemo(() => {
     const q = data ? firstEmailQueue(data.leads) : { waiting: [], approved: [], rejected: [] };
@@ -82,17 +78,12 @@ export function QueueView() {
   }, [data]);
   const sendTimes = useMemo(() => (data ? approvedSendTimes(data.leads, now) : new Map<string, Date>()), [data, now]);
 
-  // A deep link (?id=L013) opens the tab that holds the lead.
-  useEffect(() => {
-    if (deepLinked.current || !data || !picked) return;
-    deepLinked.current = true;
-    for (const k of ["waiting", "approved", "rejected"] as FirstEmailTab[]) {
-      if (queue[k].some((l) => l["Lead ID"] === picked)) {
-        setTab(k);
-        return;
-      }
-    }
-  }, [data, picked, queue]);
+  // A deep link (?id=L013) opens the tab that holds the lead (state adjusted during render, once).
+  if (!deepLinked && data && picked) {
+    setDeepLinked(true);
+    const holder = (["waiting", "approved", "rejected"] as FirstEmailTab[]).find((k) => queue[k].some((l) => l["Lead ID"] === picked));
+    if (holder && holder !== tab) setTab(holder);
+  }
 
   const list = queue[tab];
   const selected = list.find((l) => l["Lead ID"] === picked) ?? null;
@@ -116,10 +107,10 @@ export function QueueView() {
     setPicked(next ? next["Lead ID"] : null);
   }, [list, shownIdx]);
 
-  const commands = useRef<DetailCommands | null>(null);
+  // J/K here; A/E/R are handled by the detail pane.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.metaKey || e.ctrlKey || e.altKey || isTyping(e.target)) return;
+      if (e.metaKey || e.ctrlKey || e.altKey || isTypingTarget(e.target)) return;
       if (document.querySelector("dialog[open]")) return;
       const k = e.key.toLowerCase();
       if (k === "j") {
@@ -128,15 +119,6 @@ export function QueueView() {
       } else if (k === "k") {
         e.preventDefault();
         move(-1);
-      } else if (k === "a" && commands.current?.approve) {
-        e.preventDefault();
-        commands.current.approve();
-      } else if (k === "e" && commands.current?.edit) {
-        e.preventDefault();
-        commands.current.edit();
-      } else if (k === "r" && commands.current?.reject) {
-        e.preventDefault();
-        commands.current.reject();
       }
     };
     window.addEventListener("keydown", onKey);
@@ -206,7 +188,7 @@ export function QueueView() {
         </Notice>
       ) : null}
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(280px,360px)_1fr]">
+      <div className="grid gap-4 lg:grid-cols-[minmax(300px,400px)_1fr]">
         <section aria-label={T.list} className={cx("min-w-0", selected ? "hidden lg:block" : "block")}>
           <Tabs
             idBase="fq"
@@ -220,6 +202,7 @@ export function QueueView() {
             size="sm"
           />
           <TabPanel idBase="fq" value={tab} className="mt-2">
+            {tab === "approved" ? <p className="mb-2 text-xs text-muted">{T.approvedHint}</p> : null}
             {list.length === 0 ? (
               <Empty>{T.empty[tab]}</Empty>
             ) : (
@@ -273,7 +256,6 @@ export function QueueView() {
               snapshot={data}
               now={now}
               sendAt={sendTimes.get(shown["Lead ID"])}
-              commands={commands}
               onDone={afterAction}
               onSkip={() => move(1)}
               onBack={() => setPicked(null)}

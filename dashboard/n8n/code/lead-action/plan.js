@@ -23,7 +23,7 @@ const FOLLOWUP_STAGES = ['Sent', 'Follow-up 1', 'Follow-up 2'];
 const APPROVALS = ['approve_first', 'approve_followup'];
 
 function safeAll(name) {
-  try { return $(name).all(); } catch (e) { return null; }
+  try { return $(name).all(); } catch { return null; }
 }
 
 const req = $('Validate Request').first().json.req;

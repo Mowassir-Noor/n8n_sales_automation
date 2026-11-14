@@ -8,7 +8,7 @@ const body = { ok: true, row: plan.row };
 try {
   const j = $('Log Social Change').first().json;
   if (j && j.error) body.warnings = ['The Log row could not be written: ' + String(j.error.message || j.error)];
-} catch (e) {
+} catch {
   // Log node did not run
 }
 return [{ json: reply(200, body, plan.requestId) }];

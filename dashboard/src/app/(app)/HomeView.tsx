@@ -109,8 +109,9 @@ export function HomeView() {
         <Card className="p-4">
           <h2 className="mb-3 font-semibold">{T.next}</h2>
           <ul className="divide-y divide-line">
-            {SCHEDULE_ORDER.map((k) => {
-              const at = nextRun(k, now);
+            {SCHEDULE_ORDER.map((k) => ({ k, at: nextRun(k, now) }))
+              .sort((a, b) => a.at.getTime() - b.at.getTime())
+              .map(({ k, at }) => {
               return (
                 <li key={k} className="flex items-center justify-between gap-3 py-2">
                   <span>{scheduleName(k)}</span>

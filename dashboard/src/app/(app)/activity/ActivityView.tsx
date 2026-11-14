@@ -92,6 +92,11 @@ function LogTab() {
     return (log.data?.rows ?? []).filter((r) => !s || r.Step.toLowerCase().includes(s));
   }, [log.data, step]);
   const pages = log.data ? Math.max(1, Math.ceil(log.data.total / pageSize)) : 1;
+  // Workflow names as they appear in the sheet, plus the known ones.
+  const seen = useMemo(
+    () => [...new Set([...WORKFLOWS, ...(log.data?.rows ?? []).map((r) => r.Workflow).filter(Boolean)])].sort((a, b) => a.localeCompare(b)),
+    [log.data],
+  );
   const reset = (fn: () => void) => {
     fn();
     setPage(1);
@@ -107,7 +112,7 @@ function LogTab() {
           </label>
           <select id="log-wf" className={inputClass} value={workflow} onChange={(e) => reset(() => setWorkflow(e.target.value))}>
             <option value="">{T.any}</option>
-            {WORKFLOWS.map((w) => (
+            {seen.map((w) => (
               <option key={w} value={w}>
                 {w}
               </option>
@@ -171,7 +176,7 @@ function LogTab() {
       ) : rows.length === 0 ? (
         <Empty>{T.noRows}</Empty>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-line bg-surface">
+        <div className="relative overflow-x-auto rounded-lg border border-line bg-surface">
           <table className="w-full min-w-[720px] border-collapse text-sm">
             <thead className="bg-surface-2 text-left text-xs text-muted">
               <tr>
@@ -256,7 +261,7 @@ function RunsTab() {
       {ex.length === 0 ? (
         <Empty>{T.runsEmpty}</Empty>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-line bg-surface">
+        <div className="relative overflow-x-auto rounded-lg border border-line bg-surface">
           <table className="w-full min-w-[640px] border-collapse text-sm">
             <thead className="bg-surface-2 text-left text-xs text-muted">
               <tr>

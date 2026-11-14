@@ -321,7 +321,7 @@ function FollowupCard({
         }
       >
         <Field label={T.rewriteLabel} htmlFor={`${ids}-note`} help={T.rewriteHelp}>
-          <textarea id={`${ids}-note`} autoFocus className={`${inputClass} min-h-24`} value={note} onChange={(e) => setNote(e.target.value)} />
+          <textarea id={`${ids}-note`} data-autofocus className={`${inputClass} min-h-24`} value={note} onChange={(e) => setNote(e.target.value)} />
         </Field>
       </Dialog>
 
@@ -336,7 +336,7 @@ function FollowupCard({
             </Button>
             <Button
               variant="primary"
-              autoFocus
+              data-autofocus
               onClick={() => {
                 setDeclineOpen(false);
                 setRewriteOpen(true);

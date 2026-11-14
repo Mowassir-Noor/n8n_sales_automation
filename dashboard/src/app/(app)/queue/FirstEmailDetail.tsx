@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState, type MutableRefObject } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import type { LeadRow } from "@/lib/types";
 import { checkDraft, firstEmailSubject, isSuppressed } from "@shared/email";
@@ -9,7 +9,7 @@ import { useLeadAction, useRole, useWf3Running, useWriteGuard } from "@/componen
 import { ComplianceBadge } from "@/components/badges";
 import { ago, capStatus, fmtDateTimeIst, fmtRun, languageFlag, SOFT_CAPS, type FirstEmailTab } from "@/components/derive";
 import { HtmlPreview, MailHeader, PlainTextPreview } from "@/components/EmailPreview";
-import { Badge, Button, DataList, Dialog, Field, Notice, Tabs, TabPanel, inputClass } from "@/components/ui";
+import { Badge, Button, DataList, Dialog, Field, Notice, Tabs, TabPanel, inputClass, isTypingTarget } from "@/components/ui";
 
 const T = {
   tabs: { preview: "Preview", plain: "Plain text", english: "English", why: "Why this lead", checks: "Checks" },
@@ -99,7 +99,6 @@ export function FirstEmailDetail({
   snapshot,
   now,
   sendAt,
-  commands,
   onDone,
   onSkip,
   onBack,
@@ -110,7 +109,6 @@ export function FirstEmailDetail({
   snapshot: SnapshotResponse;
   now: Date;
   sendAt?: Date;
-  commands: MutableRefObject<DetailCommands | null>;
   onDone: () => void;
   onSkip: () => void;
   onBack: () => void;
@@ -193,17 +191,28 @@ export function FirstEmailDetail({
     if (row) onDone();
   };
 
-  // Keyboard commands from the queue (A/E/R).
+  // Keyboard: A approve, E edit, R reject (J/K live in the queue).
+  const keys = useRef<DetailCommands>({});
   useEffect(() => {
-    commands.current = {
+    keys.current = {
       approve: canApprove ? () => void doApprove() : undefined,
       edit: canEdit ? startEdit : undefined,
       reject: canReject ? () => setRejectOpen(true) : undefined,
     };
-    return () => {
-      commands.current = null;
-    };
   });
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || isTypingTarget(e.target)) return;
+      if (document.querySelector("dialog[open]")) return;
+      const fn = ({ a: keys.current.approve, e: keys.current.edit, r: keys.current.reject } as Record<string, (() => void) | undefined>)[e.key.toLowerCase()];
+      if (fn) {
+        e.preventDefault();
+        fn();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const previewBody = editing ? live.body : lead["Draft Body"];
   const previewSubject = editing ? subject : firstEmailSubject(lead);
@@ -423,7 +432,7 @@ export function FirstEmailDetail({
           <textarea
             id={`${ids}-reason`}
             required
-            autoFocus
+            data-autofocus
             className={`${inputClass} min-h-24`}
             value={reason}
             onChange={(e) => setReason(e.target.value)}

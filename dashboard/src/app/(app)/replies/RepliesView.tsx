@@ -130,7 +130,7 @@ function ReplyCard({ lead, now }: { lead: LeadRow; now: Date }) {
           <h3 className="text-xs font-medium text-muted">{T.summary}</h3>
           <p className="whitespace-pre-wrap">{lead["Reply Summary"] || "-"}</p>
         </div>
-        {lead["Hot Handled"] ? <p className="text-xs text-muted">{T.handled(lead["Hot Handled"])}</p> : null}
+        {lead["Hot Handled"] ? <p className="text-xs text-muted">{T.handled(fmtHandled(lead["Hot Handled"]))}</p> : null}
 
         <div>
           <button
@@ -145,13 +145,13 @@ function ReplyCard({ lead, now }: { lead: LeadRow; now: Date }) {
           {open ? (
             <div id={`${ids}-more`} className="mt-2 space-y-3">
               <ReplyText leadId={lead["Lead ID"]} />
-              <div>
-                <h3 className="text-xs font-medium text-muted">{T.ourEmail}</h3>
+              <details>
+                <summary className="cursor-pointer text-xs font-medium text-muted">{T.ourEmail}</summary>
                 <div className="mt-1 rounded-md bg-surface-2 p-3">
                   <p className="mb-1 text-sm font-medium">{lead.Subject}</p>
                   <pre className="whitespace-pre-wrap break-words font-sans text-sm text-muted">{lead["Draft Body"]}</pre>
                 </div>
-              </div>
+              </details>
             </div>
           ) : null}
         </div>
@@ -279,4 +279,11 @@ function ReplyText({ leadId }: { leadId: string }) {
       ))}
     </div>
   );
+}
+
+/** "<ISO> by <email>" -> "14 Nov 2026, 16:20 by <email>". */
+function fmtHandled(v: string): string {
+  const i = v.indexOf(" by ");
+  if (i < 0) return fmtDateTimeIst(v);
+  return `${fmtDateTimeIst(v.slice(0, i))}${v.slice(i)}`;
 }

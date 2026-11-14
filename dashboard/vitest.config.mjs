@@ -9,7 +9,7 @@ export default defineConfig({
     },
   },
   test: {
-    include: ['shared/**/*.test.js', 'src/**/*.test.ts', 'src/**/*.test.tsx'],
+    include: ['shared/**/*.test.js', 'n8n/tests/**/*.test.js', 'src/**/*.test.ts', 'src/**/*.test.tsx'],
     environment: 'node',
   },
 });

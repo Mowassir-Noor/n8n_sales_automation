@@ -28,7 +28,7 @@ export const POST = withWrite("/api/settings", settingsWriteSchema, async ({ use
   }
   if (clearsTestEmail) log.note = "go-live";
 
-  const r = await postSettings({ expect, data, requestId: body.requestId, actor: user.email, actorRole: user.role });
+  const r = await postSettings({ expect, data, requestId: body.requestId, actor: user.email, actorRole: user.role, ...(clearsTestEmail && goLiveConfirmed ? { goLive: true } : {}) });
   if (r.status !== 422 && r.status !== 403) invalidate();
   return relay(r);
 });

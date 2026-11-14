@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Settings, SettingsHeader, SettingsWriteRequest } from "@/lib/types";
 import { settingsFieldAccess, validateSettingsValues } from "@/lib/rules";
@@ -21,6 +21,7 @@ const T = {
   locked: { readonly: "Read-only", admin: "Admin only" },
   readonlyWhy: "Must match the enabled nodes in n8n; change it there, then in the sheet.",
   adminWhy: "Only the admin can change this.",
+  sheetOnly: "Change it in the sheet itself.",
   notUsed: "Not used",
   diffTitle: "Save these changes?",
   field: "Field",
@@ -126,12 +127,10 @@ export function SettingsView() {
   const [saving, setSaving] = useState(false);
 
   // Start from the sheet's values; keep the user's edits while polling refreshes the snapshot.
-  useEffect(() => {
-    if (data?.settings && !base) {
-      setBase(data.settings);
-      setForm(data.settings);
-    }
-  }, [data, base]);
+  if (data?.settings && !base) {
+    setBase(data.settings);
+    setForm(data.settings);
+  }
 
   const changed = useMemo(() => {
     if (!base) return [] as SettingsHeader[];
@@ -221,7 +220,8 @@ export function SettingsView() {
                   {f.multiline ? <textarea rows={3} {...common} /> : <input type="text" {...common} />}
                   <p id={`${id}-help`} className="text-xs text-muted">
                     {f.help}
-                    {access === "readonly" && !isAdminField && !f.notUsed ? ` ${T.readonlyWhy}` : ""}
+                    {f.key === "Mail Provider" || f.key === "SMTP From" ? ` ${T.readonlyWhy}` : ""}
+                    {f.key === "Sheet URL" ? ` ${T.sheetOnly}` : ""}
                     {access === "readonly" && isAdminField ? ` ${T.adminWhy}` : ""}
                   </p>
                   {sheetMoved ? (

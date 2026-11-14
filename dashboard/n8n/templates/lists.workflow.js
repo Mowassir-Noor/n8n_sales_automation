@@ -162,6 +162,7 @@ const deleteSuppressionRow = node({
   config: {
     name: 'Delete Suppression Row',
     executeOnce: true,
+    alwaysOutputData: true,
     onError: 'continueErrorOutput',
     parameters: {
       resource: 'sheet',

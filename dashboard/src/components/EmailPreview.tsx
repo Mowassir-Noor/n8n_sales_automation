@@ -52,7 +52,7 @@ function srcDoc(html: string): string {
 }
 
 export function HtmlPreview({ body, settings, height = 560 }: { body: string; settings: Settings; height?: number }) {
-  const [width, setWidth] = useState<600 | 375>(600);
+  const [width, setWidth] = useState<600 | 375>(() => (typeof window !== "undefined" && window.innerWidth < 640 ? 375 : 600));
   const html = useMemo(() => buildHtml(body, settings), [body, settings]);
   return (
     <div>

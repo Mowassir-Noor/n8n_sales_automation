@@ -8,7 +8,7 @@ function failed(name) {
   try {
     const j = $(name).first().json;
     return j && j.error ? String(j.error.message || j.error) : '';
-  } catch (e) {
+  } catch {
     return '';
   }
 }

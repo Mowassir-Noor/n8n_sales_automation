@@ -104,7 +104,7 @@ export const getLog = (q: LogQuery) => callN8n("log", q) as Promise<(LogPage & {
 export const getStatus = () => callN8n("status", {}) as Promise<(StatusResponse & { status: 200 }) | Fail>;
 export const postLeadAction = (req: N8nLeadActionRequest) =>
   callN8n("lead", req) as Promise<Ok<"row", LeadRow> | Fail>;
-export const postSettings = (req: SettingsWriteRequest & Actor) =>
+export const postSettings = (req: SettingsWriteRequest & Actor & { goLive?: boolean }) =>
   callN8n("settings", req) as Promise<Ok<"settings", Settings> | Fail>;
 export const postSuppression = (req: SuppressionWriteRequest & Actor) =>
   callN8n("suppression", req) as Promise<Ok<"suppression", SuppressionRow[]> | Fail>;

@@ -60,8 +60,8 @@ export function SuppressionView() {
   const [removing, setRemoving] = useState<SuppressionRow | null>(null);
   const [removeReason, setRemoveReason] = useState("");
 
-  const rows = data?.suppression ?? [];
-  const leads = data?.leads ?? [];
+  const rows = useMemo(() => data?.suppression ?? [], [data]);
+  const leads = useMemo(() => data?.leads ?? [], [data]);
   const filtered = useMemo(() => {
     const n = q.trim().toLowerCase();
     const xs = n ? rows.filter((r) => [r.Email, r.Domain, r.Reason].some((v) => (v || "").toLowerCase().includes(n))) : rows;
@@ -190,7 +190,7 @@ export function SuppressionView() {
       {filtered.length === 0 ? (
         <Empty>{T.empty}</Empty>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-line bg-surface">
+        <div className="relative overflow-x-auto rounded-lg border border-line bg-surface">
           <table className="w-full min-w-[560px] border-collapse text-sm">
             <thead className="bg-surface-2 text-left text-xs text-muted">
               <tr>
@@ -242,7 +242,7 @@ export function SuppressionView() {
               {T.removeBody}
             </Notice>
             <Field label={T.removeReason} htmlFor="sup-rm-reason">
-              <input id="sup-rm-reason" autoFocus className={inputClass} value={removeReason} onChange={(e) => setRemoveReason(e.target.value)} />
+              <input id="sup-rm-reason" data-autofocus className={inputClass} value={removeReason} onChange={(e) => setRemoveReason(e.target.value)} />
             </Field>
           </>
         ) : null}

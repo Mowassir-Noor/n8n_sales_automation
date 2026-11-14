@@ -9,8 +9,8 @@ interfaces so the parts can be built in parallel. Types live in `src/lib/types.t
 | Path (under repo root) | What | Owner |
 | --- | --- | --- |
 | `dashboard/shared/email/*.js` | Pure ESM JS, no deps: `buildHtml.js`, `checkDraft.js`, `checkFollowup.js`, `recipient.js`, `hash.js`, `index.js`, plus `index.d.ts` | shared-email |
-| `dashboard/shared/tests/*.test.js`, `dashboard/scripts/drift.mjs`, `dashboard/scripts/sync-n8n.mjs` | Unit, snapshot and drift tests; the script that pastes shared code into the n8n workflow sources | shared-email |
-| `dashboard/n8n/*.workflow.js` | n8n Workflow SDK source of the five `DB - …` workflows (+ `README.md`) | n8n |
+| `dashboard/shared/tests/*.test.js`, `dashboard/scripts/drift.mjs` | Unit, snapshot and drift tests | shared-email |
+| `dashboard/n8n/**`, `dashboard/scripts/sync-n8n.mjs` | n8n Workflow SDK templates and Code-node sources of the five `DB - …` workflows; `sync-n8n.mjs` assembles them (pasting the shared email code) into `dashboard/n8n/build/*.workflow.js` | n8n |
 | `DB-*.json` at repo root | Exports of those workflows after they are created on the server (integrator does this) | integrator |
 | `dashboard/src/lib/**` (except `types.ts`), `dashboard/src/app/api/**`, `dashboard/src/auth.ts`, `dashboard/src/proxy.ts` (or `middleware.ts`), `dashboard/dev/**` | Server side: n8n client, auth, roles, snapshot cache, queue derivation, API routes, mock n8n server with fixtures | backend |
 | `dashboard/src/app/**` pages and layouts (not `api/`), `dashboard/src/components/**`, `dashboard/src/app/globals.css` | All UI | frontend |

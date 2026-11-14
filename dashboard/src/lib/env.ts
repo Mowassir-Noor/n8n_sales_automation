@@ -42,6 +42,8 @@ const schema = z.object({
   WEEKLY_FIRST_EMAIL_CAP: intWithDefault(100),
   DAILY_WARMUP_CAP: intWithDefault(20),
   HUBSPOT_PORTAL_ID: z.string().optional(),
+  /** Email + password sign-in: comma-separated "email:salt:hash" entries from scripts/hash-password.mjs. */
+  DASH_USERS: z.string().optional(),
 });
 
 export type Env = {
@@ -61,6 +63,8 @@ export type Env = {
   dailyWarmupCap: number;
   hubspotPortalId: string | undefined;
   googleConfigured: boolean;
+  /** Raw DASH_USERS value ("" when unset); parsed by lib/passwords.ts. */
+  dashUsers: string;
 };
 
 let cached: Env | null = null;
@@ -100,6 +104,7 @@ export function readEnv(source: Record<string, string | undefined> = process.env
     dailyWarmupCap: e.DAILY_WARMUP_CAP,
     hubspotPortalId: e.HUBSPOT_PORTAL_ID?.trim() || undefined,
     googleConfigured: Boolean(e.AUTH_GOOGLE_ID && e.AUTH_GOOGLE_SECRET),
+    dashUsers: e.DASH_USERS?.trim() ?? "",
   };
 }
 

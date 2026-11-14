@@ -1,5 +1,7 @@
 # Approval dashboard: setup and handover guide
 
+> Sign-in update (2026-11-14): email + password is now the default (`DASH_USERS`, entries made with `node scripts/hash-password.mjs <email>`); Google sign-in is optional and only shown when `AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET` are set. The short deployment steps are in [`deploy/QUICKSTART.md`](../deploy/QUICKSTART.md).
+
 A small private website where the sales manager (Nil) approves, edits or rejects every outgoing email, sees follow-ups and Hot replies, and changes the safe settings, without opening the Google Sheet. It lives at **https://dash.mowassirnoor.tech**.
 
 What stays the same: the Google Sheet `Texprove Leads` is still the only shared state, and WF0 to WF6 are unchanged. They still send on their own schedules (first emails weekdays 10:00 and 14:00, follow-ups weekdays 11:00, Istanbul time). The dashboard never sends email itself. It only writes the same cells Nil would write in the sheet (`Approved`, `Subject`, `Draft Body`, `Nil Notes` and so on), and it logs every change in the `Log` tab with who made it.

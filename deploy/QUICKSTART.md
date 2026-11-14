@@ -6,14 +6,9 @@ The app is one Docker container added to the same Docker Compose project as n8n,
 
 Add an `A` record: `dash` → your server's IP. Caddy fetches the certificate itself.
 
-## 2. Google sign-in client (5 minutes)
+## 2. Sign-in
 
-Google Cloud Console → project `n8n-project-513923` → APIs & Services → Credentials → Create credentials → OAuth client ID:
-
-- Type: Web application
-- Authorised redirect URI: `https://dash.mowassirnoor.tech/api/auth/callback/google`
-
-Copy the client ID and secret.
+Sign-in is email + password by default: each person's password is stored only as a hash in `DASH_USERS` (step 4b). Google sign-in is optional: to add it, create a Web OAuth client in Google Cloud (redirect URI `https://dash.mowassirnoor.tech/api/auth/callback/google`) and set `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET`.
 
 ## 3. Get the code on the server
 
@@ -36,14 +31,24 @@ chmod 600 dashboard.env
 
 ```bash
 AUTH_SECRET=<first value>
-AUTH_GOOGLE_ID=<client ID>
-AUTH_GOOGLE_SECRET=<client secret>
+DASH_USERS=<the line(s) from step 4b, comma-separated>
 AUTH_URL=https://dash.mowassirnoor.tech
-ADMIN_EMAILS=<your Google address>
-APPROVER_EMAILS=<Nil's Google address, or leave empty for now>
+ADMIN_EMAILS=<your email>
+APPROVER_EMAILS=<Nil's email, or leave empty for now>
 SHEET_ENV=live
 DASH_KEY=<second value>
 ```
+
+### 4b. Make a password entry
+
+After the container is running (step 5), for each person:
+
+```bash
+cd ~/n8n
+docker compose exec dashboard node scripts/hash-password.mjs you@example.com
+```
+
+Type the password twice (at least 10 characters). Paste the printed `email:…:…` line into `DASH_USERS` (several people: separate with commas), make sure the same email is in `ADMIN_EMAILS` or `APPROVER_EMAILS`, then `docker compose up -d dashboard`.
 
 ## 5. Add the container
 
@@ -81,7 +86,7 @@ Then reload:
 docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile
 ```
 
-Open `https://dash.mowassirnoor.tech` and sign in with your Google account.
+Open `https://dash.mowassirnoor.tech` and sign in with your email and password.
 
 ## The app needs these from n8n to show data
 
@@ -106,5 +111,5 @@ docker compose logs -f dashboard
 ```
 
 - "not authorised" at sign-in: your address is not in `ADMIN_EMAILS` / `APPROVER_EMAILS` (fix it, then `docker compose up -d dashboard`).
-- Google says `redirect_uri_mismatch`: the redirect URI in step 2 doesn't match exactly.
+- "Wrong email or password": check the `DASH_USERS` entry was made for that exact email; 8 wrong tries lock that email for 15 minutes (restart the container to clear it).
 - Banner says n8n is unreachable or the key is wrong: check the four n8n items above, and that `DASH_KEY` matches the credential value.

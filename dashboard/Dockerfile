@@ -40,6 +40,8 @@ RUN addgroup -S -g 1001 nextjs && adduser -S -u 1001 -G nextjs nextjs
 COPY --from=build --chown=nextjs:nextjs /app/.next/standalone ./
 COPY --from=build --chown=nextjs:nextjs /app/.next/static ./.next/static
 COPY --from=build --chown=nextjs:nextjs /app/public ./public
+# Password hashing helper: docker compose exec dashboard node scripts/hash-password.mjs <email>
+COPY --from=build --chown=nextjs:nextjs /app/scripts/hash-password.mjs ./scripts/hash-password.mjs
 
 USER nextjs
 EXPOSE 3000

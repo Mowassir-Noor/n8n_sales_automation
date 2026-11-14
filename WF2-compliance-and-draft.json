@@ -384,7 +384,7 @@
         "sendTo": "={{ $('Read Settings').first().json['Nil Email'] }}",
         "subject": "={{ $('Check Draft').all().length }} new Texprove drafts waiting for approval",
         "emailType": "text",
-        "message": "={{ $('Check Draft').all().length }} new drafts are waiting for approval in the Texprove Leads sheet ({{ $('Check Draft').all().filter(i => i.json.draft_check_status === 'Needs fix').length }} marked \"Needs fix\" in Compliance Status, see Compliance Notes for what to correct). Set Approved to Yes, No, or edit the text and set Yes.\n\nSheet: {{ $('Read Settings').first().json['Sheet URL'] ?? 'open the \"Texprove Leads\" Google Sheet, tab Leads' }}",
+        "message": "={{ $('Check Draft').all().length }} new drafts are waiting for your approval ({{ $('Check Draft').all().filter(i => i.json.draft_check_status === 'Needs fix').length }} marked \"Needs fix\", see Compliance Notes for what to correct). Approve, edit or reject them here:\n\n{{ ($('Read Settings').first().json['Dashboard URL'] ? String($('Read Settings').first().json['Dashboard URL']).replace(/\\/+$/, '') + '/queue' : ($('Read Settings').first().json['Sheet URL'] || '')) || 'open the \"Texprove Leads\" Google Sheet, tab Leads' }}",
         "options": {
           "appendAttribution": false
         }
@@ -929,7 +929,7 @@
         "chatId": "={{ $('Read Settings').first().json['Nil Telegram Chat ID'] }}",
         "operation": "sendMessage",
         "resource": "message",
-        "text": "=Texprove: {{ $('Check Draft').all().length }} new email drafts are waiting for your approval in the Leads tab ({{ $('Check Draft').all().filter(i => i.json.draft_check_status === 'Needs fix').length }} marked \"Needs fix\"). Set Approved to Yes, No or Edit.{{ $('Read Settings').first().json['Sheet URL'] ? ' ' + $('Read Settings').first().json['Sheet URL'] : '' }}"
+        "text": "=Texprove: {{ $('Check Draft').all().length }} new email drafts are waiting for your approval ({{ $('Check Draft').all().filter(i => i.json.draft_check_status === 'Needs fix').length }} marked \"Needs fix\").{{ ($('Read Settings').first().json['Dashboard URL'] ? String($('Read Settings').first().json['Dashboard URL']).replace(/\\/+$/, '') + '/queue' : ($('Read Settings').first().json['Sheet URL'] || '')) ? ' Approve, edit or reject: ' + ($('Read Settings').first().json['Dashboard URL'] ? String($('Read Settings').first().json['Dashboard URL']).replace(/\\/+$/, '') + '/queue' : ($('Read Settings').first().json['Sheet URL'] || '')) : '' }}"
       },
       "notes": "Needs a Telegram bot credential (token from @BotFather). Nil must start a chat with the bot once; her chat ID goes in Settings 'Nil Telegram Chat ID'.",
       "executeOnce": true,
@@ -992,7 +992,7 @@
           "appendAttribution": false
         },
         "subject": "={{ $('Check Draft').all().length }} new Texprove drafts waiting for approval",
-        "text": "={{ $('Check Draft').all().length }} new drafts are waiting for approval in the Texprove Leads sheet ({{ $('Check Draft').all().filter(i => i.json.draft_check_status === 'Needs fix').length }} marked \"Needs fix\" in Compliance Status, see Compliance Notes for what to correct). Set Approved to Yes, No, or edit the text and set Yes.\n\nSheet: {{ $('Read Settings').first().json['Sheet URL'] ?? 'open the \"Texprove Leads\" Google Sheet, tab Leads' }}",
+        "text": "={{ $('Check Draft').all().length }} new drafts are waiting for your approval ({{ $('Check Draft').all().filter(i => i.json.draft_check_status === 'Needs fix').length }} marked \"Needs fix\", see Compliance Notes for what to correct). Approve, edit or reject them here:\n\n{{ ($('Read Settings').first().json['Dashboard URL'] ? String($('Read Settings').first().json['Dashboard URL']).replace(/\\/+$/, '') + '/queue' : ($('Read Settings').first().json['Sheet URL'] || '')) || 'open the \"Texprove Leads\" Google Sheet, tab Leads' }}",
         "toEmail": "={{ $('Read Settings').first().json['Nil Email'] }}"
       },
       "onError": "continueRegularOutput",

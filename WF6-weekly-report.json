@@ -442,7 +442,7 @@
         "sendTo": "={{ $json['Nil Email'] }}",
         "subject": "=3 LinkedIn drafts to review - week of {{ $now.startOf('week').toFormat('yyyy-MM-dd') }}",
         "emailType": "text",
-        "message": "=3 LinkedIn post drafts are waiting for your approval in the 'Social' tab of Texprove Leads. Set Approved to Yes (or add notes in Nil Notes) and post them manually.{{ $json['Sheet URL'] ? ' ' + $json['Sheet URL'] : '' }}\n\n{{ $('Split Drafts').all().map((d, i) => '--- Draft ' + (i + 1) + ': ' + (d.json.topic || '') + ' ---\\n' + (d.json.draft || '')).join('\\n\\n') }}",
+        "message": "=3 LinkedIn post drafts are waiting for your approval. Approve them (or add your notes) and post them on LinkedIn manually.{{ ($json['Dashboard URL'] ? String($json['Dashboard URL']).replace(/\\/+$/, '') + '/social' : ($json['Sheet URL'] || '')) ? ' ' + ($json['Dashboard URL'] ? String($json['Dashboard URL']).replace(/\\/+$/, '') + '/social' : ($json['Sheet URL'] || '')) : '' }}\n\n{{ $('Split Drafts').all().map((d, i) => '--- Draft ' + (i + 1) + ': ' + (d.json.topic || '') + ' ---\\n' + (d.json.draft || '')).join('\\n\\n') }}",
         "options": {
           "appendAttribution": false
         }
@@ -610,7 +610,7 @@
         "chatId": "={{ $('Read Settings (social)').first().json['Nil Telegram Chat ID'] }}",
         "operation": "sendMessage",
         "resource": "message",
-        "text": "=<b>Texprove: 3 LinkedIn post drafts for the week of {{ $now.startOf('week').toFormat('yyyy-MM-dd') }}</b>\nWaiting for your approval in the Social tab (set Approved to Yes, No or Edit).{{ $('Read Settings (social)').first().json['Sheet URL'] ? ' ' + $('Read Settings (social)').first().json['Sheet URL'] : '' }}\n\n{{ $('Split Drafts').all().map((d, i) => '<b>Draft ' + (i + 1) + ': ' + String(d.json.topic || '').replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</b>\\n' + String(d.json.draft || '').replace(/&/g, '&amp;').replace(/</g, '&lt;')).join('\\n\\n').slice(0, 3700) }}"
+        "text": "=<b>Texprove: 3 LinkedIn post drafts for the week of {{ $now.startOf('week').toFormat('yyyy-MM-dd') }}</b>\nWaiting for your approval (approve, reject or ask for an edit).{{ ($('Read Settings (social)').first().json['Dashboard URL'] ? String($('Read Settings (social)').first().json['Dashboard URL']).replace(/\\/+$/, '') + '/social' : ($('Read Settings (social)').first().json['Sheet URL'] || '')) ? ' ' + ($('Read Settings (social)').first().json['Dashboard URL'] ? String($('Read Settings (social)').first().json['Dashboard URL']).replace(/\\/+$/, '') + '/social' : ($('Read Settings (social)').first().json['Sheet URL'] || '')) : '' }}\n\n{{ $('Split Drafts').all().map((d, i) => '<b>Draft ' + (i + 1) + ': ' + String(d.json.topic || '').replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</b>\\n' + String(d.json.draft || '').replace(/&/g, '&amp;').replace(/</g, '&lt;')).join('\\n\\n').slice(0, 3700) }}"
       },
       "notes": "Needs a Telegram bot credential (token from @BotFather). Nil must start a chat with the bot once; her chat ID goes in Settings 'Nil Telegram Chat ID'.",
       "executeOnce": true,
@@ -639,7 +639,7 @@
         "chatId": "={{ $('Read Settings (report)').first().json['Nil Telegram Chat ID'] }}",
         "operation": "sendMessage",
         "resource": "message",
-        "text": "=<b>Texprove outreach - week of {{ $now.startOf('week').toFormat('yyyy-MM-dd') }}</b>\n\n{{ String($('Write Weekly Report').first().json.text || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').slice(0, 3800) }}{{ $('Read Settings (report)').first().json['Sheet URL'] ? '\\n\\n' + $('Read Settings (report)').first().json['Sheet URL'] : '' }}"
+        "text": "=<b>Texprove outreach - week of {{ $now.startOf('week').toFormat('yyyy-MM-dd') }}</b>\n\n{{ String($('Write Weekly Report').first().json.text || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').slice(0, 3800) }}{{ ($('Read Settings (report)').first().json['Dashboard URL'] ? String($('Read Settings (report)').first().json['Dashboard URL']).replace(/\\/+$/, '') + '' : ($('Read Settings (report)').first().json['Sheet URL'] || '')) ? '\\n\\n' + ($('Read Settings (report)').first().json['Dashboard URL'] ? String($('Read Settings (report)').first().json['Dashboard URL']).replace(/\\/+$/, '') + '' : ($('Read Settings (report)').first().json['Sheet URL'] || '')) : '' }}"
       },
       "notes": "Weekly report text to Nil on Telegram, same as the email. HTML parse mode, so & and < in the text are escaped.",
       "executeOnce": true,
@@ -763,7 +763,7 @@
           "appendAttribution": false
         },
         "subject": "=3 LinkedIn drafts to review - week of {{ $now.startOf('week').toFormat('yyyy-MM-dd') }}",
-        "text": "=3 LinkedIn post drafts are waiting for your approval in the 'Social' tab of Texprove Leads. Set Approved to Yes (or add notes in Nil Notes) and post them manually.{{ $json['Sheet URL'] ? ' ' + $json['Sheet URL'] : '' }}\n\n{{ $('Split Drafts').all().map((d, i) => '--- Draft ' + (i + 1) + ': ' + (d.json.topic || '') + ' ---\\n' + (d.json.draft || '')).join('\\n\\n') }}",
+        "text": "=3 LinkedIn post drafts are waiting for your approval. Approve them (or add your notes) and post them on LinkedIn manually.{{ ($json['Dashboard URL'] ? String($json['Dashboard URL']).replace(/\\/+$/, '') + '/social' : ($json['Sheet URL'] || '')) ? ' ' + ($json['Dashboard URL'] ? String($json['Dashboard URL']).replace(/\\/+$/, '') + '/social' : ($json['Sheet URL'] || '')) : '' }}\n\n{{ $('Split Drafts').all().map((d, i) => '--- Draft ' + (i + 1) + ': ' + (d.json.topic || '') + ' ---\\n' + (d.json.draft || '')).join('\\n\\n') }}",
         "toEmail": "={{ $json['Nil Email'] }}"
       },
       "onError": "continueRegularOutput",

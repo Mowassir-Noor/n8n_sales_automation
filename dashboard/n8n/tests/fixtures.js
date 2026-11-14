@@ -23,6 +23,7 @@ export const settings = {
   'SMTP From': 'Example <outreach@example.com>',
   'Seed Email': '',
   'Seed Every': '12',
+  'Target Countries': 'Turkey',
 };
 
 export const goodBody = [

@@ -2,6 +2,7 @@
 // before writing; these give fast, plain-language feedback and keep obviously bad requests away from n8n.
 import { checkDraft, checkFollowup, isSuppressed } from "../../shared/email/index.js";
 import { FOLLOWUP_STAGES, isTestMode } from "./queues";
+import { parseCountries } from "./types";
 import type { LeadAction, LeadActionRequest, LeadRow, Role, Settings, SuppressionRow } from "./types";
 
 export type RuleContext = {
@@ -125,7 +126,7 @@ export function checkLeadAction(req: Pick<LeadActionRequest, "action" | "data">,
 
 // ---- Settings ---------------------------------------------------------------
 
-export const SETTINGS_ADMIN_ONLY = ["Test Email", "HubSpot Monthly Limit", "HubSpot Pause Percent", "Seed Email", "Seed Every"] as const;
+export const SETTINGS_ADMIN_ONLY = ["Test Email", "HubSpot Monthly Limit", "HubSpot Pause Percent", "Seed Email", "Seed Every", "Target Countries"] as const;
 export const SETTINGS_READ_ONLY = ["Mail Provider", "SMTP From", "Sheet URL", "Nil WhatsApp", "WhatsApp Phone Number ID", "HubSpot Owner ID"] as const;
 /** Fields that must not be empty after a save. */
 export const SETTINGS_REQUIRED = ["Sender Name", "Company Legal Name", "Company Address", "Opt-out TR", "Opt-out EN", "Company Website"] as const;
@@ -147,6 +148,7 @@ export function validateSettingsValues(data: Partial<Settings>): string[] {
   for (const [k, raw] of Object.entries(data) as [keyof Settings, string][]) {
     const val = String(raw ?? "").trim();
     if ((SETTINGS_REQUIRED as readonly string[]).includes(k) && !val) errors.push(`${k} cannot be empty.`);
+    if (k === "Target Countries" && !val) errors.push("Pick at least one target country.");
     if (!val) continue;
     switch (k) {
       case "Nil Email": case "Test Email": case "Seed Email":
@@ -161,6 +163,11 @@ export function validateSettingsValues(data: Partial<Settings>): string[] {
       case "Seed Every":
         if (!/^\d+$/.test(val) || Number(val) < 1) errors.push("Seed Every must be a whole number above 0.");
         break;
+      case "Target Countries": {
+        const pc = parseCountries(val);
+        if (pc.unknown.length) errors.push(`Target Countries: unknown country ${pc.unknown.join(", ")}.`);
+        break;
+      }
       case "Nil Telegram Chat ID":
         if (!/^-?\d+$/.test(val)) errors.push("Nil Telegram Chat ID must be a number (group chats start with -).");
         break;

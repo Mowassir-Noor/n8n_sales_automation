@@ -30,7 +30,7 @@ const LEAD_HEADERS = [
   "Reply Category", "Reply Summary", "HubSpot Contact ID", "Opt-out", "Last Updated", "Source URL", "Source Date",
   "Confidence", "Follow-up Draft", "Hot Handled",
 ];
-const ADMIN_ONLY_SETTINGS = ["Test Email", "HubSpot Monthly Limit", "HubSpot Pause Percent", "Seed Email", "Seed Every"];
+const ADMIN_ONLY_SETTINGS = ["Test Email", "HubSpot Monthly Limit", "HubSpot Pause Percent", "Seed Email", "Seed Every", "Target Countries"];
 const READ_ONLY_SETTINGS = ["Mail Provider", "SMTP From", "Sheet URL", "Nil WhatsApp", "WhatsApp Phone Number ID", "HubSpot Owner ID"];
 const FIRST_ACTIONS = ["approve_first", "reject_first", "edit_first", "unapprove_first"];
 const FOLLOWUP_ACTIONS = ["approve_followup", "edit_followup", "rewrite_followup", "decline_followup"];

@@ -20,8 +20,26 @@ const SETTINGS_HEADERS = [
   'HubSpot Monthly Limit', 'HubSpot Pause Percent', 'Test Email',
   'Nil WhatsApp', 'WhatsApp Phone Number ID', 'Nil Telegram Chat ID',
   'Company Website', 'HubSpot Owner ID', 'Mail Provider', 'SMTP From',
-  'Seed Email', 'Seed Every',
+  'Seed Email', 'Seed Every', 'Target Countries',
 ];
+// Countries the admin can pick in Settings 'Target Countries' (col U). WF0 searches only the picked
+// ones (empty = Turkey); WF2 accepts leads from any of them. Keep in step with WF0, WF2 and src/lib/types.ts.
+const TARGET_COUNTRIES = ['Turkey', 'Bangladesh', 'Vietnam', 'Malaysia', 'Brazil'];
+
+// 'Turkey, Brazil' -> { list: ['Turkey', 'Brazil'], unknown: [] } (case-insensitive, Türkiye = Turkey).
+function parseCountries(raw) {
+  const list = [];
+  const unknown = [];
+  for (const part of str(raw).split(/[,;\n]/)) {
+    const p = part.trim();
+    if (!p) continue;
+    const key = p.toLowerCase().replace('türkiye', 'turkey').replace('turkiye', 'turkey');
+    const hit = TARGET_COUNTRIES.find(c => c.toLowerCase() === key);
+    if (!hit) unknown.push(p);
+    else if (list.indexOf(hit) === -1) list.push(hit);
+  }
+  return { list, unknown };
+}
 const SUPPRESSION_HEADERS = ['Email', 'Domain', 'Reason', 'Date'];
 const SOCIAL_HEADERS = ['Week', 'Topic', 'Draft', 'Approved', 'Nil Notes', 'Posted'];
 const LOG_HEADERS = ['Timestamp', 'Workflow', 'Lead ID', 'Company', 'Step', 'Input', 'Output', 'Reason'];
@@ -185,7 +203,7 @@ function actorErrors(body) {
 }
 
 export {
-  LEAD_HEADERS, HOT_HANDLED, SETTINGS_HEADERS, SUPPRESSION_HEADERS, SOCIAL_HEADERS, LOG_HEADERS, DEDUPE_MS,
+  LEAD_HEADERS, HOT_HANDLED, SETTINGS_HEADERS, TARGET_COUNTRIES, parseCountries, SUPPRESSION_HEADERS, SOCIAL_HEADERS, LOG_HEADERS, DEDUPE_MS,
   str, isPlainObject, sheetRows, normalizeRow, detectHeaders, colLetter, checkLeadHeaders, cut, logRow, nowInfo,
   dedupeGet, dedupeSet, dedupePrune, reply, isEmail, isDomain, actorErrors,
 };

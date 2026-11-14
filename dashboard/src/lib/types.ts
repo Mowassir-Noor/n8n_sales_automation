@@ -26,8 +26,27 @@ export const SETTINGS_HEADERS = [
   "HubSpot Monthly Limit", "HubSpot Pause Percent", "Test Email",
   "Nil WhatsApp", "WhatsApp Phone Number ID", "Nil Telegram Chat ID",
   "Company Website", "HubSpot Owner ID", "Mail Provider", "SMTP From",
-  "Seed Email", "Seed Every",
-] as const; // A..T, row 2 only
+  "Seed Email", "Seed Every", "Target Countries",
+] as const; // A..U, row 2 only
+
+/** Countries the admin can pick for "Target Countries" (WF0 searches only these; empty = Turkey). */
+export const TARGET_COUNTRIES = ["Turkey", "Bangladesh", "Vietnam", "Malaysia", "Brazil"] as const;
+export type TargetCountry = (typeof TARGET_COUNTRIES)[number];
+
+/** "Turkey, Brazil" -> known countries in pick order, plus anything unknown. Türkiye counts as Turkey. */
+export function parseCountries(raw: string | undefined): { list: TargetCountry[]; unknown: string[] } {
+  const list: TargetCountry[] = [];
+  const unknown: string[] = [];
+  for (const part of String(raw ?? "").split(/[,;\n]/)) {
+    const p = part.trim();
+    if (!p) continue;
+    const key = p.toLowerCase().replace("türkiye", "turkey").replace("turkiye", "turkey");
+    const hit = TARGET_COUNTRIES.find((c) => c.toLowerCase() === key);
+    if (!hit) unknown.push(p);
+    else if (!list.includes(hit)) list.push(hit);
+  }
+  return { list, unknown };
+}
 export type SettingsHeader = (typeof SETTINGS_HEADERS)[number];
 export type Settings = { [K in SettingsHeader]: string };
 

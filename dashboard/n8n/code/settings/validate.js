@@ -8,7 +8,7 @@
 // </lib:common>
 
 const NEVER = ['Mail Provider', 'SMTP From', 'Sheet URL', 'Nil WhatsApp', 'WhatsApp Phone Number ID', 'HubSpot Owner ID'];
-const ADMIN_ONLY = ['Test Email', 'HubSpot Monthly Limit', 'HubSpot Pause Percent', 'Seed Email', 'Seed Every'];
+const ADMIN_ONLY = ['Test Email', 'HubSpot Monthly Limit', 'HubSpot Pause Percent', 'Seed Email', 'Seed Every', 'Target Countries'];
 
 const cfg = $('Config').first().json;
 const body = cfg.body;
@@ -60,6 +60,12 @@ for (const field of Object.keys(data)) {
     case 'HubSpot Pause Percent':
       if (v !== '' && !(/^\d{1,3}$/.test(v) && Number(v) >= 1 && Number(v) <= 100)) errors.push('HubSpot Pause Percent must be a whole number from 1 to 100, or empty');
       break;
+    case 'Target Countries': {
+      const pc = parseCountries(v);
+      if (pc.unknown.length) errors.push('Target Countries: unknown country ' + pc.unknown.join(', ') + ' (choose from ' + TARGET_COUNTRIES.join(', ') + ')');
+      else if (!pc.list.length) errors.push('Target Countries needs at least one country');
+      break;
+    }
     case 'Nil Telegram Chat ID':
       if (v !== '' && !/^-?\d{1,20}$/.test(v)) errors.push('Nil Telegram Chat ID must be a number (group chats start with -)');
       break;
@@ -76,6 +82,7 @@ for (const field of Object.keys(data)) {
     default:
       break;
   }
+  if (field === 'Target Countries') { clean[field] = parseCountries(v).list.join(', '); continue; }
   clean[field] = field === 'Company Address' || field === 'Opt-out TR' || field === 'Opt-out EN' ? raw.replace(/\s+$/, '') : v;
 }
 

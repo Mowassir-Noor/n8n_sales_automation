@@ -122,7 +122,7 @@ hashText(s): string; hashFirst(subject, body): string; hashFollowup(text): strin
 
 Every POST: role check, Zod validation, `Origin` must equal `AUTH_URL` origin, rate limit 60/min/user, cache dropped after a write.
 Role rules (server side): approvers and admins may do all lead actions except `reset_test_sent`/`close_test_sent` (admin only);
-Settings fields `Test Email`, `HubSpot Monthly Limit`, `HubSpot Pause Percent`, `Seed Email`, `Seed Every` are admin only, and clearing
+Settings fields `Test Email`, `HubSpot Monthly Limit`, `HubSpot Pause Percent`, `Seed Email`, `Seed Every`, `Target Countries` are admin only, and clearing
 `Test Email` is only allowed through the go-live flow (request carries `data["Test Email"] = ""` plus header `X-Go-Live: confirm`,
 admin only, and the server refuses while the go-live list below is not empty);
 `Mail Provider`, `SMTP From`, `Sheet URL`, `Nil WhatsApp`, `WhatsApp Phone Number ID`, `HubSpot Owner ID` are never writable. Suppression remove is admin only.

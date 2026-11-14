@@ -111,31 +111,28 @@ const settingsUpdateItem = node({
     onError: 'continueErrorOutput',
     parameters: { mode: 'runOnceForAllItems', language: 'javaScript', jsCode: '__CODE__(settings/update-item)' },
   },
-  output: [{ row_number: 2, 'Nil Email': 'new@example.com' }],
+  output: [{ valueInputOption: 'RAW', data: [{ range: 'Settings!G2', values: [['new@example.com']] }] }],
 });
 
 const updateSettingsRow = node({
-  type: 'n8n-nodes-base.googleSheets',
-  version: 4.7,
+  type: 'n8n-nodes-base.httpRequest',
+  version: 4.2,
   config: {
     name: 'Update Settings Row',
     onError: 'continueErrorOutput',
     parameters: {
-      resource: 'sheet',
-      operation: 'update',
-      documentId: documentRef,
-      sheetName: { __rl: true, mode: 'name', value: 'Settings' },
-      columns: {
-        mappingMode: 'autoMapInputData',
-        value: {},
-        matchingColumns: ['row_number'],
-        schema: [{ id: 'row_number', displayName: 'row_number', required: false, defaultMatch: false, display: true, type: 'number', canBeUsedToMatch: true, readOnly: true, removed: false }],
-      },
-      options: { cellFormat: 'RAW', handlingExtraData: 'error' },
+      method: 'POST',
+      url: expr("{{ 'https://sheets.googleapis.com/v4/spreadsheets/' + $('Config').first().json.documentId + '/values:batchUpdate' }}"),
+      authentication: 'predefinedCredentialType',
+      nodeCredentialType: 'googleSheetsOAuth2Api',
+      sendBody: true,
+      specifyBody: 'json',
+      jsonBody: expr('{{ JSON.stringify($json) }}'),
+      options: {},
     },
     credentials: sheetsCredentials,
   },
-  output: [{ row_number: 2, 'Nil Email': 'new@example.com' }],
+  output: [{ spreadsheetId: 'example', totalUpdatedCells: 1 }],
 });
 
 const appendLogRow = node({

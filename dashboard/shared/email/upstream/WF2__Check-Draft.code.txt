@@ -1,0 +1,75 @@
+// Plain-code check of the generated email, no AI. Marks the draft OK or Needs fix.
+const draft = ($input.item.json.output) || {};
+const subject = String(draft.subject || '').trim();
+const body = String(draft.body || '');
+const lower = body.toLowerCase();
+const settings = $('Read Settings').first().json || {};
+const lead = $('Compliance check').item.json || {};
+const isTr = String(lead.Language || '').trim().toLowerCase() === 'tr';
+const reasons = [];
+
+const has = (s) => s && lower.includes(String(s).toLowerCase().trim());
+const start = (s, n) => String(s || '').trim().slice(0, n);
+const domainOf = (u) => String(u || '').toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0].split(':')[0].trim();
+
+if (!subject) reasons.push('Subject is empty');
+if (!body.trim()) reasons.push('Body is empty');
+if (!has(settings['Sender Name'])) reasons.push('Sender name missing');
+if (!has(settings['Company Legal Name'])) reasons.push('Company legal name missing');
+if (!has(start(settings['Company Address'], 12))) reasons.push('Company address missing');
+
+// Texprove's own website (Settings 'Company Website', default texprove.com) must be in the signature so prospects can check us out.
+const ownDomain = domainOf(settings['Company Website'] || 'texprove.com') || 'texprove.com';
+if (!lower.includes(ownDomain)) reasons.push('Texprove website missing from signature');
+
+const optOut = isTr ? settings['Opt-out TR'] : settings['Opt-out EN'];
+if (!has(start(optOut, 25))) reasons.push('Opt-out sentence missing (' + (isTr ? 'TR' : 'EN') + ')');
+
+const sourceOk = isTr ? has('web sitesinden aldık') : has('contact details on your company');
+if (!sourceOk) reasons.push('Data-source sentence missing');
+
+// Links: only the lead's own website and Texprove's website are allowed.
+const siteDomain = domainOf(lead.Website);
+const allowedDomains = [siteDomain, ownDomain].filter(Boolean);
+const links = body.match(/https?:\/\/[^\s)>\]]+/gi) || [];
+const foreign = links.filter(l => !allowedDomains.some(d => l.toLowerCase().includes(d)));
+if (foreign.length) reasons.push('Links to other sites: ' + foreign.join(', '));
+
+const words = body.trim().split(/\s+/).length;
+if (words > 190) reasons.push('Too long (' + words + ' words incl. signature)');
+
+const banned = ['garanti', 'guaranteed', '%100', '100%', 'ücretsiz', 'free trial', 'son şans', 'last chance'];
+const hits = banned.filter(b => lower.includes(b));
+if (hits.length) reasons.push('Hype wording: ' + hits.join(', '));
+
+// Trade-secret rule: check subject and body (the signature is from Settings and should never trip it).
+for (const r of sensitiveIssues(subject + '\n' + body)) reasons.push(r);
+
+// Gmail turns "<street> Sk. No: 41" into a map link; a line break before "No:" stops it (tested 2026-11-14).
+const fixedBody = body.replace(/(\b(?:Sk|Sok|Cad|Cd|Bulv)\.|\bSokak|\bSokağı|\bCaddesi|\bBulvarı)[ \t]+(No\s*[:.])/g, '$1\n$2');
+
+return { json: {
+  ...$input.item.json,
+  output: { ...draft, body: fixedBody },
+  draft_check_status: reasons.length ? 'Needs fix' : 'OK',
+  draft_check_notes: reasons.join('; '),
+} };
+
+// Trade-secret rule (Nil's compliance plan): no buyer names, order volumes, prices, capacities or margins in outreach text.
+function sensitiveIssues(text) {
+  const t = String(text || '');
+  const low = t.toLowerCase();
+  const issues = [];
+  const buyers = ['zara', 'inditex', 'h&m', 'hennes', 'primark', 'c&a', 'mango', 'marks & spencer', 'm&s', 'tesco', 'lidl', 'aldi', 'decathlon', 'hugo boss', 'adidas', 'puma', 'nike', 'esprit', 's.oliver', 'tom tailor', 'bestseller', 'zalando', 'about you', 'otto', 'benetton', 'diesel', "levi's", 'levis', 'kiabi', 'celio', 'promod', 'etam', 'carrefour', 'auchan', 'tchibo', 'takko', 'ernsting', 'peek & cloppenburg', 'hunkemöller', 'we fashion', 'jack & jones', 'vero moda', 'pepe jeans', 'desigual', 'el corte ingl', 'cortefiel', 'mayoral', 'g-star', 'scotch & soda', 'zeeman', 'matalan', 'river island', 'new look', 'boohoo', 'asos', 'sinsay', 'cropp', 'mohito', 'pull&bear', 'pull & bear', 'bershka', 'stradivarius', 'massimo dutti', 'oysho', 'ikea', 'jysk', 'armani', 'gucci', 'prada', 'burberry', 'ralph lauren', 'tommy hilfiger', 'calvin klein', 'uniqlo', 'lacoste', 'superdry', 'jd sports', 'intersport', 'engelbert strauss', 'koton', 'defacto', 'lc waikiki'];
+  // Whole-word match only: "zara" must not fire inside "yazarak", nor "otto" inside "cotton".
+  const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const wordHit = (name) => new RegExp('(^|[^a-z0-9çğıöşüâîû])' + esc(name) + '(?=$|[^a-z0-9çğıöşüâîû])').test(low);
+  const named = buyers.filter(wordHit);
+  if (named.length) issues.push('Names a buyer or brand: ' + named.join(', '));
+  if (/(€|£|₺|\$|\b(eur|usd|gbp|tl)\b)/i.test(t)) issues.push('Mentions money or prices');
+  if (/\b\d[\d.,]*\s*(adet|parça|ton|tons|tonnes|kg|metre|meters|pcs|pieces|units|orders|order|sipariş)\b/i.test(t)) issues.push('Mentions order volumes or quantities');
+  const words = ['sipariş hacmi', 'sipariş adedi', 'order volume', 'order quantity', 'minimum order', 'moq', 'fiyat', 'price', 'birim fiyat', 'tedarikçisi', 'supplier of', 'supplies to', 'supplier to', 'müşteriniz', 'your customer', 'your client', 'your buyer', 'alıcınız', 'customer list', 'müşteri listesi', 'kapasite', 'capacity', 'marj', 'margin', 'ciro', 'revenue', 'turnover'];
+  const hits = words.filter(w => low.includes(w));
+  if (hits.length) issues.push('Commercially sensitive wording: ' + hits.join(', '));
+  return issues;
+}

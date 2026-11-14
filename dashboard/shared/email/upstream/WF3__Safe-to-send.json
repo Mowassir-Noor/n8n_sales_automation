@@ -1,0 +1,41 @@
+{
+  "conditions": {
+    "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "strict",
+      "version": 2
+    },
+    "conditions": [
+      {
+        "id": "ok",
+        "leftValue": "={{ $json[\"Compliance Status\"] }}",
+        "operator": {
+          "operation": "notEquals",
+          "type": "string"
+        },
+        "rightValue": "Blocked"
+      },
+      {
+        "id": "noopt",
+        "leftValue": "={{ $json[\"Opt-out\"] }}",
+        "operator": {
+          "operation": "notEquals",
+          "type": "string"
+        },
+        "rightValue": "Yes"
+      },
+      {
+        "id": "nosupp",
+        "leftValue": "={{ (() => { const e = String($json.Email || '').toLowerCase().trim(); const d = e.includes('@') ? e.split('@')[1] : ''; return !$('Read Suppression').all().some(i => { const se = String(i.json.Email || '').toLowerCase().trim(); const sd = String(i.json.Domain || '').toLowerCase().replace(/^@/, '').trim(); return (se && se === e) || (sd && d && (d === sd || d.endsWith('.' + sd))); }); })() }}",
+        "operator": {
+          "operation": "true",
+          "singleValue": true,
+          "type": "boolean"
+        },
+        "rightValue": ""
+      }
+    ],
+    "combinator": "and"
+  }
+}

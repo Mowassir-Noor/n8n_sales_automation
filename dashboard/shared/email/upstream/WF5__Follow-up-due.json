@@ -1,0 +1,33 @@
+{
+  "conditions": {
+    "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "strict",
+      "version": 2
+    },
+    "conditions": [
+      {
+        "id": "due",
+        "leftValue": "={{ ['Sent','Follow-up 1','Follow-up 2'].includes($json.Stage) && $json['Opt-out'] !== 'Yes' && !!$json['Next Follow-up Date'] && String($json['Next Follow-up Date']).slice(0, 10) <= $today.toFormat('yyyy-MM-dd') && !!$json['Gmail Thread ID'] }}",
+        "operator": {
+          "operation": "true",
+          "singleValue": true,
+          "type": "boolean"
+        },
+        "rightValue": true
+      },
+      {
+        "id": "nosupp",
+        "leftValue": "={{ (() => { const e = String($json.Email || '').toLowerCase().trim(); const d = e.includes('@') ? e.split('@')[1] : ''; return !$('Read Suppression').all().some(i => { const se = String(i.json.Email || '').toLowerCase().trim(); const sd = String(i.json.Domain || '').toLowerCase().replace(/^@/, '').trim(); return (se && se === e) || (sd && d && (d === sd || d.endsWith('.' + sd))); }); })() }}",
+        "operator": {
+          "operation": "true",
+          "singleValue": true,
+          "type": "boolean"
+        },
+        "rightValue": true
+      }
+    ],
+    "combinator": "and"
+  }
+}

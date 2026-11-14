@@ -549,7 +549,7 @@
         "sendTo": "={{ $json['Nil Email'] }}",
         "subject": "=Hot reply: {{ $('Find Lead by Thread').item.json['Contact Name'] }} at {{ $('Find Lead by Thread').item.json.Company }}",
         "emailType": "text",
-        "message": "=Hot reply from {{ $('Find Lead by Thread').item.json['Contact Name'] }} at {{ $('Find Lead by Thread').item.json.Company }}: {{ $('Decide Outcome').item.json.reply_summary }}\n\nSheet: {{ $json['Sheet URL'] ?? 'open the \"Texprove Leads\" Google Sheet, tab Leads' }}",
+        "message": "=Hot reply from {{ $('Find Lead by Thread').item.json['Contact Name'] }} at {{ $('Find Lead by Thread').item.json.Company }}: {{ $('Decide Outcome').item.json.reply_summary }}\n\nOpen: {{ ($json['Dashboard URL'] ? String($json['Dashboard URL']).replace(/\\/+$/, '') + '/replies' : ($json['Sheet URL'] || '')) || 'open the \"Texprove Leads\" Google Sheet, tab Leads' }}",
         "options": {
           "appendAttribution": false
         }
@@ -830,7 +830,7 @@
         "chatId": "={{ $('Read Settings').item.json['Nil Telegram Chat ID'] }}",
         "operation": "sendMessage",
         "resource": "message",
-        "text": "=Texprove: Hot reply from {{ String($('Find Lead by Thread').item.json['Contact Name'] || '').replace(/&/g, '&amp;').replace(/</g, '&lt;') }} at {{ String($('Find Lead by Thread').item.json.Company || '').replace(/&/g, '&amp;').replace(/</g, '&lt;') }}: {{ String($('Decide Outcome').item.json.reply_summary || '').replace(/&/g, '&amp;').replace(/</g, '&lt;') }}{{ $('Read Settings').item.json['Sheet URL'] ? ' ' + $('Read Settings').item.json['Sheet URL'] : '' }}"
+        "text": "=Texprove: Hot reply from {{ String($('Find Lead by Thread').item.json['Contact Name'] || '').replace(/&/g, '&amp;').replace(/</g, '&lt;') }} at {{ String($('Find Lead by Thread').item.json.Company || '').replace(/&/g, '&amp;').replace(/</g, '&lt;') }}: {{ String($('Decide Outcome').item.json.reply_summary || '').replace(/&/g, '&amp;').replace(/</g, '&lt;') }}{{ ($('Read Settings').item.json['Dashboard URL'] ? String($('Read Settings').item.json['Dashboard URL']).replace(/\\/+$/, '') + '/replies' : ($('Read Settings').item.json['Sheet URL'] || '')) ? ' ' + ($('Read Settings').item.json['Dashboard URL'] ? String($('Read Settings').item.json['Dashboard URL']).replace(/\\/+$/, '') + '/replies' : ($('Read Settings').item.json['Sheet URL'] || '')) : '' }}"
       },
       "notes": "Same Hot-reply alert as the email, on Telegram.",
       "onError": "continueRegularOutput",
@@ -1006,7 +1006,7 @@
           "appendAttribution": false
         },
         "subject": "=Hot reply: {{ $('Find Lead by Thread').item.json['Contact Name'] }} at {{ $('Find Lead by Thread').item.json.Company }}",
-        "text": "=Hot reply from {{ $('Find Lead by Thread').item.json['Contact Name'] }} at {{ $('Find Lead by Thread').item.json.Company }}: {{ $('Decide Outcome').item.json.reply_summary }}\n\nSheet: {{ $json['Sheet URL'] ?? 'open the \"Texprove Leads\" Google Sheet, tab Leads' }}",
+        "text": "=Hot reply from {{ $('Find Lead by Thread').item.json['Contact Name'] }} at {{ $('Find Lead by Thread').item.json.Company }}: {{ $('Decide Outcome').item.json.reply_summary }}\n\nOpen: {{ ($json['Dashboard URL'] ? String($json['Dashboard URL']).replace(/\\/+$/, '') + '/replies' : ($json['Sheet URL'] || '')) || 'open the \"Texprove Leads\" Google Sheet, tab Leads' }}",
         "toEmail": "={{ $json['Nil Email'] }}"
       },
       "onError": "continueRegularOutput",

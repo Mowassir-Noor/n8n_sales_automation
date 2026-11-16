@@ -26,8 +26,9 @@ export const SETTINGS_HEADERS = [
   "HubSpot Monthly Limit", "HubSpot Pause Percent", "Test Email",
   "Nil WhatsApp", "WhatsApp Phone Number ID", "Nil Telegram Chat ID",
   "Company Website", "HubSpot Owner ID", "Mail Provider", "SMTP From",
-  "Seed Email", "Seed Every", "Target Countries",
-] as const; // A..U, row 2 only
+  "Seed Email", "Seed Every", "Target Countries", "Dashboard URL",
+  "Weekly New Leads", "Daily Send Limit",
+] as const; // A..X, row 2 only (W = WF0 weekly target, X = WF3 daily send cap)
 
 /** Countries the admin can pick for "Target Countries" (WF0 searches only these; empty = Turkey). */
 export const TARGET_COUNTRIES = ["Turkey", "Bangladesh", "Vietnam", "Malaysia", "Brazil"] as const;

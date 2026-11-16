@@ -24,6 +24,9 @@ export const settings = {
   'Seed Email': '',
   'Seed Every': '12',
   'Target Countries': 'Turkey',
+  'Dashboard URL': 'https://dash.example.com',
+  'Weekly New Leads': '50',
+  'Daily Send Limit': '10',
 };
 
 export const goodBody = [

@@ -126,8 +126,8 @@ export function checkLeadAction(req: Pick<LeadActionRequest, "action" | "data">,
 
 // ---- Settings ---------------------------------------------------------------
 
-export const SETTINGS_ADMIN_ONLY = ["Test Email", "HubSpot Monthly Limit", "HubSpot Pause Percent", "Seed Email", "Seed Every", "Target Countries"] as const;
-export const SETTINGS_READ_ONLY = ["Mail Provider", "SMTP From", "Sheet URL", "Nil WhatsApp", "WhatsApp Phone Number ID", "HubSpot Owner ID"] as const;
+export const SETTINGS_ADMIN_ONLY = ["Test Email", "HubSpot Monthly Limit", "HubSpot Pause Percent", "Seed Email", "Seed Every", "Target Countries", "Weekly New Leads", "Daily Send Limit"] as const;
+export const SETTINGS_READ_ONLY = ["Mail Provider", "SMTP From", "Sheet URL", "Nil WhatsApp", "WhatsApp Phone Number ID", "HubSpot Owner ID", "Dashboard URL"] as const;
 /** Fields that must not be empty after a save. */
 export const SETTINGS_REQUIRED = ["Sender Name", "Company Legal Name", "Company Address", "Opt-out TR", "Opt-out EN", "Company Website"] as const;
 
@@ -162,6 +162,12 @@ export function validateSettingsValues(data: Partial<Settings>): string[] {
         break;
       case "Seed Every":
         if (!/^\d+$/.test(val) || Number(val) < 1) errors.push("Seed Every must be a whole number above 0.");
+        break;
+      case "Weekly New Leads":
+        if (!/^\d+$/.test(val) || Number(val) < 1 || Number(val) > 200) errors.push("Weekly New Leads must be a whole number from 1 to 200.");
+        break;
+      case "Daily Send Limit":
+        if (!/^\d+$/.test(val) || Number(val) > 200) errors.push("Daily Send Limit must be a whole number from 0 to 200.");
         break;
       case "Target Countries": {
         const pc = parseCountries(val);

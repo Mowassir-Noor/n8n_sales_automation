@@ -102,5 +102,9 @@ describe("settings rules", () => {
   it("value checks", () => {
     expect(validateSettingsValues({ "HubSpot Pause Percent": "120", "Nil Email": "nope", "Sender Name": " " })).toHaveLength(3);
     expect(validateSettingsValues({ "Nil Telegram Chat ID": "-100123", "Company Website": "https://www.example.com" })).toEqual([]);
+    expect(validateSettingsValues({ "Weekly New Leads": "50", "Daily Send Limit": "0" })).toEqual([]);
+    expect(validateSettingsValues({ "Weekly New Leads": "0", "Daily Send Limit": "ten" })).toHaveLength(2);
+    expect(settingsFieldAccess("Daily Send Limit", "approver")).toBe("readonly");
+    expect(settingsFieldAccess("Weekly New Leads", "admin")).toBe("edit");
   });
 });

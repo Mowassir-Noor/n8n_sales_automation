@@ -1,0 +1,92 @@
+@import "tailwindcss";
+
+/* Semantic colour tokens. Light by default, dark via prefers-color-scheme.
+   Components use the Tailwind names below (bg-surface, text-muted, border-line, ...),
+   so dark mode needs no per-component `dark:` classes. */
+:root {
+  --bg: #f6f7f8;
+  --surface: #ffffff;
+  --surface-2: #f1f3f5;
+  --line: #e1e4e8;
+  --line-strong: #c9ced4;
+  --fg: #1b1f24;
+  --muted: #5f6b76;
+  --accent: #0e7490;
+  --accent-hover: #0b5f76;
+  --accent-soft: #e0f2f6;
+  --accent-fg: #ffffff;
+  --danger: #b42318;
+  --danger-soft: #fdecea;
+  --warn: #9a6700;
+  --warn-soft: #fff6dd;
+  --ok: #1a7f37;
+  --ok-soft: #e6f4ea;
+  --focus: #0e7490;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1215;
+    --surface: #171b1f;
+    --surface-2: #1f252a;
+    --line: #2b3238;
+    --line-strong: #3b444c;
+    --fg: #e7eaed;
+    --muted: #9aa5b0;
+    --accent: #22a3c3;
+    --accent-hover: #4bb8d3;
+    --accent-soft: #0f2f38;
+    --accent-fg: #06181d;
+    --danger: #f2786d;
+    --danger-soft: #3a1714;
+    --warn: #e3b341;
+    --warn-soft: #33290f;
+    --ok: #57c776;
+    --ok-soft: #13301c;
+    --focus: #4bb8d3;
+    color-scheme: dark;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-fg: var(--accent-fg);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+dialog::backdrop {
+  background: rgb(0 0 0 / 0.45);
+}
+
+dialog {
+  color: var(--fg);
+}

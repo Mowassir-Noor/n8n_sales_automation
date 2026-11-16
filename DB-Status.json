@@ -1,0 +1,308 @@
+{
+  "name": "DB - Status",
+  "nodes": [
+    {
+      "id": "7affdb84-4858-40f7-b8fb-a887747a3fc1",
+      "name": "Webhook Status",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        192
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "dash/status",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "dee4c13f-719a-4742-aa5c-09d995d0d97e"
+    },
+    {
+      "id": "76d659e9-deb8-42a6-9e32-7828147fd967",
+      "name": "Workflow List",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        192
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// DB - Status: one item per watched workflow (WF0..WF6); the n8n nodes after it run once per item.\n\n// <lib:executions>\n// Execution helpers for DB - Status and the WF3 check in DB - Lead action.\n// Pure functions, no n8n globals: pasted between `// <lib:executions>` markers by sync-n8n.mjs.\n\nconst WATCHED_WORKFLOWS = [\n  { id: '4sjSYRcQvBBXEe6a', key: 'wf0', name: 'WF0 - Company discovery' },\n  { id: 'lVqeh6vUqxRPN6gS', key: 'wf1', name: 'WF1 - Lead research' },\n  { id: 'm1uUhMTcZHRXVIeV', key: 'wf2', name: 'WF2 - Compliance check and draft' },\n  { id: 'SeSyIb5vHQxG1F59', key: 'wf3', name: 'WF3 - Send approved emails' },\n  { id: 'bN2OX0nXYAOHqHfY', key: 'wf4', name: 'WF4 - Reply triage' },\n  { id: '6Im09dml8yELL7Fc', key: 'wf5', name: 'WF5 - Follow-ups' },\n  { id: '0rOv5SKwQS5Pd3l5', key: 'wf6', name: 'WF6 - Weekly report and LinkedIn drafts' },\n];\nconst WF3_ID = 'SeSyIb5vHQxG1F59';\nconst WF5_ID = '6Im09dml8yELL7Fc';\n\n// Weekday schedule slots (minutes after midnight, Istanbul) from the WF3/WF5 cron triggers:\n// WF3 \"0 10,14 * * 1-5\", WF5 \"0 11 * * 1-5\".\nconst SCHEDULE_SLOTS = { [WF3_ID]: [600, 840], [WF5_ID]: [660] };\n// A WF3 batch of 15 drafts takes about 22 minutes (90 s apart).\nconst RUN_WINDOW_MIN = 40;\n\nfunction execStatus(e) {\n  if (!e) return '';\n  if (e.status) return String(e.status);\n  if (e.finished) return 'success';\n  if (e.stoppedAt) return 'error';\n  return 'running';\n}\n\nfunction isRunningExecution(e) {\n  const s = execStatus(e);\n  return s === 'running' || s === 'new';\n}\n\n// Real execution objects from n8n node items (drops the alwaysOutputData `{}` item and error items).\nfunction executionRows(items) {\n  return (items || []).map(i => (i && i.json) || {}).filter(j => j.id != null && j.workflowId);\n}\n\nfunction itemsFailed(items) {\n  const list = (items || []).map(i => (i && i.json) || {});\n  const errs = list.filter(j => j.error);\n  return list.length > 0 && errs.length === list.length ? String(errs[0].error && errs[0].error.message || errs[0].error) : '';\n}\n\nfunction errorMessageOf(e) {\n  const err = e && e.data && e.data.resultData && e.data.resultData.error;\n  if (!err) return null;\n  const node = e.data.resultData.lastNodeExecuted;\n  const msg = String(err.message || err.description || 'Error');\n  return node ? node + ': ' + msg : msg;\n}\n\nfunction toExecutionInfo(e, errorById) {\n  const wf = WATCHED_WORKFLOWS.find(w => w.id === e.workflowId);\n  const status = execStatus(e);\n  const id = String(e.id);\n  return {\n    workflowId: String(e.workflowId),\n    workflowName: wf ? wf.name : String(e.workflowId),\n    status,\n    startedAt: e.startedAt ? String(e.startedAt) : '',\n    stoppedAt: e.stoppedAt ? String(e.stoppedAt) : null,\n    error: status === 'error' ? ((errorById && errorById[id]) || errorMessageOf(e) || null) : null,\n  };\n}\n\n// Whether a workflow is running now.\n// 1) any execution the API reports as running; 2) fallback for APIs that hide running executions:\n// inside a schedule window (slot … slot + RUN_WINDOW_MIN on a weekday) with no finished execution\n// started at or after the slot.\nfunction isWorkflowRunning(workflowId, recent, running, now) {\n  if ((running || []).some(e => e.workflowId === workflowId && isRunningExecution(e))) return true;\n  if ((recent || []).some(e => e.workflowId === workflowId && isRunningExecution(e))) return true;\n  const slots = SCHEDULE_SLOTS[workflowId] || [];\n  if (!now || now.weekday > 5) return false;\n  for (const slot of slots) {\n    if (now.minuteOfDay >= slot && now.minuteOfDay < slot + RUN_WINDOW_MIN) {\n      const slotMs = now.ms - (now.minuteOfDay - slot) * 60000;\n      const finishedSince = (recent || []).some(e =>\n        e.workflowId === workflowId && e.stoppedAt && !isRunningExecution(e) && Date.parse(e.startedAt) >= slotMs - 60000);\n      if (!finishedSince) return true;\n    }\n  }\n  return false;\n}\n// </lib:executions>\n\nreturn WATCHED_WORKFLOWS.map(w => ({ json: { workflowId: w.id, workflowName: w.name } }));\n"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "2bc7501e-566b-4b6c-9105-933cbccc8b37",
+      "name": "Get Executions",
+      "type": "n8n-nodes-base.n8n",
+      "typeVersion": 1,
+      "position": [
+        448,
+        128
+      ],
+      "parameters": {
+        "resource": "execution",
+        "operation": "getAll",
+        "returnAll": false,
+        "limit": 20,
+        "filters": {
+          "workflowId": {
+            "__rl": true,
+            "mode": "id",
+            "value": "={{ $json.workflowId }}"
+          }
+        },
+        "options": {}
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "9e6542f5-ca0d-4658-a6d3-980c255281b8",
+      "name": "Workflow List Again",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        128
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// DB - Status: the same seven items again, so 'Get Recent Errors' runs once per workflow\n// (not once per execution returned by 'Get Executions').\nreturn $('Workflow List').all().map(i => ({ json: i.json }));\n"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "84c4d772-8ed3-463a-acb8-49fb2f379f4b",
+      "name": "Get Recent Errors",
+      "type": "n8n-nodes-base.n8n",
+      "typeVersion": 1,
+      "position": [
+        896,
+        48
+      ],
+      "parameters": {
+        "resource": "execution",
+        "operation": "getAll",
+        "returnAll": false,
+        "limit": 3,
+        "filters": {
+          "workflowId": {
+            "__rl": true,
+            "mode": "id",
+            "value": "={{ $json.workflowId }}"
+          },
+          "status": "error"
+        },
+        "options": {
+          "activeWorkflows": true
+        }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "7cb0f1d7-7dbd-4462-b92b-7e21f86c526d",
+      "name": "Get Running Executions",
+      "type": "n8n-nodes-base.n8n",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        48
+      ],
+      "parameters": {
+        "resource": "execution",
+        "operation": "getAll",
+        "returnAll": false,
+        "limit": 50,
+        "filters": {
+          "status": "={{ \"running\" }}"
+        },
+        "options": {}
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "f7b6a78b-6124-4208-8dd8-9ade578a3b80",
+      "name": "Shape Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        48
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// DB - Status: StatusResponse = { ok, executions (newest first, up to 20 per workflow), running: { wf3, wf5 } }.\n// 'Get Executions' and 'Get Recent Errors' / 'Get Running Executions' use onError: continueRegularOutput,\n// so a failed API call arrives as an item with `error`. All of 'Get Executions' failing => 500.\n\n// <lib:common>\n// Helpers shared by the Code nodes of the five `DB - …` workflows.\n// Pure functions, no n8n globals: sync-n8n.mjs pastes this file (minus the export line) between\n// `// <lib:common>` and `// </lib:common>` markers. Tests import it directly.\n\nconst LEAD_HEADERS = [\n  'Lead ID', 'Company', 'Website', 'Country', 'Segment',\n  'Contact Name', 'Contact Title', 'Email', 'LinkedIn',\n  'Research Notes', 'Personalisation Hook', 'Language',\n  'Compliance Status', 'Compliance Notes',\n  'Subject', 'Draft Body', 'Draft Body EN',\n  'Approved', 'Nil Notes', 'Stage',\n  'Sent At', 'Gmail Thread ID', 'Follow-up Count', 'Next Follow-up Date',\n  'Reply Category', 'Reply Summary', 'HubSpot Contact ID', 'Opt-out',\n  'Last Updated', 'Source URL', 'Source Date', 'Confidence', 'Follow-up Draft',\n];\nconst HOT_HANDLED = 'Hot Handled';\nconst SETTINGS_HEADERS = [\n  'Sender Name', 'Sender Title', 'Company Legal Name', 'Company Address',\n  'Opt-out TR', 'Opt-out EN', 'Nil Email', 'Sheet URL',\n  'HubSpot Monthly Limit', 'HubSpot Pause Percent', 'Test Email',\n  'Nil WhatsApp', 'WhatsApp Phone Number ID', 'Nil Telegram Chat ID',\n  'Company Website', 'HubSpot Owner ID', 'Mail Provider', 'SMTP From',\n  'Seed Email', 'Seed Every',\n];\nconst SUPPRESSION_HEADERS = ['Email', 'Domain', 'Reason', 'Date'];\nconst SOCIAL_HEADERS = ['Week', 'Topic', 'Draft', 'Approved', 'Nil Notes', 'Posted'];\nconst LOG_HEADERS = ['Timestamp', 'Workflow', 'Lead ID', 'Company', 'Step', 'Input', 'Output', 'Reason'];\n\nconst DEDUPE_MS = 10 * 60 * 1000;\nconst DEDUPE_MAX = 300;\n\nfunction str(v) {\n  return v == null ? '' : String(v);\n}\n\nfunction isPlainObject(v) {\n  return v !== null && typeof v === 'object' && !Array.isArray(v);\n}\n\n// Items of a Sheets read -> plain row objects. Drops the synthetic `{}` item that alwaysOutputData\n// adds for an empty tab, and error items from onError: continueRegularOutput.\nfunction sheetRows(items) {\n  return (items || [])\n    .map(i => (i && i.json) || {})\n    .filter(j => !('error' in j) && Object.keys(j).some(k => k !== 'row_number'));\n}\n\n// One row with exactly `headers` as keys (string values, \"\" when absent) plus row_number.\nfunction normalizeRow(raw, headers) {\n  const out = {};\n  for (const h of headers) out[h] = str(raw && raw[h]);\n  const rn = Number(raw && raw.row_number);\n  if (Number.isFinite(rn) && rn > 0) out.row_number = rn;\n  return out;\n}\n\n// Header row as n8n saw it: the keys of the row object with the most keys (n8n may leave out\n// trailing empty cells on some rows), in sheet order, without row_number.\nfunction detectHeaders(rows) {\n  let best = [];\n  for (const r of rows || []) {\n    const keys = Object.keys(r || {}).filter(k => k !== 'row_number');\n    if (keys.length > best.length) best = keys;\n  }\n  return best;\n}\n\nfunction colLetter(i) {\n  let n = i + 1;\n  let s = '';\n  while (n > 0) {\n    const m = (n - 1) % 26;\n    s = String.fromCharCode(65 + m) + s;\n    n = Math.floor((n - 1) / 26);\n  }\n  return s;\n}\n\n// Leads headers A..AG must equal LEAD_HEADERS in order. AH 'Hot Handled' is optional.\nfunction checkLeadHeaders(headers) {\n  const problems = [];\n  const hs = headers || [];\n  if (!hs.length) {\n    problems.push('Leads tab has no data rows, so its headers could not be checked');\n  } else {\n    for (let i = 0; i < LEAD_HEADERS.length; i++) {\n      const found = hs[i];\n      if (found !== LEAD_HEADERS[i]) {\n        problems.push('Column ' + colLetter(i) + ': expected \"' + LEAD_HEADERS[i] + '\", found ' + (found == null ? 'nothing' : '\"' + found + '\"'));\n      }\n    }\n  }\n  return { ok: problems.length === 0, problems, hasHotHandled: hs.indexOf(HOT_HANDLED) !== -1 };\n}\n\nfunction cut(s, n) {\n  const t = str(s);\n  const max = n || 3000;\n  return t.length > max ? t.slice(0, max) : t;\n}\n\n// Log tab row, as CONTRACT.md fixes it.\nfunction logRow(args) {\n  return {\n    Timestamp: str(args.nowIso),\n    Workflow: 'Dashboard',\n    'Lead ID': str(args.leadId),\n    Company: str(args.company),\n    Step: str(args.step),\n    Input: cut(JSON.stringify(args.before || {}), 3000),\n    Output: cut(JSON.stringify(args.after || {}), 3000),\n    Reason: 'by ' + str(args.actor) + (args.adminApproval ? ' (admin)' : ''),\n  };\n}\n\n// The time in Istanbul as plain values, from n8n's Luxon `$now`.\nfunction nowInfo(now) {\n  const t = now.setZone('Europe/Istanbul');\n  return {\n    iso: t.toISO(),\n    date: t.toFormat('yyyy-MM-dd'),\n    ms: t.toMillis(),\n    weekday: t.weekday, // 1 = Monday … 7 = Sunday\n    minuteOfDay: t.hour * 60 + t.minute + t.second / 60,\n  };\n}\n\n// requestId dedupe in workflow static data (survives between production executions).\nfunction dedupeStore(staticData) {\n  if (!isPlainObject(staticData.dashRequests)) staticData.dashRequests = {};\n  return staticData.dashRequests;\n}\n\nfunction dedupePrune(staticData, nowMs) {\n  const store = dedupeStore(staticData);\n  for (const id of Object.keys(store)) {\n    if (!store[id] || nowMs - Number(store[id].at) > DEDUPE_MS) delete store[id];\n  }\n  const ids = Object.keys(store);\n  if (ids.length > DEDUPE_MAX) {\n    ids.sort((a, b) => store[a].at - store[b].at);\n    for (const id of ids.slice(0, ids.length - DEDUPE_MAX)) delete store[id];\n  }\n  return store;\n}\n\nfunction dedupeGet(staticData, requestId, nowMs) {\n  if (!requestId) return null;\n  const store = dedupePrune(staticData, nowMs);\n  const hit = store[requestId];\n  return hit ? { status: hit.status, body: hit.body } : null;\n}\n\nfunction dedupeSet(staticData, requestId, status, body, nowMs) {\n  if (!requestId) return;\n  const store = dedupePrune(staticData, nowMs);\n  store[requestId] = { at: nowMs, status, body };\n}\n\n// Item that ends a path: the Finish node stores it for dedupe and Respond sends it.\nfunction reply(status, body, requestId, store) {\n  return { respond: true, status, body, requestId: str(requestId), store: store !== false };\n}\n\nconst EMAIL_RE = /^[^\\s@\"'<>(),;:]+@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/i;\nconst DOMAIN_RE = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/i;\n\nfunction isEmail(s) {\n  const t = str(s).trim();\n  return t.length <= 254 && EMAIL_RE.test(t);\n}\n\nfunction isDomain(s) {\n  const t = str(s).trim();\n  return t.length <= 253 && DOMAIN_RE.test(t);\n}\n\n// Common checks on the actor fields the app adds to every write.\nfunction actorErrors(body) {\n  const errors = [];\n  if (!isEmail(body.actor)) errors.push('actor must be the signed-in user\\'s email');\n  if (body.actorRole !== 'approver' && body.actorRole !== 'admin') errors.push('actorRole must be \"approver\" or \"admin\"');\n  if (typeof body.requestId !== 'string' || body.requestId.length < 8 || body.requestId.length > 100) errors.push('requestId must be a string of 8 to 100 characters');\n  return errors;\n}\n// </lib:common>\n// <lib:executions>\n// Execution helpers for DB - Status and the WF3 check in DB - Lead action.\n// Pure functions, no n8n globals: pasted between `// <lib:executions>` markers by sync-n8n.mjs.\n\nconst WATCHED_WORKFLOWS = [\n  { id: '4sjSYRcQvBBXEe6a', key: 'wf0', name: 'WF0 - Company discovery' },\n  { id: 'lVqeh6vUqxRPN6gS', key: 'wf1', name: 'WF1 - Lead research' },\n  { id: 'm1uUhMTcZHRXVIeV', key: 'wf2', name: 'WF2 - Compliance check and draft' },\n  { id: 'SeSyIb5vHQxG1F59', key: 'wf3', name: 'WF3 - Send approved emails' },\n  { id: 'bN2OX0nXYAOHqHfY', key: 'wf4', name: 'WF4 - Reply triage' },\n  { id: '6Im09dml8yELL7Fc', key: 'wf5', name: 'WF5 - Follow-ups' },\n  { id: '0rOv5SKwQS5Pd3l5', key: 'wf6', name: 'WF6 - Weekly report and LinkedIn drafts' },\n];\nconst WF3_ID = 'SeSyIb5vHQxG1F59';\nconst WF5_ID = '6Im09dml8yELL7Fc';\n\n// Weekday schedule slots (minutes after midnight, Istanbul) from the WF3/WF5 cron triggers:\n// WF3 \"0 10,14 * * 1-5\", WF5 \"0 11 * * 1-5\".\nconst SCHEDULE_SLOTS = { [WF3_ID]: [600, 840], [WF5_ID]: [660] };\n// A WF3 batch of 15 drafts takes about 22 minutes (90 s apart).\nconst RUN_WINDOW_MIN = 40;\n\nfunction execStatus(e) {\n  if (!e) return '';\n  if (e.status) return String(e.status);\n  if (e.finished) return 'success';\n  if (e.stoppedAt) return 'error';\n  return 'running';\n}\n\nfunction isRunningExecution(e) {\n  const s = execStatus(e);\n  return s === 'running' || s === 'new';\n}\n\n// Real execution objects from n8n node items (drops the alwaysOutputData `{}` item and error items).\nfunction executionRows(items) {\n  return (items || []).map(i => (i && i.json) || {}).filter(j => j.id != null && j.workflowId);\n}\n\nfunction itemsFailed(items) {\n  const list = (items || []).map(i => (i && i.json) || {});\n  const errs = list.filter(j => j.error);\n  return list.length > 0 && errs.length === list.length ? String(errs[0].error && errs[0].error.message || errs[0].error) : '';\n}\n\nfunction errorMessageOf(e) {\n  const err = e && e.data && e.data.resultData && e.data.resultData.error;\n  if (!err) return null;\n  const node = e.data.resultData.lastNodeExecuted;\n  const msg = String(err.message || err.description || 'Error');\n  return node ? node + ': ' + msg : msg;\n}\n\nfunction toExecutionInfo(e, errorById) {\n  const wf = WATCHED_WORKFLOWS.find(w => w.id === e.workflowId);\n  const status = execStatus(e);\n  const id = String(e.id);\n  return {\n    workflowId: String(e.workflowId),\n    workflowName: wf ? wf.name : String(e.workflowId),\n    status,\n    startedAt: e.startedAt ? String(e.startedAt) : '',\n    stoppedAt: e.stoppedAt ? String(e.stoppedAt) : null,\n    error: status === 'error' ? ((errorById && errorById[id]) || errorMessageOf(e) || null) : null,\n  };\n}\n\n// Whether a workflow is running now.\n// 1) any execution the API reports as running; 2) fallback for APIs that hide running executions:\n// inside a schedule window (slot … slot + RUN_WINDOW_MIN on a weekday) with no finished execution\n// started at or after the slot.\nfunction isWorkflowRunning(workflowId, recent, running, now) {\n  if ((running || []).some(e => e.workflowId === workflowId && isRunningExecution(e))) return true;\n  if ((recent || []).some(e => e.workflowId === workflowId && isRunningExecution(e))) return true;\n  const slots = SCHEDULE_SLOTS[workflowId] || [];\n  if (!now || now.weekday > 5) return false;\n  for (const slot of slots) {\n    if (now.minuteOfDay >= slot && now.minuteOfDay < slot + RUN_WINDOW_MIN) {\n      const slotMs = now.ms - (now.minuteOfDay - slot) * 60000;\n      const finishedSince = (recent || []).some(e =>\n        e.workflowId === workflowId && e.stoppedAt && !isRunningExecution(e) && Date.parse(e.startedAt) >= slotMs - 60000);\n      if (!finishedSince) return true;\n    }\n  }\n  return false;\n}\n// </lib:executions>\n\nconst now = nowInfo($now);\nconst execItems = $('Get Executions').all();\nconst failure = itemsFailed(execItems);\nif (failure) return [{ json: reply(500, { error: 'Could not read executions from the n8n API: ' + failure }, '', false) }];\n\nconst errorById = {};\nfor (const e of executionRows($('Get Recent Errors').all())) {\n  const msg = errorMessageOf(e);\n  if (msg) errorById[String(e.id)] = msg;\n}\nconst running = executionRows($('Get Running Executions').all());\nconst recent = executionRows(execItems);\n\nconst byId = {};\nfor (const e of recent.concat(running)) {\n  if (WATCHED_WORKFLOWS.some(w => w.id === e.workflowId)) byId[String(e.id)] = e;\n}\nconst executions = Object.keys(byId)\n  .map(id => toExecutionInfo(byId[id], errorById))\n  .sort((a, b) => (a.startedAt < b.startedAt ? 1 : a.startedAt > b.startedAt ? -1 : 0));\n\nreturn [{\n  json: reply(200, {\n    ok: true,\n    executions,\n    running: {\n      wf3: isWorkflowRunning(WF3_ID, recent, running, now),\n      wf5: isWorkflowRunning(WF5_ID, recent, running, now),\n    },\n  }, '', false),\n}];\n"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "5032a17a-d502-413b-a8cb-461f0dfb7088",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1568,
+        0
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.body) }}",
+        "options": {
+          "responseCode": "={{ $json.status }}"
+        }
+      }
+    },
+    {
+      "id": "dc2858de-194b-435e-9499-d5d5cc09e95b",
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1568,
+        240
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ error: \"n8n: \" + String($json.error?.message ?? $json.error ?? $json.message ?? \"unexpected error\") }) }}",
+        "options": {
+          "responseCode": 500
+        }
+      }
+    },
+    {
+      "id": "3143390d-b9b7-406a-9210-1419b6c0110e",
+      "name": "Sticky Note d01e606c",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -32,
+        96
+      ],
+      "parameters": {
+        "content": "## DB - Status\nPOST /webhook/dash/status (Header Auth). Last 20 executions of each of WF0..WF6 via the n8n API (credential stays in n8n), error messages of the latest failed runs, and whether WF3 / WF5 are running now. Source: dashboard/n8n in the repo.",
+        "color": 4,
+        "width": 384,
+        "height": 224
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Status": {
+      "main": [
+        [
+          {
+            "node": "Workflow List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Workflow List": {
+      "main": [
+        [
+          {
+            "node": "Get Executions",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Executions": {
+      "main": [
+        [
+          {
+            "node": "Workflow List Again",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Workflow List Again": {
+      "main": [
+        [
+          {
+            "node": "Get Recent Errors",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Recent Errors": {
+      "main": [
+        [
+          {
+            "node": "Get Running Executions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Running Executions": {
+      "main": [
+        [
+          {
+            "node": "Shape Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shape Status": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "timezone": "Europe/Istanbul",
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp"
+  }
+}

@@ -1,0 +1,126 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`buildHtml > snapshot: en-no-contact > checkDraft 1`] = `
+{
+  "body": "Hello,
+
+EU rules for textile traceability <DPP> & labelling are changing.
+
+I can send a one-page summary.
+
+Kind regards,
+Defne Kılıç
+Kurucu Ortak
+Örnek Tekstil Danışmanlık A.Ş.
+Kavaklı Sk.
+No: 12, 06000 Çankaya/Ankara
+https://www.texprove.example.org
+
+We found your contact details on your company website.
+If you would rather not receive emails like this, simply reply with "unsubscribe".",
+  "notes": [],
+  "status": "OK",
+}
+`;
+
+exports[`buildHtml > snapshot: en-no-contact > html 1`] = `"<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#1f2937;max-width:600px;"><p style="margin:0 0 16px;">Hello,</p><p style="margin:0 0 16px;">EU rules for textile traceability &lt;DPP&gt; &amp; labelling are changing.</p><p style="margin:0 0 16px;">I can send a one-page summary.</p><p style="margin:0 0 16px;">Kind regards,</p><table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:4px 0 0;"><tr><td style="border-left:3px solid #0e7490;padding:2px 0 2px 12px;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#1f2937;"><div style="font-size:15px;font-weight:bold;color:#111827;">Defne Kılıç</div><div style="color:#4b5563;">Kurucu Ortak</div><div style="font-weight:bold;color:#0e7490;margin-top:2px;">Örnek Tekstil Danışmanlık A.Ş.</div><div style="font-size:13px;color:#6b7280;">Kavaklı Sk.</div><div style="font-size:13px;color:#6b7280;">No: 12, 06000 Çankaya/Ankara</div><div style="margin-top:2px;"><a href="https://www.texprove.example.org" style="color:#0e7490;text-decoration:none;">www.texprove.example.org</a></div></td></tr></table><div style="margin-top:28px;padding-top:12px;border-top:1px solid #e5e7eb;font-size:12px;line-height:1.5;color:#9ca3af;"><p style="margin:0 0 16px;margin:0 0 6px;">We found your contact details on your company website.<br>If you would rather not receive emails like this, simply reply with "unsubscribe".</p></div></div>"`;
+
+exports[`buildHtml > snapshot: en-with-contact > checkDraft 1`] = `
+{
+  "body": "Dear Mert,
+
+I saw the new collection on https://denim-works.example.com/collections/ and wanted to share a short note on the EU Digital Product Passport.
+
+Would a 15-minute call next week be useful?
+
+Best regards,
+Defne Kılıç
+Co-founder
+Örnek Tekstil Danışmanlık A.Ş.
+Kavaklı Sk.
+No: 12, 06000 Çankaya/Ankara
+https://www.texprove.example.org
+
+We found your contact details on your company website.
+If you would rather not receive emails like this, simply reply with "unsubscribe".",
+  "notes": [],
+  "status": "OK",
+}
+`;
+
+exports[`buildHtml > snapshot: en-with-contact > html 1`] = `"<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#1f2937;max-width:600px;"><p style="margin:0 0 16px;">Dear Mert,</p><p style="margin:0 0 16px;">I saw the new collection on <a href="https://denim-works.example.com/collections/" style="color:#0e7490;text-decoration:none;">denim-works.example.com/collections</a> and wanted to share a short note on the EU Digital Product Passport.</p><p style="margin:0 0 16px;">Would a 15-minute call next week be useful?</p><p style="margin:0 0 16px;">Best regards,</p><table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:4px 0 0;"><tr><td style="border-left:3px solid #0e7490;padding:2px 0 2px 12px;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#1f2937;"><div style="font-size:15px;font-weight:bold;color:#111827;">Defne Kılıç</div><div style="font-size:13px;color:#6b7280;">Co-founder</div><div style="font-weight:bold;color:#0e7490;margin-top:2px;">Örnek Tekstil Danışmanlık A.Ş.</div><div style="font-size:13px;color:#6b7280;">Kavaklı Sk.</div><div style="font-size:13px;color:#6b7280;">No: 12, 06000 Çankaya/Ankara</div><div style="margin-top:2px;"><a href="https://www.texprove.example.org" style="color:#0e7490;text-decoration:none;">www.texprove.example.org</a></div></td></tr></table><div style="margin-top:28px;padding-top:12px;border-top:1px solid #e5e7eb;font-size:12px;line-height:1.5;color:#9ca3af;"><p style="margin:0 0 16px;margin:0 0 6px;">We found your contact details on your company website.<br>If you would rather not receive emails like this, simply reply with "unsubscribe".</p></div></div>"`;
+
+exports[`buildHtml > snapshot: tr-no-contact > checkDraft 1`] = `
+{
+  "body": "Merhaba,
+
+AB Dijital Ürün Pasaportu kuralları ihracatçı üreticileri doğrudan etkiliyor.
+Kısa bir özet göndermemi ister misiniz?
+
+Defne Kılıç
+Kurucu Ortak
+Örnek Tekstil Danışmanlık A.Ş.
+Kavaklı Sk.
+No: 12, 06000 Çankaya/Ankara
+https://www.texprove.example.org
+
+İletişim bilgilerinizi şirketinizin web sitesinden aldık.
+Bu tür e-postaları almak istemiyorsanız bu e-postayı "RET" yazarak yanıtlamanız yeterlidir.",
+  "notes": [],
+  "status": "OK",
+}
+`;
+
+exports[`buildHtml > snapshot: tr-no-contact > html 1`] = `"<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#1f2937;max-width:600px;"><p style="margin:0 0 16px;">Merhaba,</p><p style="margin:0 0 16px;">AB Dijital Ürün Pasaportu kuralları ihracatçı üreticileri doğrudan etkiliyor.<br>Kısa bir özet göndermemi ister misiniz?</p><table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:4px 0 0;"><tr><td style="border-left:3px solid #0e7490;padding:2px 0 2px 12px;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#1f2937;"><div style="font-size:15px;font-weight:bold;color:#111827;">Defne Kılıç</div><div style="color:#4b5563;">Kurucu Ortak</div><div style="font-weight:bold;color:#0e7490;margin-top:2px;">Örnek Tekstil Danışmanlık A.Ş.</div><div style="font-size:13px;color:#6b7280;">Kavaklı Sk.</div><div style="font-size:13px;color:#6b7280;">No: 12, 06000 Çankaya/Ankara</div><div style="margin-top:2px;"><a href="https://www.texprove.example.org" style="color:#0e7490;text-decoration:none;">www.texprove.example.org</a></div></td></tr></table><div style="margin-top:28px;padding-top:12px;border-top:1px solid #e5e7eb;font-size:12px;line-height:1.5;color:#9ca3af;"><p style="margin:0 0 16px;margin:0 0 6px;">İletişim bilgilerinizi şirketinizin web sitesinden aldık.<br>Bu tür e-postaları almak istemiyorsanız bu e-postayı "RET" yazarak yanıtlamanız yeterlidir.</p></div></div>"`;
+
+exports[`buildHtml > snapshot: tr-street-address > checkDraft 1`] = `
+{
+  "body": "Merhaba Can Bey,
+
+Gelecek ay Bursa'dayım; atölyeniz Lale Sokak
+No: 7 ve Gül Cad.
+No. 3 adreslerine yakın.
+Görüşmek isterseniz haber verin.
+
+Defne Kılıç
+Kurucu Ortak
+Örnek Tekstil Danışmanlık A.Ş.
+Kavaklı Sk.
+No: 12, 06000 Çankaya/Ankara
+https://www.texprove.example.org
+
+İletişim bilgilerinizi şirketinizin web sitesinden aldık.
+Bu tür e-postaları almak istemiyorsanız bu e-postayı "RET" yazarak yanıtlamanız yeterlidir.",
+  "notes": [],
+  "status": "OK",
+}
+`;
+
+exports[`buildHtml > snapshot: tr-street-address > html 1`] = `"<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#1f2937;max-width:600px;"><p style="margin:0 0 16px;">Merhaba Can Bey,</p><p style="margin:0 0 16px;">Gelecek ay Bursa'dayım; atölyeniz Lale Sokak<br>No: 7 ve Gül Cad.<br>No. 3 adreslerine yakın.<br>Görüşmek isterseniz haber verin.</p><table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:4px 0 0;"><tr><td style="border-left:3px solid #0e7490;padding:2px 0 2px 12px;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#1f2937;"><div style="font-size:15px;font-weight:bold;color:#111827;">Defne Kılıç</div><div style="color:#4b5563;">Kurucu Ortak</div><div style="font-weight:bold;color:#0e7490;margin-top:2px;">Örnek Tekstil Danışmanlık A.Ş.</div><div style="font-size:13px;color:#6b7280;">Kavaklı Sk.</div><div style="font-size:13px;color:#6b7280;">No: 12, 06000 Çankaya/Ankara</div><div style="margin-top:2px;"><a href="https://www.texprove.example.org" style="color:#0e7490;text-decoration:none;">www.texprove.example.org</a></div></td></tr></table><div style="margin-top:28px;padding-top:12px;border-top:1px solid #e5e7eb;font-size:12px;line-height:1.5;color:#9ca3af;"><p style="margin:0 0 16px;margin:0 0 6px;">İletişim bilgilerinizi şirketinizin web sitesinden aldık.<br>Bu tür e-postaları almak istemiyorsanız bu e-postayı "RET" yazarak yanıtlamanız yeterlidir.</p></div></div>"`;
+
+exports[`buildHtml > snapshot: tr-with-contact > checkDraft 1`] = `
+{
+  "body": "Merhaba Ayşe Hanım,
+
+Anadolu Örme'nin örme kumaş koleksiyonunu inceledim. AB'de Dijital Ürün Pasaportu (DPP) tekstil için yakında zorunlu olacak.
+
+Bu konuda 15 dakikalık bir görüşme yapabilir miyiz?
+
+Saygılarımla,
+Defne Kılıç
+Kurucu Ortak
+Örnek Tekstil Danışmanlık A.Ş.
+Kavaklı Sk.
+No: 12, 06000 Çankaya/Ankara
+https://www.texprove.example.org
+
+İletişim bilgilerinizi şirketinizin web sitesinden aldık.
+Bu tür e-postaları almak istemiyorsanız bu e-postayı "RET" yazarak yanıtlamanız yeterlidir.",
+  "notes": [],
+  "status": "OK",
+}
+`;
+
+exports[`buildHtml > snapshot: tr-with-contact > html 1`] = `"<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#1f2937;max-width:600px;"><p style="margin:0 0 16px;">Merhaba Ayşe Hanım,</p><p style="margin:0 0 16px;">Anadolu Örme'nin örme kumaş koleksiyonunu inceledim. AB'de Dijital Ürün Pasaportu (DPP) tekstil için yakında zorunlu olacak.</p><p style="margin:0 0 16px;">Bu konuda 15 dakikalık bir görüşme yapabilir miyiz?</p><p style="margin:0 0 16px;">Saygılarımla,</p><table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:4px 0 0;"><tr><td style="border-left:3px solid #0e7490;padding:2px 0 2px 12px;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#1f2937;"><div style="font-size:15px;font-weight:bold;color:#111827;">Defne Kılıç</div><div style="color:#4b5563;">Kurucu Ortak</div><div style="font-weight:bold;color:#0e7490;margin-top:2px;">Örnek Tekstil Danışmanlık A.Ş.</div><div style="font-size:13px;color:#6b7280;">Kavaklı Sk.</div><div style="font-size:13px;color:#6b7280;">No: 12, 06000 Çankaya/Ankara</div><div style="margin-top:2px;"><a href="https://www.texprove.example.org" style="color:#0e7490;text-decoration:none;">www.texprove.example.org</a></div></td></tr></table><div style="margin-top:28px;padding-top:12px;border-top:1px solid #e5e7eb;font-size:12px;line-height:1.5;color:#9ca3af;"><p style="margin:0 0 16px;margin:0 0 6px;">İletişim bilgilerinizi şirketinizin web sitesinden aldık.<br>Bu tür e-postaları almak istemiyorsanız bu e-postayı "RET" yazarak yanıtlamanız yeterlidir.</p></div></div>"`;
+
+exports[`hash > cyrb53, 14 lowercase hex chars 1`] = `"1c2ba782c97901"`;

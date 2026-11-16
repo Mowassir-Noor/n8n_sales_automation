@@ -1,0 +1,1389 @@
+{
+  "name": "DB - Lists",
+  "nodes": [
+    {
+      "id": "81634229-9395-4a98-a17f-bb721cb7a5ab",
+      "name": "Webhook Suppression",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        1040
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "dash/suppression",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "53b277a3-2e16-43d4-8893-8553c37c8750"
+    },
+    {
+      "id": "aaede7b3-80c6-47f7-b13e-21b24109c312",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        224,
+        1136
+      ],
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cfg-document",
+              "name": "documentId",
+              "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM",
+              "type": "string"
+            },
+            {
+              "id": "cfg-route",
+              "name": "route",
+              "value": "={{ String($json.webhookUrl || \"\").replace(/\\/+$/, \"\").split(\"/\").pop() }}",
+              "type": "string"
+            },
+            {
+              "id": "cfg-body",
+              "name": "body",
+              "value": "={{ $json.body }}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "480780f8-1ea9-466d-8c2e-c63f94d6d663",
+      "name": "Webhook Social",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        1232
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "dash/social",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "71cd902c-e2dc-4910-b75a-dc2e122c8efe"
+    },
+    {
+      "id": "c4b3ba17-0dbd-4dcd-a30c-87c4a88569bc",
+      "name": "Validate Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        1136
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// DB - Lists: check the request for either webhook ('suppression' or 'social').\n// Output: a reply item, or { respond: false, op: 'suppression' | 'social', req }.\n\n// <lib:common>\n// Helpers shared by the Code nodes of the five `DB - …` workflows.\n// Pure functions, no n8n globals: sync-n8n.mjs pastes this file (minus the export line) between\n// `// <lib:common>` and `// </lib:common>` markers. Tests import it directly.\n\nconst LEAD_HEADERS = [\n  'Lead ID', 'Company', 'Website', 'Country', 'Segment',\n  'Contact Name', 'Contact Title', 'Email', 'LinkedIn',\n  'Research Notes', 'Personalisation Hook', 'Language',\n  'Compliance Status', 'Compliance Notes',\n  'Subject', 'Draft Body', 'Draft Body EN',\n  'Approved', 'Nil Notes', 'Stage',\n  'Sent At', 'Gmail Thread ID', 'Follow-up Count', 'Next Follow-up Date',\n  'Reply Category', 'Reply Summary', 'HubSpot Contact ID', 'Opt-out',\n  'Last Updated', 'Source URL', 'Source Date', 'Confidence', 'Follow-up Draft',\n];\nconst HOT_HANDLED = 'Hot Handled';\nconst SETTINGS_HEADERS = [\n  'Sender Name', 'Sender Title', 'Company Legal Name', 'Company Address',\n  'Opt-out TR', 'Opt-out EN', 'Nil Email', 'Sheet URL',\n  'HubSpot Monthly Limit', 'HubSpot Pause Percent', 'Test Email',\n  'Nil WhatsApp', 'WhatsApp Phone Number ID', 'Nil Telegram Chat ID',\n  'Company Website', 'HubSpot Owner ID', 'Mail Provider', 'SMTP From',\n  'Seed Email', 'Seed Every',\n];\nconst SUPPRESSION_HEADERS = ['Email', 'Domain', 'Reason', 'Date'];\nconst SOCIAL_HEADERS = ['Week', 'Topic', 'Draft', 'Approved', 'Nil Notes', 'Posted'];\nconst LOG_HEADERS = ['Timestamp', 'Workflow', 'Lead ID', 'Company', 'Step', 'Input', 'Output', 'Reason'];\n\nconst DEDUPE_MS = 10 * 60 * 1000;\nconst DEDUPE_MAX = 300;\n\nfunction str(v) {\n  return v == null ? '' : String(v);\n}\n\nfunction isPlainObject(v) {\n  return v !== null && typeof v === 'object' && !Array.isArray(v);\n}\n\n// Items of a Sheets read -> plain row objects. Drops the synthetic `{}` item that alwaysOutputData\n// adds for an empty tab, and error items from onError: continueRegularOutput.\nfunction sheetRows(items) {\n  return (items || [])\n    .map(i => (i && i.json) || {})\n    .filter(j => !('error' in j) && Object.keys(j).some(k => k !== 'row_number'));\n}\n\n// One row with exactly `headers` as keys (string values, \"\" when absent) plus row_number.\nfunction normalizeRow(raw, headers) {\n  const out = {};\n  for (const h of headers) out[h] = str(raw && raw[h]);\n  const rn = Number(raw && raw.row_number);\n  if (Number.isFinite(rn) && rn > 0) out.row_number = rn;\n  return out;\n}\n\n// Header row as n8n saw it: the keys of the row object with the most keys (n8n may leave out\n// trailing empty cells on some rows), in sheet order, without row_number.\nfunction detectHeaders(rows) {\n  let best = [];\n  for (const r of rows || []) {\n    const keys = Object.keys(r || {}).filter(k => k !== 'row_number');\n    if (keys.length > best.length) best = keys;\n  }\n  return best;\n}\n\nfunction colLetter(i) {\n  let n = i + 1;\n  let s = '';\n  while (n > 0) {\n    const m = (n - 1) % 26;\n    s = String.fromCharCode(65 + m) + s;\n    n = Math.floor((n - 1) / 26);\n  }\n  return s;\n}\n\n// Leads headers A..AG must equal LEAD_HEADERS in order. AH 'Hot Handled' is optional.\nfunction checkLeadHeaders(headers) {\n  const problems = [];\n  const hs = headers || [];\n  if (!hs.length) {\n    problems.push('Leads tab has no data rows, so its headers could not be checked');\n  } else {\n    for (let i = 0; i < LEAD_HEADERS.length; i++) {\n      const found = hs[i];\n      if (found !== LEAD_HEADERS[i]) {\n        problems.push('Column ' + colLetter(i) + ': expected \"' + LEAD_HEADERS[i] + '\", found ' + (found == null ? 'nothing' : '\"' + found + '\"'));\n      }\n    }\n  }\n  return { ok: problems.length === 0, problems, hasHotHandled: hs.indexOf(HOT_HANDLED) !== -1 };\n}\n\nfunction cut(s, n) {\n  const t = str(s);\n  const max = n || 3000;\n  return t.length > max ? t.slice(0, max) : t;\n}\n\n// Log tab row, as CONTRACT.md fixes it.\nfunction logRow(args) {\n  return {\n    Timestamp: str(args.nowIso),\n    Workflow: 'Dashboard',\n    'Lead ID': str(args.leadId),\n    Company: str(args.company),\n    Step: str(args.step),\n    Input: cut(JSON.stringify(args.before || {}), 3000),\n    Output: cut(JSON.stringify(args.after || {}), 3000),\n    Reason: 'by ' + str(args.actor) + (args.adminApproval ? ' (admin)' : ''),\n  };\n}\n\n// The time in Istanbul as plain values, from n8n's Luxon `$now`.\nfunction nowInfo(now) {\n  const t = now.setZone('Europe/Istanbul');\n  return {\n    iso: t.toISO(),\n    date: t.toFormat('yyyy-MM-dd'),\n    ms: t.toMillis(),\n    weekday: t.weekday, // 1 = Monday … 7 = Sunday\n    minuteOfDay: t.hour * 60 + t.minute + t.second / 60,\n  };\n}\n\n// requestId dedupe in workflow static data (survives between production executions).\nfunction dedupeStore(staticData) {\n  if (!isPlainObject(staticData.dashRequests)) staticData.dashRequests = {};\n  return staticData.dashRequests;\n}\n\nfunction dedupePrune(staticData, nowMs) {\n  const store = dedupeStore(staticData);\n  for (const id of Object.keys(store)) {\n    if (!store[id] || nowMs - Number(store[id].at) > DEDUPE_MS) delete store[id];\n  }\n  const ids = Object.keys(store);\n  if (ids.length > DEDUPE_MAX) {\n    ids.sort((a, b) => store[a].at - store[b].at);\n    for (const id of ids.slice(0, ids.length - DEDUPE_MAX)) delete store[id];\n  }\n  return store;\n}\n\nfunction dedupeGet(staticData, requestId, nowMs) {\n  if (!requestId) return null;\n  const store = dedupePrune(staticData, nowMs);\n  const hit = store[requestId];\n  return hit ? { status: hit.status, body: hit.body } : null;\n}\n\nfunction dedupeSet(staticData, requestId, status, body, nowMs) {\n  if (!requestId) return;\n  const store = dedupePrune(staticData, nowMs);\n  store[requestId] = { at: nowMs, status, body };\n}\n\n// Item that ends a path: the Finish node stores it for dedupe and Respond sends it.\nfunction reply(status, body, requestId, store) {\n  return { respond: true, status, body, requestId: str(requestId), store: store !== false };\n}\n\nconst EMAIL_RE = /^[^\\s@\"'<>(),;:]+@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/i;\nconst DOMAIN_RE = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/i;\n\nfunction isEmail(s) {\n  const t = str(s).trim();\n  return t.length <= 254 && EMAIL_RE.test(t);\n}\n\nfunction isDomain(s) {\n  const t = str(s).trim();\n  return t.length <= 253 && DOMAIN_RE.test(t);\n}\n\n// Common checks on the actor fields the app adds to every write.\nfunction actorErrors(body) {\n  const errors = [];\n  if (!isEmail(body.actor)) errors.push('actor must be the signed-in user\\'s email');\n  if (body.actorRole !== 'approver' && body.actorRole !== 'admin') errors.push('actorRole must be \"approver\" or \"admin\"');\n  if (typeof body.requestId !== 'string' || body.requestId.length < 8 || body.requestId.length > 100) errors.push('requestId must be a string of 8 to 100 characters');\n  return errors;\n}\n// </lib:common>\n\nconst cfg = $('Config').first().json;\nconst route = cfg.route;\nconst body = cfg.body;\nconst now = nowInfo($now);\nif (!isPlainObject(body)) return [{ json: reply(422, { errors: ['Request body must be a JSON object'] }, '', false) }];\n\nconst requestId = typeof body.requestId === 'string' ? body.requestId : '';\nconst seen = dedupeGet($getWorkflowStaticData('global'), requestId, now.ms);\nif (seen) return [{ json: Object.assign(reply(seen.status, seen.body, requestId, false), { deduplicated: true }) }];\n\nconst errors = actorErrors(body);\nconst isAdmin = body.actorRole === 'admin';\nconst base = { requestId, actor: str(body.actor).trim(), actorRole: body.actorRole };\nconst rowNumberOk = (n) => Number.isInteger(n) && n >= 2 && n <= 1000000;\n\nif (route === 'suppression') {\n  if (body.action === 'add') {\n    const d = isPlainObject(body.data) ? body.data : {};\n    if (!isPlainObject(body.data)) errors.push('data is required');\n    const email = str(d.Email).trim().toLowerCase();\n    const domain = str(d.Domain).trim().toLowerCase().replace(/^@/, '');\n    const reason = str(d.Reason).trim();\n    if (!email && !domain) errors.push('Give an Email or a Domain');\n    if (email && !isEmail(email)) errors.push('Email is not a valid email address');\n    if (domain && !isDomain(domain)) errors.push('Domain must look like example.com (no https://, no path)');\n    if (!reason) errors.push('Reason is required');\n    if (reason.length > 500) errors.push('Reason is longer than 500 characters');\n    if (errors.length) return [{ json: reply(422, { errors }, requestId) }];\n    return [{ json: { respond: false, op: 'suppression', req: Object.assign({ action: 'add', email, domain, reason }, base) } }];\n  }\n  if (body.action === 'remove') {\n    const ex = body.expect;\n    if (!rowNumberOk(body.rowNumber)) errors.push('rowNumber must be a sheet row number from 2');\n    if (!isPlainObject(ex) || typeof ex.Email !== 'string' || typeof ex.Domain !== 'string') errors.push('expect.Email and expect.Domain are required');\n    const reason = str(body.reason).trim();\n    if (!reason) errors.push('reason is required');\n    if (errors.length) return [{ json: reply(422, { errors }, requestId) }];\n    if (!isAdmin) return [{ json: reply(403, { error: 'Only an admin can remove Suppression rows' }, requestId) }];\n    return [{ json: { respond: false, op: 'suppression', req: Object.assign({ action: 'remove', rowNumber: body.rowNumber, expect: { Email: ex.Email, Domain: ex.Domain }, reason }, base) } }];\n  }\n  errors.push('action must be \"add\" or \"remove\"');\n  return [{ json: reply(422, { errors }, requestId) }];\n}\n\nif (route === 'social') {\n  const ex = body.expect;\n  const d = body.data;\n  if (!rowNumberOk(body.rowNumber)) errors.push('rowNumber must be a sheet row number from 2');\n  if (!isPlainObject(ex) || typeof ex.Week !== 'string' || typeof ex.Topic !== 'string' || typeof ex.draftHash !== 'string') {\n    errors.push('expect.Week, expect.Topic and expect.draftHash are required');\n  }\n  const data = {};\n  if (!isPlainObject(d)) {\n    errors.push('data is required');\n  } else {\n    for (const k of Object.keys(d)) {\n      if (k === 'Approved') {\n        if (['Pending', 'Yes', 'No', 'Edit'].indexOf(d[k]) === -1) errors.push('Approved must be Pending, Yes, No or Edit');\n        else data.Approved = d[k];\n      } else if (k === 'Posted') {\n        if (['Yes', 'No'].indexOf(d[k]) === -1) errors.push('Posted must be Yes or No');\n        else data.Posted = d[k];\n      } else if (k === 'Nil Notes') {\n        if (typeof d[k] !== 'string' || d[k].length > 2000) errors.push('Nil Notes must be text up to 2000 characters');\n        else data['Nil Notes'] = d[k];\n      } else {\n        errors.push('Field \"' + k + '\" cannot be changed');\n      }\n    }\n    if (!Object.keys(data).length && !errors.length) errors.push('data must name at least one of Approved, Nil Notes, Posted');\n  }\n  if (errors.length) return [{ json: reply(422, { errors }, requestId) }];\n  return [{ json: { respond: false, op: 'social', req: Object.assign({ rowNumber: body.rowNumber, expect: { Week: ex.Week, Topic: ex.Topic, draftHash: ex.draftHash }, data }, base) } }];\n}\n\nreturn [{ json: reply(500, { error: 'Unknown route ' + route }, requestId, false) }];\n"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "50f2ef8a-2616-463c-a832-2ad895da0911",
+      "name": "Respond Now?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        672,
+        1008
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "respond-now",
+              "leftValue": "={{ $json.respond }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "14a97f26-3aeb-4990-9902-c7771bbe778b",
+      "name": "Finish",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2688,
+        48
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Last node before 'Respond' in the write workflows: remembers the response for the request's\n// requestId (10 minutes, workflow static data) so a repeated request gets the same answer, then\n// passes { status, body } on. 5xx answers are not remembered, so a retry runs again.\n\n// <lib:common>\n// Helpers shared by the Code nodes of the five `DB - …` workflows.\n// Pure functions, no n8n globals: sync-n8n.mjs pastes this file (minus the export line) between\n// `// <lib:common>` and `// </lib:common>` markers. Tests import it directly.\n\nconst LEAD_HEADERS = [\n  'Lead ID', 'Company', 'Website', 'Country', 'Segment',\n  'Contact Name', 'Contact Title', 'Email', 'LinkedIn',\n  'Research Notes', 'Personalisation Hook', 'Language',\n  'Compliance Status', 'Compliance Notes',\n  'Subject', 'Draft Body', 'Draft Body EN',\n  'Approved', 'Nil Notes', 'Stage',\n  'Sent At', 'Gmail Thread ID', 'Follow-up Count', 'Next Follow-up Date',\n  'Reply Category', 'Reply Summary', 'HubSpot Contact ID', 'Opt-out',\n  'Last Updated', 'Source URL', 'Source Date', 'Confidence', 'Follow-up Draft',\n];\nconst HOT_HANDLED = 'Hot Handled';\nconst SETTINGS_HEADERS = [\n  'Sender Name', 'Sender Title', 'Company Legal Name', 'Company Address',\n  'Opt-out TR', 'Opt-out EN', 'Nil Email', 'Sheet URL',\n  'HubSpot Monthly Limit', 'HubSpot Pause Percent', 'Test Email',\n  'Nil WhatsApp', 'WhatsApp Phone Number ID', 'Nil Telegram Chat ID',\n  'Company Website', 'HubSpot Owner ID', 'Mail Provider', 'SMTP From',\n  'Seed Email', 'Seed Every',\n];\nconst SUPPRESSION_HEADERS = ['Email', 'Domain', 'Reason', 'Date'];\nconst SOCIAL_HEADERS = ['Week', 'Topic', 'Draft', 'Approved', 'Nil Notes', 'Posted'];\nconst LOG_HEADERS = ['Timestamp', 'Workflow', 'Lead ID', 'Company', 'Step', 'Input', 'Output', 'Reason'];\n\nconst DEDUPE_MS = 10 * 60 * 1000;\nconst DEDUPE_MAX = 300;\n\nfunction str(v) {\n  return v == null ? '' : String(v);\n}\n\nfunction isPlainObject(v) {\n  return v !== null && typeof v === 'object' && !Array.isArray(v);\n}\n\n// Items of a Sheets read -> plain row objects. Drops the synthetic `{}` item that alwaysOutputData\n// adds for an empty tab, and error items from onError: continueRegularOutput.\nfunction sheetRows(items) {\n  return (items || [])\n    .map(i => (i && i.json) || {})\n    .filter(j => !('error' in j) && Object.keys(j).some(k => k !== 'row_number'));\n}\n\n// One row with exactly `headers` as keys (string values, \"\" when absent) plus row_number.\nfunction normalizeRow(raw, headers) {\n  const out = {};\n  for (const h of headers) out[h] = str(raw && raw[h]);\n  const rn = Number(raw && raw.row_number);\n  if (Number.isFinite(rn) && rn > 0) out.row_number = rn;\n  return out;\n}\n\n// Header row as n8n saw it: the keys of the row object with the most keys (n8n may leave out\n// trailing empty cells on some rows), in sheet order, without row_number.\nfunction detectHeaders(rows) {\n  let best = [];\n  for (const r of rows || []) {\n    const keys = Object.keys(r || {}).filter(k => k !== 'row_number');\n    if (keys.length > best.length) best = keys;\n  }\n  return best;\n}\n\nfunction colLetter(i) {\n  let n = i + 1;\n  let s = '';\n  while (n > 0) {\n    const m = (n - 1) % 26;\n    s = String.fromCharCode(65 + m) + s;\n    n = Math.floor((n - 1) / 26);\n  }\n  return s;\n}\n\n// Leads headers A..AG must equal LEAD_HEADERS in order. AH 'Hot Handled' is optional.\nfunction checkLeadHeaders(headers) {\n  const problems = [];\n  const hs = headers || [];\n  if (!hs.length) {\n    problems.push('Leads tab has no data rows, so its headers could not be checked');\n  } else {\n    for (let i = 0; i < LEAD_HEADERS.length; i++) {\n      const found = hs[i];\n      if (found !== LEAD_HEADERS[i]) {\n        problems.push('Column ' + colLetter(i) + ': expected \"' + LEAD_HEADERS[i] + '\", found ' + (found == null ? 'nothing' : '\"' + found + '\"'));\n      }\n    }\n  }\n  return { ok: problems.length === 0, problems, hasHotHandled: hs.indexOf(HOT_HANDLED) !== -1 };\n}\n\nfunction cut(s, n) {\n  const t = str(s);\n  const max = n || 3000;\n  return t.length > max ? t.slice(0, max) : t;\n}\n\n// Log tab row, as CONTRACT.md fixes it.\nfunction logRow(args) {\n  return {\n    Timestamp: str(args.nowIso),\n    Workflow: 'Dashboard',\n    'Lead ID': str(args.leadId),\n    Company: str(args.company),\n    Step: str(args.step),\n    Input: cut(JSON.stringify(args.before || {}), 3000),\n    Output: cut(JSON.stringify(args.after || {}), 3000),\n    Reason: 'by ' + str(args.actor) + (args.adminApproval ? ' (admin)' : ''),\n  };\n}\n\n// The time in Istanbul as plain values, from n8n's Luxon `$now`.\nfunction nowInfo(now) {\n  const t = now.setZone('Europe/Istanbul');\n  return {\n    iso: t.toISO(),\n    date: t.toFormat('yyyy-MM-dd'),\n    ms: t.toMillis(),\n    weekday: t.weekday, // 1 = Monday … 7 = Sunday\n    minuteOfDay: t.hour * 60 + t.minute + t.second / 60,\n  };\n}\n\n// requestId dedupe in workflow static data (survives between production executions).\nfunction dedupeStore(staticData) {\n  if (!isPlainObject(staticData.dashRequests)) staticData.dashRequests = {};\n  return staticData.dashRequests;\n}\n\nfunction dedupePrune(staticData, nowMs) {\n  const store = dedupeStore(staticData);\n  for (const id of Object.keys(store)) {\n    if (!store[id] || nowMs - Number(store[id].at) > DEDUPE_MS) delete store[id];\n  }\n  const ids = Object.keys(store);\n  if (ids.length > DEDUPE_MAX) {\n    ids.sort((a, b) => store[a].at - store[b].at);\n    for (const id of ids.slice(0, ids.length - DEDUPE_MAX)) delete store[id];\n  }\n  return store;\n}\n\nfunction dedupeGet(staticData, requestId, nowMs) {\n  if (!requestId) return null;\n  const store = dedupePrune(staticData, nowMs);\n  const hit = store[requestId];\n  return hit ? { status: hit.status, body: hit.body } : null;\n}\n\nfunction dedupeSet(staticData, requestId, status, body, nowMs) {\n  if (!requestId) return;\n  const store = dedupePrune(staticData, nowMs);\n  store[requestId] = { at: nowMs, status, body };\n}\n\n// Item that ends a path: the Finish node stores it for dedupe and Respond sends it.\nfunction reply(status, body, requestId, store) {\n  return { respond: true, status, body, requestId: str(requestId), store: store !== false };\n}\n\nconst EMAIL_RE = /^[^\\s@\"'<>(),;:]+@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/i;\nconst DOMAIN_RE = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/i;\n\nfunction isEmail(s) {\n  const t = str(s).trim();\n  return t.length <= 254 && EMAIL_RE.test(t);\n}\n\nfunction isDomain(s) {\n  const t = str(s).trim();\n  return t.length <= 253 && DOMAIN_RE.test(t);\n}\n\n// Common checks on the actor fields the app adds to every write.\nfunction actorErrors(body) {\n  const errors = [];\n  if (!isEmail(body.actor)) errors.push('actor must be the signed-in user\\'s email');\n  if (body.actorRole !== 'approver' && body.actorRole !== 'admin') errors.push('actorRole must be \"approver\" or \"admin\"');\n  if (typeof body.requestId !== 'string' || body.requestId.length < 8 || body.requestId.length > 100) errors.push('requestId must be a string of 8 to 100 characters');\n  return errors;\n}\n// </lib:common>\n\nconst item = $input.first().json;\nconst status = Number(item.status) || 500;\nconst body = item.body || { error: 'Empty response' };\nif (item.store && item.requestId && status < 500) {\n  dedupeSet($getWorkflowStaticData('global'), item.requestId, status, body, nowInfo($now).ms);\n}\nreturn [{ json: { status, body } }];\n"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "e80ea646-69c8-4a59-bf81-1b7f9341760d",
+      "name": "Route List",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        896,
+        1568
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "outputKey": "suppression",
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "op-suppression",
+                    "leftValue": "={{ $json.op }}",
+                    "rightValue": "suppression",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "outputKey": "social",
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "op-social",
+                    "leftValue": "={{ $json.op }}",
+                    "rightValue": "social",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "Unknown route"
+        }
+      }
+    },
+    {
+      "id": "c0efa35a-415c-4274-86c7-a243e5502d5a",
+      "name": "Read Suppression",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1120,
+        640
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Config').first().json.documentId }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Suppression"
+        },
+        "options": {
+          "outputFormatting": {
+            "values": {
+              "general": "FORMATTED_VALUE",
+              "date": "FORMATTED_STRING"
+            }
+          }
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "sFrPcvpn5K1JgYYK",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "eafc4df3-62cf-44fa-90b1-bd982304ae30",
+      "name": "Plan Suppression",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        576
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// DB - Lists / suppression: check against the current tab and plan the change.\n// Output: a reply item (next: 'respond'), or\n//   { next: 'append', row, log, requestId }        add: append `row`\n//   { next: 'delete', rowNumber, log, requestId }  remove: delete sheet row `rowNumber`\n\n// <lib:common>\n// Helpers shared by the Code nodes of the five `DB - …` workflows.\n// Pure functions, no n8n globals: sync-n8n.mjs pastes this file (minus the export line) between\n// `// <lib:common>` and `// </lib:common>` markers. Tests import it directly.\n\nconst LEAD_HEADERS = [\n  'Lead ID', 'Company', 'Website', 'Country', 'Segment',\n  'Contact Name', 'Contact Title', 'Email', 'LinkedIn',\n  'Research Notes', 'Personalisation Hook', 'Language',\n  'Compliance Status', 'Compliance Notes',\n  'Subject', 'Draft Body', 'Draft Body EN',\n  'Approved', 'Nil Notes', 'Stage',\n  'Sent At', 'Gmail Thread ID', 'Follow-up Count', 'Next Follow-up Date',\n  'Reply Category', 'Reply Summary', 'HubSpot Contact ID', 'Opt-out',\n  'Last Updated', 'Source URL', 'Source Date', 'Confidence', 'Follow-up Draft',\n];\nconst HOT_HANDLED = 'Hot Handled';\nconst SETTINGS_HEADERS = [\n  'Sender Name', 'Sender Title', 'Company Legal Name', 'Company Address',\n  'Opt-out TR', 'Opt-out EN', 'Nil Email', 'Sheet URL',\n  'HubSpot Monthly Limit', 'HubSpot Pause Percent', 'Test Email',\n  'Nil WhatsApp', 'WhatsApp Phone Number ID', 'Nil Telegram Chat ID',\n  'Company Website', 'HubSpot Owner ID', 'Mail Provider', 'SMTP From',\n  'Seed Email', 'Seed Every',\n];\nconst SUPPRESSION_HEADERS = ['Email', 'Domain', 'Reason', 'Date'];\nconst SOCIAL_HEADERS = ['Week', 'Topic', 'Draft', 'Approved', 'Nil Notes', 'Posted'];\nconst LOG_HEADERS = ['Timestamp', 'Workflow', 'Lead ID', 'Company', 'Step', 'Input', 'Output', 'Reason'];\n\nconst DEDUPE_MS = 10 * 60 * 1000;\nconst DEDUPE_MAX = 300;\n\nfunction str(v) {\n  return v == null ? '' : String(v);\n}\n\nfunction isPlainObject(v) {\n  return v !== null && typeof v === 'object' && !Array.isArray(v);\n}\n\n// Items of a Sheets read -> plain row objects. Drops the synthetic `{}` item that alwaysOutputData\n// adds for an empty tab, and error items from onError: continueRegularOutput.\nfunction sheetRows(items) {\n  return (items || [])\n    .map(i => (i && i.json) || {})\n    .filter(j => !('error' in j) && Object.keys(j).some(k => k !== 'row_number'));\n}\n\n// One row with exactly `headers` as keys (string values, \"\" when absent) plus row_number.\nfunction normalizeRow(raw, headers) {\n  const out = {};\n  for (const h of headers) out[h] = str(raw && raw[h]);\n  const rn = Number(raw && raw.row_number);\n  if (Number.isFinite(rn) && rn > 0) out.row_number = rn;\n  return out;\n}\n\n// Header row as n8n saw it: the keys of the row object with the most keys (n8n may leave out\n// trailing empty cells on some rows), in sheet order, without row_number.\nfunction detectHeaders(rows) {\n  let best = [];\n  for (const r of rows || []) {\n    const keys = Object.keys(r || {}).filter(k => k !== 'row_number');\n    if (keys.length > best.length) best = keys;\n  }\n  return best;\n}\n\nfunction colLetter(i) {\n  let n = i + 1;\n  let s = '';\n  while (n > 0) {\n    const m = (n - 1) % 26;\n    s = String.fromCharCode(65 + m) + s;\n    n = Math.floor((n - 1) / 26);\n  }\n  return s;\n}\n\n// Leads headers A..AG must equal LEAD_HEADERS in order. AH 'Hot Handled' is optional.\nfunction checkLeadHeaders(headers) {\n  const problems = [];\n  const hs = headers || [];\n  if (!hs.length) {\n    problems.push('Leads tab has no data rows, so its headers could not be checked');\n  } else {\n    for (let i = 0; i < LEAD_HEADERS.length; i++) {\n      const found = hs[i];\n      if (found !== LEAD_HEADERS[i]) {\n        problems.push('Column ' + colLetter(i) + ': expected \"' + LEAD_HEADERS[i] + '\", found ' + (found == null ? 'nothing' : '\"' + found + '\"'));\n      }\n    }\n  }\n  return { ok: problems.length === 0, problems, hasHotHandled: hs.indexOf(HOT_HANDLED) !== -1 };\n}\n\nfunction cut(s, n) {\n  const t = str(s);\n  const max = n || 3000;\n  return t.length > max ? t.slice(0, max) : t;\n}\n\n// Log tab row, as CONTRACT.md fixes it.\nfunction logRow(args) {\n  return {\n    Timestamp: str(args.nowIso),\n    Workflow: 'Dashboard',\n    'Lead ID': str(args.leadId),\n    Company: str(args.company),\n    Step: str(args.step),\n    Input: cut(JSON.stringify(args.before || {}), 3000),\n    Output: cut(JSON.stringify(args.after || {}), 3000),\n    Reason: 'by ' + str(args.actor) + (args.adminApproval ? ' (admin)' : ''),\n  };\n}\n\n// The time in Istanbul as plain values, from n8n's Luxon `$now`.\nfunction nowInfo(now) {\n  const t = now.setZone('Europe/Istanbul');\n  return {\n    iso: t.toISO(),\n    date: t.toFormat('yyyy-MM-dd'),\n    ms: t.toMillis(),\n    weekday: t.weekday, // 1 = Monday … 7 = Sunday\n    minuteOfDay: t.hour * 60 + t.minute + t.second / 60,\n  };\n}\n\n// requestId dedupe in workflow static data (survives between production executions).\nfunction dedupeStore(staticData) {\n  if (!isPlainObject(staticData.dashRequests)) staticData.dashRequests = {};\n  return staticData.dashRequests;\n}\n\nfunction dedupePrune(staticData, nowMs) {\n  const store = dedupeStore(staticData);\n  for (const id of Object.keys(store)) {\n    if (!store[id] || nowMs - Number(store[id].at) > DEDUPE_MS) delete store[id];\n  }\n  const ids = Object.keys(store);\n  if (ids.length > DEDUPE_MAX) {\n    ids.sort((a, b) => store[a].at - store[b].at);\n    for (const id of ids.slice(0, ids.length - DEDUPE_MAX)) delete store[id];\n  }\n  return store;\n}\n\nfunction dedupeGet(staticData, requestId, nowMs) {\n  if (!requestId) return null;\n  const store = dedupePrune(staticData, nowMs);\n  const hit = store[requestId];\n  return hit ? { status: hit.status, body: hit.body } : null;\n}\n\nfunction dedupeSet(staticData, requestId, status, body, nowMs) {\n  if (!requestId) return;\n  const store = dedupePrune(staticData, nowMs);\n  store[requestId] = { at: nowMs, status, body };\n}\n\n// Item that ends a path: the Finish node stores it for dedupe and Respond sends it.\nfunction reply(status, body, requestId, store) {\n  return { respond: true, status, body, requestId: str(requestId), store: store !== false };\n}\n\nconst EMAIL_RE = /^[^\\s@\"'<>(),;:]+@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/i;\nconst DOMAIN_RE = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/i;\n\nfunction isEmail(s) {\n  const t = str(s).trim();\n  return t.length <= 254 && EMAIL_RE.test(t);\n}\n\nfunction isDomain(s) {\n  const t = str(s).trim();\n  return t.length <= 253 && DOMAIN_RE.test(t);\n}\n\n// Common checks on the actor fields the app adds to every write.\nfunction actorErrors(body) {\n  const errors = [];\n  if (!isEmail(body.actor)) errors.push('actor must be the signed-in user\\'s email');\n  if (body.actorRole !== 'approver' && body.actorRole !== 'admin') errors.push('actorRole must be \"approver\" or \"admin\"');\n  if (typeof body.requestId !== 'string' || body.requestId.length < 8 || body.requestId.length > 100) errors.push('requestId must be a string of 8 to 100 characters');\n  return errors;\n}\n// </lib:common>\n\nconst req = $('Validate Request').first().json.req;\nconst now = nowInfo($now);\nconst rid = req.requestId;\nconst rows = sheetRows($('Read Suppression').all()).map(r => normalizeRow(r, SUPPRESSION_HEADERS));\nconst asReply = (status, body) => Object.assign(reply(status, body, rid), { next: 'respond' });\n\nif (req.action === 'add') {\n  const dupe = rows.find(r =>\n    (req.email && r.Email.trim().toLowerCase() === req.email) ||\n    (req.domain && r.Domain.trim().toLowerCase().replace(/^@/, '') === req.domain));\n  if (dupe) {\n    return [{ json: asReply(422, { errors: ['Already on the Suppression list (row ' + dupe.row_number + ')'] }) }];\n  }\n  const row = { Email: req.email, Domain: req.domain, Reason: req.reason, Date: now.date };\n  return [{\n    json: {\n      respond: false,\n      next: 'append',\n      requestId: rid,\n      row,\n      log: logRow({ nowIso: now.iso, leadId: '', company: '', step: 'suppression_add', before: {}, after: row, actor: req.actor }),\n    },\n  }];\n}\n\nconst current = rows.find(r => r.row_number === req.rowNumber);\nif (!current) {\n  return [{ json: asReply(409, { conflict: true, row: null, message: 'Row ' + req.rowNumber + ' is no longer on the Suppression list. Nothing was removed.' }) }];\n}\nif (current.Email !== req.expect.Email || current.Domain !== req.expect.Domain) {\n  return [{ json: asReply(409, { conflict: true, row: current, message: 'Row ' + req.rowNumber + ' changed since you opened the list. Nothing was removed.' }) }];\n}\nconst before = { Email: current.Email, Domain: current.Domain, Reason: current.Reason, Date: current.Date, row: req.rowNumber };\nreturn [{\n  json: {\n    respond: false,\n    next: 'delete',\n    requestId: rid,\n    rowNumber: req.rowNumber,\n    log: logRow({ nowIso: now.iso, leadId: '', company: '', step: 'suppression_remove', before, after: { removed: true, reason: req.reason }, actor: req.actor }),\n  },\n}];\n"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "77957b1b-14f9-4551-ae08-f00a2346077b",
+      "name": "Suppression Step",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1568,
+        448
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "outputKey": "respond",
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "next-respond",
+                    "leftValue": "={{ $json.next }}",
+                    "rightValue": "respond",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "outputKey": "append",
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "next-append",
+                    "leftValue": "={{ $json.next }}",
+                    "rightValue": "append",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "outputKey": "delete",
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "next-delete",
+                    "leftValue": "={{ $json.next }}",
+                    "rightValue": "delete",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "Unexpected"
+        }
+      }
+    },
+    {
+      "id": "ccead451-f981-44e8-9f81-f77be65b29da",
+      "name": "Append Suppression Row",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1792,
+        384
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Config').first().json.documentId }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Suppression"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Email": "={{ $('Plan Suppression').first().json.row.Email }}",
+            "Domain": "={{ $('Plan Suppression').first().json.row.Domain }}",
+            "Reason": "={{ $('Plan Suppression').first().json.row.Reason }}",
+            "Date": "={{ $('Plan Suppression').first().json.row.Date }}"
+          },
+          "schema": [
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Domain",
+              "displayName": "Domain",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Reason",
+              "displayName": "Reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            }
+          ]
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "executeOnce": true,
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "sFrPcvpn5K1JgYYK",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "486fbf93-f6cb-49fd-9a69-d1f958da1d94",
+      "name": "Log Suppression Change",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2016,
+        320
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Config').first().json.documentId }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Timestamp": "={{ $('Plan Suppression').first().json.log.Timestamp }}",
+            "Workflow": "={{ $('Plan Suppression').first().json.log.Workflow }}",
+            "Lead ID": "={{ $('Plan Suppression').first().json.log['Lead ID'] }}",
+            "Company": "={{ $('Plan Suppression').first().json.log.Company }}",
+            "Step": "={{ $('Plan Suppression').first().json.log.Step }}",
+            "Input": "={{ $('Plan Suppression').first().json.log.Input }}",
+            "Output": "={{ $('Plan Suppression').first().json.log.Output }}",
+            "Reason": "={{ $('Plan Suppression').first().json.log.Reason }}"
+          },
+          "schema": [
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Workflow",
+              "displayName": "Workflow",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Lead ID",
+              "displayName": "Lead ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Company",
+              "displayName": "Company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Step",
+              "displayName": "Step",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Input",
+              "displayName": "Input",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Output",
+              "displayName": "Output",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Reason",
+              "displayName": "Reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            }
+          ]
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "executeOnce": true,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "sFrPcvpn5K1JgYYK",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "043ed500-2ec1-4b9f-a84a-859c4fa81af6",
+      "name": "Re-read Suppression",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2240,
+        320
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Config').first().json.documentId }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Suppression"
+        },
+        "options": {
+          "outputFormatting": {
+            "values": {
+              "general": "FORMATTED_VALUE",
+              "date": "FORMATTED_STRING"
+            }
+          }
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "sFrPcvpn5K1JgYYK",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "5bcba44e-1a91-495e-be32-fc4e12ad7da8",
+      "name": "Suppression Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2464,
+        240
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// DB - Lists / suppression: the 200 answer with the list as re-read after the change.\n\n// <lib:common>\n// Helpers shared by the Code nodes of the five `DB - …` workflows.\n// Pure functions, no n8n globals: sync-n8n.mjs pastes this file (minus the export line) between\n// `// <lib:common>` and `// </lib:common>` markers. Tests import it directly.\n\nconst LEAD_HEADERS = [\n  'Lead ID', 'Company', 'Website', 'Country', 'Segment',\n  'Contact Name', 'Contact Title', 'Email', 'LinkedIn',\n  'Research Notes', 'Personalisation Hook', 'Language',\n  'Compliance Status', 'Compliance Notes',\n  'Subject', 'Draft Body', 'Draft Body EN',\n  'Approved', 'Nil Notes', 'Stage',\n  'Sent At', 'Gmail Thread ID', 'Follow-up Count', 'Next Follow-up Date',\n  'Reply Category', 'Reply Summary', 'HubSpot Contact ID', 'Opt-out',\n  'Last Updated', 'Source URL', 'Source Date', 'Confidence', 'Follow-up Draft',\n];\nconst HOT_HANDLED = 'Hot Handled';\nconst SETTINGS_HEADERS = [\n  'Sender Name', 'Sender Title', 'Company Legal Name', 'Company Address',\n  'Opt-out TR', 'Opt-out EN', 'Nil Email', 'Sheet URL',\n  'HubSpot Monthly Limit', 'HubSpot Pause Percent', 'Test Email',\n  'Nil WhatsApp', 'WhatsApp Phone Number ID', 'Nil Telegram Chat ID',\n  'Company Website', 'HubSpot Owner ID', 'Mail Provider', 'SMTP From',\n  'Seed Email', 'Seed Every',\n];\nconst SUPPRESSION_HEADERS = ['Email', 'Domain', 'Reason', 'Date'];\nconst SOCIAL_HEADERS = ['Week', 'Topic', 'Draft', 'Approved', 'Nil Notes', 'Posted'];\nconst LOG_HEADERS = ['Timestamp', 'Workflow', 'Lead ID', 'Company', 'Step', 'Input', 'Output', 'Reason'];\n\nconst DEDUPE_MS = 10 * 60 * 1000;\nconst DEDUPE_MAX = 300;\n\nfunction str(v) {\n  return v == null ? '' : String(v);\n}\n\nfunction isPlainObject(v) {\n  return v !== null && typeof v === 'object' && !Array.isArray(v);\n}\n\n// Items of a Sheets read -> plain row objects. Drops the synthetic `{}` item that alwaysOutputData\n// adds for an empty tab, and error items from onError: continueRegularOutput.\nfunction sheetRows(items) {\n  return (items || [])\n    .map(i => (i && i.json) || {})\n    .filter(j => !('error' in j) && Object.keys(j).some(k => k !== 'row_number'));\n}\n\n// One row with exactly `headers` as keys (string values, \"\" when absent) plus row_number.\nfunction normalizeRow(raw, headers) {\n  const out = {};\n  for (const h of headers) out[h] = str(raw && raw[h]);\n  const rn = Number(raw && raw.row_number);\n  if (Number.isFinite(rn) && rn > 0) out.row_number = rn;\n  return out;\n}\n\n// Header row as n8n saw it: the keys of the row object with the most keys (n8n may leave out\n// trailing empty cells on some rows), in sheet order, without row_number.\nfunction detectHeaders(rows) {\n  let best = [];\n  for (const r of rows || []) {\n    const keys = Object.keys(r || {}).filter(k => k !== 'row_number');\n    if (keys.length > best.length) best = keys;\n  }\n  return best;\n}\n\nfunction colLetter(i) {\n  let n = i + 1;\n  let s = '';\n  while (n > 0) {\n    const m = (n - 1) % 26;\n    s = String.fromCharCode(65 + m) + s;\n    n = Math.floor((n - 1) / 26);\n  }\n  return s;\n}\n\n// Leads headers A..AG must equal LEAD_HEADERS in order. AH 'Hot Handled' is optional.\nfunction checkLeadHeaders(headers) {\n  const problems = [];\n  const hs = headers || [];\n  if (!hs.length) {\n    problems.push('Leads tab has no data rows, so its headers could not be checked');\n  } else {\n    for (let i = 0; i < LEAD_HEADERS.length; i++) {\n      const found = hs[i];\n      if (found !== LEAD_HEADERS[i]) {\n        problems.push('Column ' + colLetter(i) + ': expected \"' + LEAD_HEADERS[i] + '\", found ' + (found == null ? 'nothing' : '\"' + found + '\"'));\n      }\n    }\n  }\n  return { ok: problems.length === 0, problems, hasHotHandled: hs.indexOf(HOT_HANDLED) !== -1 };\n}\n\nfunction cut(s, n) {\n  const t = str(s);\n  const max = n || 3000;\n  return t.length > max ? t.slice(0, max) : t;\n}\n\n// Log tab row, as CONTRACT.md fixes it.\nfunction logRow(args) {\n  return {\n    Timestamp: str(args.nowIso),\n    Workflow: 'Dashboard',\n    'Lead ID': str(args.leadId),\n    Company: str(args.company),\n    Step: str(args.step),\n    Input: cut(JSON.stringify(args.before || {}), 3000),\n    Output: cut(JSON.stringify(args.after || {}), 3000),\n    Reason: 'by ' + str(args.actor) + (args.adminApproval ? ' (admin)' : ''),\n  };\n}\n\n// The time in Istanbul as plain values, from n8n's Luxon `$now`.\nfunction nowInfo(now) {\n  const t = now.setZone('Europe/Istanbul');\n  return {\n    iso: t.toISO(),\n    date: t.toFormat('yyyy-MM-dd'),\n    ms: t.toMillis(),\n    weekday: t.weekday, // 1 = Monday … 7 = Sunday\n    minuteOfDay: t.hour * 60 + t.minute + t.second / 60,\n  };\n}\n\n// requestId dedupe in workflow static data (survives between production executions).\nfunction dedupeStore(staticData) {\n  if (!isPlainObject(staticData.dashRequests)) staticData.dashRequests = {};\n  return staticData.dashRequests;\n}\n\nfunction dedupePrune(staticData, nowMs) {\n  const store = dedupeStore(staticData);\n  for (const id of Object.keys(store)) {\n    if (!store[id] || nowMs - Number(store[id].at) > DEDUPE_MS) delete store[id];\n  }\n  const ids = Object.keys(store);\n  if (ids.length > DEDUPE_MAX) {\n    ids.sort((a, b) => store[a].at - store[b].at);\n    for (const id of ids.slice(0, ids.length - DEDUPE_MAX)) delete store[id];\n  }\n  return store;\n}\n\nfunction dedupeGet(staticData, requestId, nowMs) {\n  if (!requestId) return null;\n  const store = dedupePrune(staticData, nowMs);\n  const hit = store[requestId];\n  return hit ? { status: hit.status, body: hit.body } : null;\n}\n\nfunction dedupeSet(staticData, requestId, status, body, nowMs) {\n  if (!requestId) return;\n  const store = dedupePrune(staticData, nowMs);\n  store[requestId] = { at: nowMs, status, body };\n}\n\n// Item that ends a path: the Finish node stores it for dedupe and Respond sends it.\nfunction reply(status, body, requestId, store) {\n  return { respond: true, status, body, requestId: str(requestId), store: store !== false };\n}\n\nconst EMAIL_RE = /^[^\\s@\"'<>(),;:]+@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/i;\nconst DOMAIN_RE = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/i;\n\nfunction isEmail(s) {\n  const t = str(s).trim();\n  return t.length <= 254 && EMAIL_RE.test(t);\n}\n\nfunction isDomain(s) {\n  const t = str(s).trim();\n  return t.length <= 253 && DOMAIN_RE.test(t);\n}\n\n// Common checks on the actor fields the app adds to every write.\nfunction actorErrors(body) {\n  const errors = [];\n  if (!isEmail(body.actor)) errors.push('actor must be the signed-in user\\'s email');\n  if (body.actorRole !== 'approver' && body.actorRole !== 'admin') errors.push('actorRole must be \"approver\" or \"admin\"');\n  if (typeof body.requestId !== 'string' || body.requestId.length < 8 || body.requestId.length > 100) errors.push('requestId must be a string of 8 to 100 characters');\n  return errors;\n}\n// </lib:common>\n\nconst plan = $('Plan Suppression').first().json;\nconst suppression = sheetRows($('Re-read Suppression').all())\n  .map(r => normalizeRow(r, SUPPRESSION_HEADERS))\n  .filter(r => r.Email.trim() !== '' || r.Domain.trim() !== '');\nconst body = { ok: true, suppression };\ntry {\n  const j = $('Log Suppression Change').first().json;\n  if (j && j.error) body.warnings = ['The Log row could not be written: ' + String(j.error.message || j.error)];\n} catch {\n  // Log node did not run\n}\nreturn [{ json: reply(200, body, plan.requestId) }];\n"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "cf287268-6f42-40b1-8b7e-926b5ef96c5f",
+      "name": "Delete Suppression Row",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1792,
+        672
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "delete",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Config').first().json.documentId }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Suppression"
+        },
+        "toDelete": "rows",
+        "startIndex": "={{ $('Plan Suppression').first().json.rowNumber }}",
+        "numberToDelete": 1
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "sFrPcvpn5K1JgYYK",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "7032be55-8d13-41da-ba33-d8d65b75ca5f",
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2912,
+        1120
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ error: \"n8n: \" + String($json.error?.message ?? $json.error ?? $json.message ?? \"unexpected error\") }) }}",
+        "options": {
+          "responseCode": 500
+        }
+      }
+    },
+    {
+      "id": "d9c9a6da-c566-4649-b7d3-6e42cce84305",
+      "name": "Read Social",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1120,
+        1648
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Config').first().json.documentId }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Social"
+        },
+        "options": {
+          "outputFormatting": {
+            "values": {
+              "general": "FORMATTED_VALUE",
+              "date": "FORMATTED_STRING"
+            }
+          }
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "sFrPcvpn5K1JgYYK",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "9d978810-30a7-4594-817b-65e3d6727f3e",
+      "name": "Plan Social",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        1568
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// DB - Lists / social: expect check (Week, Topic, hash of Draft) and the planned update.\n// Output: a reply item, or { respond: false, write: true, update: { row_number, ...fields }, row, log, requestId }\n\n// <lib:common>\n// Helpers shared by the Code nodes of the five `DB - …` workflows.\n// Pure functions, no n8n globals: sync-n8n.mjs pastes this file (minus the export line) between\n// `// <lib:common>` and `// </lib:common>` markers. Tests import it directly.\n\nconst LEAD_HEADERS = [\n  'Lead ID', 'Company', 'Website', 'Country', 'Segment',\n  'Contact Name', 'Contact Title', 'Email', 'LinkedIn',\n  'Research Notes', 'Personalisation Hook', 'Language',\n  'Compliance Status', 'Compliance Notes',\n  'Subject', 'Draft Body', 'Draft Body EN',\n  'Approved', 'Nil Notes', 'Stage',\n  'Sent At', 'Gmail Thread ID', 'Follow-up Count', 'Next Follow-up Date',\n  'Reply Category', 'Reply Summary', 'HubSpot Contact ID', 'Opt-out',\n  'Last Updated', 'Source URL', 'Source Date', 'Confidence', 'Follow-up Draft',\n];\nconst HOT_HANDLED = 'Hot Handled';\nconst SETTINGS_HEADERS = [\n  'Sender Name', 'Sender Title', 'Company Legal Name', 'Company Address',\n  'Opt-out TR', 'Opt-out EN', 'Nil Email', 'Sheet URL',\n  'HubSpot Monthly Limit', 'HubSpot Pause Percent', 'Test Email',\n  'Nil WhatsApp', 'WhatsApp Phone Number ID', 'Nil Telegram Chat ID',\n  'Company Website', 'HubSpot Owner ID', 'Mail Provider', 'SMTP From',\n  'Seed Email', 'Seed Every',\n];\nconst SUPPRESSION_HEADERS = ['Email', 'Domain', 'Reason', 'Date'];\nconst SOCIAL_HEADERS = ['Week', 'Topic', 'Draft', 'Approved', 'Nil Notes', 'Posted'];\nconst LOG_HEADERS = ['Timestamp', 'Workflow', 'Lead ID', 'Company', 'Step', 'Input', 'Output', 'Reason'];\n\nconst DEDUPE_MS = 10 * 60 * 1000;\nconst DEDUPE_MAX = 300;\n\nfunction str(v) {\n  return v == null ? '' : String(v);\n}\n\nfunction isPlainObject(v) {\n  return v !== null && typeof v === 'object' && !Array.isArray(v);\n}\n\n// Items of a Sheets read -> plain row objects. Drops the synthetic `{}` item that alwaysOutputData\n// adds for an empty tab, and error items from onError: continueRegularOutput.\nfunction sheetRows(items) {\n  return (items || [])\n    .map(i => (i && i.json) || {})\n    .filter(j => !('error' in j) && Object.keys(j).some(k => k !== 'row_number'));\n}\n\n// One row with exactly `headers` as keys (string values, \"\" when absent) plus row_number.\nfunction normalizeRow(raw, headers) {\n  const out = {};\n  for (const h of headers) out[h] = str(raw && raw[h]);\n  const rn = Number(raw && raw.row_number);\n  if (Number.isFinite(rn) && rn > 0) out.row_number = rn;\n  return out;\n}\n\n// Header row as n8n saw it: the keys of the row object with the most keys (n8n may leave out\n// trailing empty cells on some rows), in sheet order, without row_number.\nfunction detectHeaders(rows) {\n  let best = [];\n  for (const r of rows || []) {\n    const keys = Object.keys(r || {}).filter(k => k !== 'row_number');\n    if (keys.length > best.length) best = keys;\n  }\n  return best;\n}\n\nfunction colLetter(i) {\n  let n = i + 1;\n  let s = '';\n  while (n > 0) {\n    const m = (n - 1) % 26;\n    s = String.fromCharCode(65 + m) + s;\n    n = Math.floor((n - 1) / 26);\n  }\n  return s;\n}\n\n// Leads headers A..AG must equal LEAD_HEADERS in order. AH 'Hot Handled' is optional.\nfunction checkLeadHeaders(headers) {\n  const problems = [];\n  const hs = headers || [];\n  if (!hs.length) {\n    problems.push('Leads tab has no data rows, so its headers could not be checked');\n  } else {\n    for (let i = 0; i < LEAD_HEADERS.length; i++) {\n      const found = hs[i];\n      if (found !== LEAD_HEADERS[i]) {\n        problems.push('Column ' + colLetter(i) + ': expected \"' + LEAD_HEADERS[i] + '\", found ' + (found == null ? 'nothing' : '\"' + found + '\"'));\n      }\n    }\n  }\n  return { ok: problems.length === 0, problems, hasHotHandled: hs.indexOf(HOT_HANDLED) !== -1 };\n}\n\nfunction cut(s, n) {\n  const t = str(s);\n  const max = n || 3000;\n  return t.length > max ? t.slice(0, max) : t;\n}\n\n// Log tab row, as CONTRACT.md fixes it.\nfunction logRow(args) {\n  return {\n    Timestamp: str(args.nowIso),\n    Workflow: 'Dashboard',\n    'Lead ID': str(args.leadId),\n    Company: str(args.company),\n    Step: str(args.step),\n    Input: cut(JSON.stringify(args.before || {}), 3000),\n    Output: cut(JSON.stringify(args.after || {}), 3000),\n    Reason: 'by ' + str(args.actor) + (args.adminApproval ? ' (admin)' : ''),\n  };\n}\n\n// The time in Istanbul as plain values, from n8n's Luxon `$now`.\nfunction nowInfo(now) {\n  const t = now.setZone('Europe/Istanbul');\n  return {\n    iso: t.toISO(),\n    date: t.toFormat('yyyy-MM-dd'),\n    ms: t.toMillis(),\n    weekday: t.weekday, // 1 = Monday … 7 = Sunday\n    minuteOfDay: t.hour * 60 + t.minute + t.second / 60,\n  };\n}\n\n// requestId dedupe in workflow static data (survives between production executions).\nfunction dedupeStore(staticData) {\n  if (!isPlainObject(staticData.dashRequests)) staticData.dashRequests = {};\n  return staticData.dashRequests;\n}\n\nfunction dedupePrune(staticData, nowMs) {\n  const store = dedupeStore(staticData);\n  for (const id of Object.keys(store)) {\n    if (!store[id] || nowMs - Number(store[id].at) > DEDUPE_MS) delete store[id];\n  }\n  const ids = Object.keys(store);\n  if (ids.length > DEDUPE_MAX) {\n    ids.sort((a, b) => store[a].at - store[b].at);\n    for (const id of ids.slice(0, ids.length - DEDUPE_MAX)) delete store[id];\n  }\n  return store;\n}\n\nfunction dedupeGet(staticData, requestId, nowMs) {\n  if (!requestId) return null;\n  const store = dedupePrune(staticData, nowMs);\n  const hit = store[requestId];\n  return hit ? { status: hit.status, body: hit.body } : null;\n}\n\nfunction dedupeSet(staticData, requestId, status, body, nowMs) {\n  if (!requestId) return;\n  const store = dedupePrune(staticData, nowMs);\n  store[requestId] = { at: nowMs, status, body };\n}\n\n// Item that ends a path: the Finish node stores it for dedupe and Respond sends it.\nfunction reply(status, body, requestId, store) {\n  return { respond: true, status, body, requestId: str(requestId), store: store !== false };\n}\n\nconst EMAIL_RE = /^[^\\s@\"'<>(),;:]+@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/i;\nconst DOMAIN_RE = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/i;\n\nfunction isEmail(s) {\n  const t = str(s).trim();\n  return t.length <= 254 && EMAIL_RE.test(t);\n}\n\nfunction isDomain(s) {\n  const t = str(s).trim();\n  return t.length <= 253 && DOMAIN_RE.test(t);\n}\n\n// Common checks on the actor fields the app adds to every write.\nfunction actorErrors(body) {\n  const errors = [];\n  if (!isEmail(body.actor)) errors.push('actor must be the signed-in user\\'s email');\n  if (body.actorRole !== 'approver' && body.actorRole !== 'admin') errors.push('actorRole must be \"approver\" or \"admin\"');\n  if (typeof body.requestId !== 'string' || body.requestId.length < 8 || body.requestId.length > 100) errors.push('requestId must be a string of 8 to 100 characters');\n  return errors;\n}\n// </lib:common>\n// <shared:hash>\n// Draft hashes for the `expect` check (CONTRACT.md): cyrb53, 53 bits as 14 lowercase hex chars.\n// Same result in the browser, in Node and in an n8n Code node. Self-contained: no imports.\n// undefined / null count as \"\".\n\nfunction hashText(s) {\n  const str = s == null ? '' : String(s);\n  let h1 = 0xdeadbeef;\n  let h2 = 0x41c6ce57;\n  for (let i = 0; i < str.length; i++) {\n    const ch = str.charCodeAt(i);\n    h1 = Math.imul(h1 ^ ch, 2654435761);\n    h2 = Math.imul(h2 ^ ch, 1597334677);\n  }\n  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507);\n  h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);\n  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507);\n  h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);\n  const n = 4294967296 * (2097151 & h2) + (h1 >>> 0);\n  return n.toString(16).padStart(14, '0');\n}\n\n// First email: Subject + NUL + Draft Body.\nfunction hashFirst(subject, body) {\n  return hashText((subject == null ? '' : String(subject)) + '\\u0000' + (body == null ? '' : String(body)));\n}\n\n// Follow-up: the Follow-up Draft text.\nfunction hashFollowup(text) {\n  return hashText(text);\n}\n// </shared:hash>\n\nconst req = $('Validate Request').first().json.req;\nconst now = nowInfo($now);\nconst rid = req.requestId;\nconst rows = sheetRows($('Read Social').all()).map(r => normalizeRow(r, SOCIAL_HEADERS));\nconst current = rows.find(r => r.row_number === req.rowNumber);\nif (!current) {\n  return [{ json: reply(409, { conflict: true, row: null, message: 'Row ' + req.rowNumber + ' is not in the Social tab any more. Nothing was saved.' }, rid) }];\n}\nconst diffs = [];\nif (current.Week !== req.expect.Week) diffs.push('Week');\nif (current.Topic !== req.expect.Topic) diffs.push('Topic');\nif (hashText(current.Draft) !== req.expect.draftHash) diffs.push('Draft');\nif (diffs.length) {\n  return [{ json: reply(409, { conflict: true, row: current, message: 'This post changed since you opened it (' + diffs.join(', ') + '). Nothing was saved.' }, rid) }];\n}\nconst before = {};\nfor (const k of Object.keys(req.data)) before[k] = current[k];\nreturn [{\n  json: {\n    respond: false,\n    write: true,\n    requestId: rid,\n    update: Object.assign({ row_number: req.rowNumber }, req.data),\n    row: Object.assign({}, current, req.data),\n    log: logRow({ nowIso: now.iso, leadId: '', company: current.Week + ' / ' + current.Topic, step: 'social_update', before, after: req.data, actor: req.actor }),\n  },\n}];\n"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "ac25379f-bbb3-4edb-95ce-1f3a7a6d2cb0",
+      "name": "Social Write Needed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1568,
+        1504
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "write-needed",
+              "leftValue": "={{ $json.write === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "ee1793af-22dd-4d7d-9a6f-e653642338f5",
+      "name": "Social Update Item",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1792,
+        1392
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// DB - Lists / social: the item for 'Update Social Row' (auto-map, matched on row_number).\nreturn [{ json: $('Plan Social').first().json.update }];\n"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "ee695bed-2759-4ef7-a447-8f567a483da9",
+      "name": "Update Social Row",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2016,
+        1296
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Config').first().json.documentId }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Social"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ]
+        },
+        "options": {
+          "cellFormat": "RAW",
+          "handlingExtraData": "error"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "sFrPcvpn5K1JgYYK",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "e4a78d24-c5fe-4f5b-b517-ed8d07f5ded2",
+      "name": "Log Social Change",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2240,
+        1232
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Config').first().json.documentId }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Timestamp": "={{ $('Plan Social').first().json.log.Timestamp }}",
+            "Workflow": "={{ $('Plan Social').first().json.log.Workflow }}",
+            "Lead ID": "={{ $('Plan Social').first().json.log['Lead ID'] }}",
+            "Company": "={{ $('Plan Social').first().json.log.Company }}",
+            "Step": "={{ $('Plan Social').first().json.log.Step }}",
+            "Input": "={{ $('Plan Social').first().json.log.Input }}",
+            "Output": "={{ $('Plan Social').first().json.log.Output }}",
+            "Reason": "={{ $('Plan Social').first().json.log.Reason }}"
+          },
+          "schema": [
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Workflow",
+              "displayName": "Workflow",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Lead ID",
+              "displayName": "Lead ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Company",
+              "displayName": "Company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Step",
+              "displayName": "Step",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Input",
+              "displayName": "Input",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Output",
+              "displayName": "Output",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Reason",
+              "displayName": "Reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            }
+          ]
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "executeOnce": true,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "sFrPcvpn5K1JgYYK",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "27174600-9377-4f68-9c5b-513ba35850ac",
+      "name": "Social Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2464,
+        1232
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// DB - Lists / social: the 200 answer after the write.\n\n// <lib:common>\n// Helpers shared by the Code nodes of the five `DB - …` workflows.\n// Pure functions, no n8n globals: sync-n8n.mjs pastes this file (minus the export line) between\n// `// <lib:common>` and `// </lib:common>` markers. Tests import it directly.\n\nconst LEAD_HEADERS = [\n  'Lead ID', 'Company', 'Website', 'Country', 'Segment',\n  'Contact Name', 'Contact Title', 'Email', 'LinkedIn',\n  'Research Notes', 'Personalisation Hook', 'Language',\n  'Compliance Status', 'Compliance Notes',\n  'Subject', 'Draft Body', 'Draft Body EN',\n  'Approved', 'Nil Notes', 'Stage',\n  'Sent At', 'Gmail Thread ID', 'Follow-up Count', 'Next Follow-up Date',\n  'Reply Category', 'Reply Summary', 'HubSpot Contact ID', 'Opt-out',\n  'Last Updated', 'Source URL', 'Source Date', 'Confidence', 'Follow-up Draft',\n];\nconst HOT_HANDLED = 'Hot Handled';\nconst SETTINGS_HEADERS = [\n  'Sender Name', 'Sender Title', 'Company Legal Name', 'Company Address',\n  'Opt-out TR', 'Opt-out EN', 'Nil Email', 'Sheet URL',\n  'HubSpot Monthly Limit', 'HubSpot Pause Percent', 'Test Email',\n  'Nil WhatsApp', 'WhatsApp Phone Number ID', 'Nil Telegram Chat ID',\n  'Company Website', 'HubSpot Owner ID', 'Mail Provider', 'SMTP From',\n  'Seed Email', 'Seed Every',\n];\nconst SUPPRESSION_HEADERS = ['Email', 'Domain', 'Reason', 'Date'];\nconst SOCIAL_HEADERS = ['Week', 'Topic', 'Draft', 'Approved', 'Nil Notes', 'Posted'];\nconst LOG_HEADERS = ['Timestamp', 'Workflow', 'Lead ID', 'Company', 'Step', 'Input', 'Output', 'Reason'];\n\nconst DEDUPE_MS = 10 * 60 * 1000;\nconst DEDUPE_MAX = 300;\n\nfunction str(v) {\n  return v == null ? '' : String(v);\n}\n\nfunction isPlainObject(v) {\n  return v !== null && typeof v === 'object' && !Array.isArray(v);\n}\n\n// Items of a Sheets read -> plain row objects. Drops the synthetic `{}` item that alwaysOutputData\n// adds for an empty tab, and error items from onError: continueRegularOutput.\nfunction sheetRows(items) {\n  return (items || [])\n    .map(i => (i && i.json) || {})\n    .filter(j => !('error' in j) && Object.keys(j).some(k => k !== 'row_number'));\n}\n\n// One row with exactly `headers` as keys (string values, \"\" when absent) plus row_number.\nfunction normalizeRow(raw, headers) {\n  const out = {};\n  for (const h of headers) out[h] = str(raw && raw[h]);\n  const rn = Number(raw && raw.row_number);\n  if (Number.isFinite(rn) && rn > 0) out.row_number = rn;\n  return out;\n}\n\n// Header row as n8n saw it: the keys of the row object with the most keys (n8n may leave out\n// trailing empty cells on some rows), in sheet order, without row_number.\nfunction detectHeaders(rows) {\n  let best = [];\n  for (const r of rows || []) {\n    const keys = Object.keys(r || {}).filter(k => k !== 'row_number');\n    if (keys.length > best.length) best = keys;\n  }\n  return best;\n}\n\nfunction colLetter(i) {\n  let n = i + 1;\n  let s = '';\n  while (n > 0) {\n    const m = (n - 1) % 26;\n    s = String.fromCharCode(65 + m) + s;\n    n = Math.floor((n - 1) / 26);\n  }\n  return s;\n}\n\n// Leads headers A..AG must equal LEAD_HEADERS in order. AH 'Hot Handled' is optional.\nfunction checkLeadHeaders(headers) {\n  const problems = [];\n  const hs = headers || [];\n  if (!hs.length) {\n    problems.push('Leads tab has no data rows, so its headers could not be checked');\n  } else {\n    for (let i = 0; i < LEAD_HEADERS.length; i++) {\n      const found = hs[i];\n      if (found !== LEAD_HEADERS[i]) {\n        problems.push('Column ' + colLetter(i) + ': expected \"' + LEAD_HEADERS[i] + '\", found ' + (found == null ? 'nothing' : '\"' + found + '\"'));\n      }\n    }\n  }\n  return { ok: problems.length === 0, problems, hasHotHandled: hs.indexOf(HOT_HANDLED) !== -1 };\n}\n\nfunction cut(s, n) {\n  const t = str(s);\n  const max = n || 3000;\n  return t.length > max ? t.slice(0, max) : t;\n}\n\n// Log tab row, as CONTRACT.md fixes it.\nfunction logRow(args) {\n  return {\n    Timestamp: str(args.nowIso),\n    Workflow: 'Dashboard',\n    'Lead ID': str(args.leadId),\n    Company: str(args.company),\n    Step: str(args.step),\n    Input: cut(JSON.stringify(args.before || {}), 3000),\n    Output: cut(JSON.stringify(args.after || {}), 3000),\n    Reason: 'by ' + str(args.actor) + (args.adminApproval ? ' (admin)' : ''),\n  };\n}\n\n// The time in Istanbul as plain values, from n8n's Luxon `$now`.\nfunction nowInfo(now) {\n  const t = now.setZone('Europe/Istanbul');\n  return {\n    iso: t.toISO(),\n    date: t.toFormat('yyyy-MM-dd'),\n    ms: t.toMillis(),\n    weekday: t.weekday, // 1 = Monday … 7 = Sunday\n    minuteOfDay: t.hour * 60 + t.minute + t.second / 60,\n  };\n}\n\n// requestId dedupe in workflow static data (survives between production executions).\nfunction dedupeStore(staticData) {\n  if (!isPlainObject(staticData.dashRequests)) staticData.dashRequests = {};\n  return staticData.dashRequests;\n}\n\nfunction dedupePrune(staticData, nowMs) {\n  const store = dedupeStore(staticData);\n  for (const id of Object.keys(store)) {\n    if (!store[id] || nowMs - Number(store[id].at) > DEDUPE_MS) delete store[id];\n  }\n  const ids = Object.keys(store);\n  if (ids.length > DEDUPE_MAX) {\n    ids.sort((a, b) => store[a].at - store[b].at);\n    for (const id of ids.slice(0, ids.length - DEDUPE_MAX)) delete store[id];\n  }\n  return store;\n}\n\nfunction dedupeGet(staticData, requestId, nowMs) {\n  if (!requestId) return null;\n  const store = dedupePrune(staticData, nowMs);\n  const hit = store[requestId];\n  return hit ? { status: hit.status, body: hit.body } : null;\n}\n\nfunction dedupeSet(staticData, requestId, status, body, nowMs) {\n  if (!requestId) return;\n  const store = dedupePrune(staticData, nowMs);\n  store[requestId] = { at: nowMs, status, body };\n}\n\n// Item that ends a path: the Finish node stores it for dedupe and Respond sends it.\nfunction reply(status, body, requestId, store) {\n  return { respond: true, status, body, requestId: str(requestId), store: store !== false };\n}\n\nconst EMAIL_RE = /^[^\\s@\"'<>(),;:]+@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/i;\nconst DOMAIN_RE = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/i;\n\nfunction isEmail(s) {\n  const t = str(s).trim();\n  return t.length <= 254 && EMAIL_RE.test(t);\n}\n\nfunction isDomain(s) {\n  const t = str(s).trim();\n  return t.length <= 253 && DOMAIN_RE.test(t);\n}\n\n// Common checks on the actor fields the app adds to every write.\nfunction actorErrors(body) {\n  const errors = [];\n  if (!isEmail(body.actor)) errors.push('actor must be the signed-in user\\'s email');\n  if (body.actorRole !== 'approver' && body.actorRole !== 'admin') errors.push('actorRole must be \"approver\" or \"admin\"');\n  if (typeof body.requestId !== 'string' || body.requestId.length < 8 || body.requestId.length > 100) errors.push('requestId must be a string of 8 to 100 characters');\n  return errors;\n}\n// </lib:common>\n\nconst plan = $('Plan Social').first().json;\nconst body = { ok: true, row: plan.row };\ntry {\n  const j = $('Log Social Change').first().json;\n  if (j && j.error) body.warnings = ['The Log row could not be written: ' + String(j.error.message || j.error)];\n} catch {\n  // Log node did not run\n}\nreturn [{ json: reply(200, body, plan.requestId) }];\n"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "1ea09954-c9fc-4590-9328-d77c8b0b1262",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2912,
+        0
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.body) }}",
+        "options": {
+          "responseCode": "={{ $json.status }}"
+        }
+      }
+    },
+    {
+      "id": "8339414e-9a23-4139-9dd8-51132e343a9b",
+      "name": "Sticky Note cbbf7068",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -32,
+        944
+      ],
+      "parameters": {
+        "content": "## DB - Lists\nPOST /webhook/dash/suppression (add; admin-only remove by row number with expect check, then re-read) and /webhook/dash/social (update Approved / Nil Notes / Posted by row number with expect check). All writes RAW plus one Log row. Source: dashboard/n8n in the repo.",
+        "color": 4,
+        "width": 384,
+        "height": 416
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Suppression": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Validate Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Social": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Request": {
+      "main": [
+        [
+          {
+            "node": "Respond Now?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond Now?": {
+      "main": [
+        [
+          {
+            "node": "Finish",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Route List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Finish": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route List": {
+      "main": [
+        [
+          {
+            "node": "Read Suppression",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read Social",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Suppression": {
+      "main": [
+        [
+          {
+            "node": "Plan Suppression",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plan Suppression": {
+      "main": [
+        [
+          {
+            "node": "Suppression Step",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Suppression Step": {
+      "main": [
+        [
+          {
+            "node": "Finish",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Append Suppression Row",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Delete Suppression Row",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append Suppression Row": {
+      "main": [
+        [
+          {
+            "node": "Log Suppression Change",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Suppression Change": {
+      "main": [
+        [
+          {
+            "node": "Re-read Suppression",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read Suppression": {
+      "main": [
+        [
+          {
+            "node": "Suppression Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Suppression Result": {
+      "main": [
+        [
+          {
+            "node": "Finish",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Suppression Row": {
+      "main": [
+        [
+          {
+            "node": "Log Suppression Change",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Social": {
+      "main": [
+        [
+          {
+            "node": "Plan Social",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plan Social": {
+      "main": [
+        [
+          {
+            "node": "Social Write Needed?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Social Write Needed?": {
+      "main": [
+        [
+          {
+            "node": "Social Update Item",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Finish",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Social Update Item": {
+      "main": [
+        [
+          {
+            "node": "Update Social Row",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Social Row": {
+      "main": [
+        [
+          {
+            "node": "Log Social Change",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Social Change": {
+      "main": [
+        [
+          {
+            "node": "Social Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Social Result": {
+      "main": [
+        [
+          {
+            "node": "Finish",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "timezone": "Europe/Istanbul",
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp"
+  }
+}

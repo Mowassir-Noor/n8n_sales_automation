@@ -1,0 +1,52 @@
+# Texprove approval dashboard: Docker Compose addition for the n8n server.
+#
+# Put this file next to the server's existing docker-compose.yml (the one with postgres, n8n
+# and caddy) and either
+#   - save it as docker-compose.override.yml (or compose.override.yaml), which docker compose
+#     loads automatically, or
+#   - pass both files every time:
+#       docker compose -f docker-compose.yml -f docker-compose.dashboard.yml up -d dashboard
+# Because it joins the same compose project, the dashboard sits on the same default network
+# as n8n and caddy, so it reaches n8n at http://n8n:5678 and caddy reaches it at dashboard:3000.
+#
+# Two ways to get the image (see deploy/build-on-server.md):
+#   A) build on the server from a git checkout of the repo (default below), or
+#   B) pull a version built by GitHub Actions: set DASHBOARD_IMAGE in the compose folder's .env,
+#      e.g. DASHBOARD_IMAGE=ghcr.io/mowassir-noor/texprove-dashboard:1.0.0,
+#      and delete the "build:" block below.
+
+services:
+  dashboard:
+    image: ${DASHBOARD_IMAGE:-texprove-dashboard:local}
+    build:
+      # Path to the dashboard/ folder of a checkout of this repository, relative to this file.
+      context: ${DASHBOARD_BUILD_CONTEXT:-../n8n_sales_automation/dashboard}
+    restart: unless-stopped
+    env_file: ./dashboard.env
+    environment:
+      N8N_INTERNAL_URL: http://n8n:5678
+      NODE_ENV: production
+    depends_on:
+      - n8n
+    # Not published on a host port: only caddy talks to it.
+    expose:
+      - "3000"
+    mem_limit: 300m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Optional staging copy (second sheet + dash-staging workflows). Uncomment, create
+  # dashboard-staging.env with SHEET_ENV=staging and its own AUTH_URL, and add a Caddy site block.
+  # dashboard-staging:
+  #   image: ${DASHBOARD_IMAGE:-texprove-dashboard:local}
+  #   restart: unless-stopped
+  #   env_file: ./dashboard-staging.env
+  #   environment:
+  #     N8N_INTERNAL_URL: http://n8n:5678
+  #     SHEET_ENV: staging
+  #   depends_on:
+  #     - n8n
+  #   mem_limit: 300m

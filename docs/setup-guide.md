@@ -35,7 +35,7 @@ The sheet `Texprove Leads` is the only shared state; it needs five tabs with exa
 | E | Opt-out TR | Turkish opt-out sentence |
 | F | Opt-out EN | English opt-out sentence |
 | G | Nil Email | Manager's email for approvals, alerts, reports |
-| H | Sheet URL | Link to this sheet |
+| H | Sheet URL | Link to this sheet (used in notifications only when Dashboard URL is empty) |
 | I | HubSpot Monthly Limit | 3000 |
 | J | HubSpot Pause Percent | 80 |
 | K | Test Email | **Test mode switch.** Your own address while testing; empty = real sending |
@@ -48,6 +48,8 @@ The sheet `Texprove Leads` is the only shared state; it needs five tabs with exa
 | R | SMTP From | `Texprove <marketing@texprove.com>` |
 | S | Seed Email | Inbox you check; WF3 sends it a copy of every 12th first email to show Inbox vs Spam. Empty = off |
 | T | Seed Every | 12 |
+| U | Target Countries | Turkey |
+| V | Dashboard URL | `https://dash.mowassirnoor.tech` (notifications link here; empty = link to Sheet URL) |
 
 Keep `Test Email` filled until the go-live checklist is done. While it holds an address, every first email, follow-up and HubSpot contact uses that address instead of the lead's.
 

@@ -57,6 +57,21 @@ const GROUPS: Group[] = [
     ],
   },
   {
+    title: "Volume (warm-up)",
+    fields: [
+      {
+        key: "Weekly New Leads",
+        help: "How many new companies the Monday search (WF0) tries to add. It searches the target countries first (Turkey: up to 18 searches over more segments and cities) and, if it falls short, the other supported countries for the rest. About $0.50 per search; 50 a week is about $6 a run.",
+        affects: "WF0 aims for the new number from its next run (Monday 07:00).",
+      },
+      {
+        key: "Daily Send Limit",
+        help: "Hard cap on first emails per day (Istanbul time) across WF3's 10:00 and 14:00 runs. Keep it low (10 to 20) while the domain warms up. 0 pauses first emails.",
+        affects: "WF3 uses the new cap from its next run.",
+      },
+    ],
+  },
+  {
     title: "Sender and signature",
     fields: [
       { key: "Sender Name", help: "Full name the emails come from. The preview finds the signature by this exact line.", affects: SIG_AFFECTS },
@@ -74,6 +89,7 @@ const GROUPS: Group[] = [
       { key: "Nil Email", help: "Manager's address for approval requests, Hot alerts, summaries and reports.", affects: "Notifications from the next workflow run go to the new address." },
       { key: "Nil Telegram Chat ID", help: "Manager's numeric Telegram chat ID (they must press Start on the bot once).", affects: "Telegram alerts from the next run go to this chat." },
       { key: "Sheet URL", help: "Link to this sheet, included in notifications." },
+      { key: "Dashboard URL", help: "Address of this dashboard. Telegram and email notifications link to its pages; when empty they link to the sheet." },
     ],
   },
   {
@@ -105,10 +121,10 @@ const GROUPS: Group[] = [
     fields: [
       {
         key: "Seed Email",
-        help: "Inbox-placement check. Every 'Seed Every' first emails, a copy of the last one goes here so you can see whether it lands in Inbox or Spam. Empty = off.",
-        affects: "WF3 sends seed copies to the new address from its next run.",
+        help: "Inbox-placement check. Every day at 18:00, a copy of the last first email sent that day goes here so you can see whether it lands in Inbox or Spam. Empty = off.",
+        affects: "WF3 sends the daily copy to the new address from tonight.",
       },
-      { key: "Seed Every", help: "How many first emails between copies, default 12.", affects: "WF3 uses the new interval from its next run." },
+      { key: "Seed Every", help: "Not read any more: the copy is now sent once a day at 18:00.", notUsed: true },
     ],
   },
   {
@@ -121,7 +137,7 @@ const GROUPS: Group[] = [
 ];
 
 const ALL_FIELDS = GROUPS.flatMap((g) => g.fields);
-const ADMIN_TYPED: SettingsHeader[] = ["Test Email", "HubSpot Monthly Limit", "HubSpot Pause Percent", "Seed Email", "Seed Every"];
+const ADMIN_TYPED: SettingsHeader[] = ["Test Email", "HubSpot Monthly Limit", "HubSpot Pause Percent", "Seed Email", "Seed Every", "Weekly New Leads", "Daily Send Limit"];
 const ADMIN_ONLY_FIELDS: SettingsHeader[] = [...ADMIN_TYPED, "Target Countries"];
 
 function toggleCountry(value: string, country: string, on: boolean): string {

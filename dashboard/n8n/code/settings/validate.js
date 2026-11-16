@@ -7,8 +7,8 @@
 // <lib:common>
 // </lib:common>
 
-const NEVER = ['Mail Provider', 'SMTP From', 'Sheet URL', 'Nil WhatsApp', 'WhatsApp Phone Number ID', 'HubSpot Owner ID'];
-const ADMIN_ONLY = ['Test Email', 'HubSpot Monthly Limit', 'HubSpot Pause Percent', 'Seed Email', 'Seed Every', 'Target Countries'];
+const NEVER = ['Mail Provider', 'SMTP From', 'Sheet URL', 'Nil WhatsApp', 'WhatsApp Phone Number ID', 'HubSpot Owner ID', 'Dashboard URL'];
+const ADMIN_ONLY = ['Test Email', 'HubSpot Monthly Limit', 'HubSpot Pause Percent', 'Seed Email', 'Seed Every', 'Target Countries', 'Weekly New Leads', 'Daily Send Limit'];
 
 const cfg = $('Config').first().json;
 const body = cfg.body;
@@ -59,6 +59,12 @@ for (const field of Object.keys(data)) {
       break;
     case 'HubSpot Pause Percent':
       if (v !== '' && !(/^\d{1,3}$/.test(v) && Number(v) >= 1 && Number(v) <= 100)) errors.push('HubSpot Pause Percent must be a whole number from 1 to 100, or empty');
+      break;
+    case 'Weekly New Leads':
+      if (v !== '' && !(/^\d{1,3}$/.test(v) && Number(v) >= 1 && Number(v) <= 200)) errors.push('Weekly New Leads must be a whole number from 1 to 200, or empty');
+      break;
+    case 'Daily Send Limit':
+      if (v !== '' && !(/^\d{1,3}$/.test(v) && Number(v) <= 200)) errors.push('Daily Send Limit must be a whole number from 0 to 200, or empty');
       break;
     case 'Target Countries': {
       const pc = parseCountries(v);

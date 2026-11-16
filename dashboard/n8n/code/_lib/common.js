@@ -20,7 +20,8 @@ const SETTINGS_HEADERS = [
   'HubSpot Monthly Limit', 'HubSpot Pause Percent', 'Test Email',
   'Nil WhatsApp', 'WhatsApp Phone Number ID', 'Nil Telegram Chat ID',
   'Company Website', 'HubSpot Owner ID', 'Mail Provider', 'SMTP From',
-  'Seed Email', 'Seed Every', 'Target Countries',
+  'Seed Email', 'Seed Every', 'Target Countries', 'Dashboard URL',
+  'Weekly New Leads', 'Daily Send Limit',
 ];
 // Countries the admin can pick in Settings 'Target Countries' (col U). WF0 searches only the picked
 // ones (empty = Turkey); WF2 accepts leads from any of them. Keep in step with WF0, WF2 and src/lib/types.ts.

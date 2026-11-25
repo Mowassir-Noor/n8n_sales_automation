@@ -68,6 +68,9 @@ const readLeads = node({
   version: 4.7,
   config: {
     name: 'Read Leads',
+    retryOnFail: true,
+    maxTries: 3,
+    waitBetweenTries: 5000,
     executeOnce: true,
     alwaysOutputData: true,
     onError: 'continueErrorOutput',
@@ -82,6 +85,9 @@ const readSettings = node({
   version: 4.7,
   config: {
     name: 'Read Settings',
+    retryOnFail: true,
+    maxTries: 3,
+    waitBetweenTries: 5000,
     executeOnce: true,
     alwaysOutputData: true,
     onError: 'continueErrorOutput',
@@ -96,6 +102,9 @@ const readSuppression = node({
   version: 4.7,
   config: {
     name: 'Read Suppression',
+    retryOnFail: true,
+    maxTries: 3,
+    waitBetweenTries: 5000,
     executeOnce: true,
     alwaysOutputData: true,
     onError: 'continueErrorOutput',
@@ -110,6 +119,9 @@ const readSocial = node({
   version: 4.7,
   config: {
     name: 'Read Social',
+    retryOnFail: true,
+    maxTries: 3,
+    waitBetweenTries: 5000,
     executeOnce: true,
     alwaysOutputData: true,
     onError: 'continueErrorOutput',
@@ -135,6 +147,9 @@ const readLog = node({
   version: 4.7,
   config: {
     name: 'Read Log',
+    retryOnFail: true,
+    maxTries: 3,
+    waitBetweenTries: 5000,
     executeOnce: true,
     alwaysOutputData: true,
     onError: 'continueErrorOutput',

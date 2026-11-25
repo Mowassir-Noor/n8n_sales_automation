@@ -182,6 +182,37 @@ function reply(status, body, requestId, store) {
   return { respond: true, status, body, requestId: str(requestId), store: store !== false };
 }
 
+// Sheets read nodes run with alwaysOutputData and an error output. When Google refuses a read
+// (for example its 429 "Read requests per minute per user" quota), n8n sends the error item down the
+// error branch AND one empty item down the success branch, so the next Code node would see an empty
+// tab. readFailure() finds that error item. getNode is n8n's `$`; all(1) is a node's error branch.
+const SHEETS_BUSY = 'Google Sheets is busy: it allows a limited number of reads per minute and that limit was just reached. Nothing was saved. Wait a minute and try again.';
+
+function sheetsBusy(message) {
+  return /too many requests|quota exceeded|rate.?limit|resource.?exhausted|\b429\b/i.test(str(message));
+}
+
+function readFailure(getNode, names) {
+  for (const name of names) {
+    let errs = [];
+    try { errs = getNode(name).all(1) || []; } catch { errs = []; }
+    const hit = errs.find(i => i && i.json && i.json.error != null && i.json.error !== '');
+    if (hit) {
+      const e = hit.json.error;
+      const message = typeof e === 'string' ? e : str((e && e.message) || JSON.stringify(e));
+      return { node: name, message };
+    }
+  }
+  return null;
+}
+
+// 503 reply for a failed read. Never stored for dedupe, so the same requestId can be retried.
+function readFailureReply(fail, requestId) {
+  const busy = sheetsBusy(fail.message);
+  const error = busy ? SHEETS_BUSY : 'n8n could not read the sheet (' + fail.node + ': ' + fail.message + '). Nothing was saved. Try again in a minute.';
+  return reply(503, { error, sheetsBusy: busy, retryable: true }, requestId, false);
+}
+
 const EMAIL_RE = /^[^\s@"'<>(),;:]+@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/i;
 const DOMAIN_RE = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/i;
 
@@ -208,4 +239,5 @@ export {
   LEAD_HEADERS, HOT_HANDLED, SETTINGS_HEADERS, TARGET_COUNTRIES, parseCountries, SUPPRESSION_HEADERS, SOCIAL_HEADERS, LOG_HEADERS, DEDUPE_MS,
   str, isPlainObject, sheetRows, normalizeRow, detectHeaders, colLetter, checkLeadHeaders, cut, logRow, nowInfo,
   dedupeGet, dedupeSet, dedupePrune, reply, isEmail, isDomain, actorErrors,
+  SHEETS_BUSY, sheetsBusy, readFailure, readFailureReply,
 };

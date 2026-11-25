@@ -6,7 +6,7 @@ import type { LeadRow } from "@/lib/types";
 import { checkDraft } from "@shared/email";
 import { useSnapshot } from "@/components/api";
 import { useToast } from "@/components/toast";
-import { useLeadAction, useSoftCaps, useWriteGuard } from "@/components/actions";
+import { bulkSummary, useBulkLeadAction, useSoftCaps, useWriteGuard, type BulkProgress } from "@/components/actions";
 import { ComplianceBadge, useNow } from "@/components/badges";
 import {
   ago,
@@ -39,7 +39,10 @@ const T = {
   bulkIntro: (n: number) =>
     `Approve these ${n} drafts? Only drafts that pass every check are included; Needs fix, Blocked, opted-out and \"marked for edit\" drafts are left in the queue. Each one is approved separately and logged under your name.`,
   bulkConfirm: (n: number) => `Approve ${n}`,
-  bulkDone: (ok: number, n: number) => `${ok} of ${n} approved.`,
+  bulkPace:
+    "They go one at a time with a short pause (about 8 seconds each), because Google Sheets allows only a limited number of reads per minute. If Google is busy the dashboard waits and tries again. Keep this window open until it finishes.",
+  bulkProgress: (p: BulkProgress) =>
+    p.waitSeconds ? `${p.done}/${p.total}, Google Sheets busy, waiting ${p.waitSeconds} s` : `${p.done}/${p.total}`,
   cancel: "Cancel",
   hubspotPaused: (pct: number, at: number) =>
     `HubSpot estimate is at ${pct}% of this month's limit (WF3 pauses at ${at}%). Approved emails will not send until the estimate is below that share or the limit is raised.`,
@@ -56,7 +59,7 @@ export function QueueView() {
   const data = snap.data;
   const now = useNow();
   const guard = useWriteGuard();
-  const { run } = useLeadAction();
+  const runBulk = useBulkLeadAction();
   const toast = useToast();
   const caps = useSoftCaps();
 
@@ -137,23 +140,16 @@ export function QueueView() {
     });
   }, [data, queue.waiting]);
   const [bulkOpen, setBulkOpen] = useState(false);
-  const [bulkBusy, setBulkBusy] = useState<{ done: number; total: number } | null>(null);
+  const [bulkBusy, setBulkBusy] = useState<BulkProgress | null>(null);
   const bulkWarnings = data ? capStatus(data.leads, caps, now, bulkEligible.length).warnings : [];
 
   const doBulk = async () => {
-    const items = [...bulkEligible];
-    setBulkBusy({ done: 0, total: items.length });
-    let ok = 0;
-    for (let i = 0; i < items.length; i++) {
-      const row = await run(items[i], "approve_first", {});
-      if (!row) break;
-      ok++;
-      setBulkBusy({ done: i + 1, total: items.length });
-    }
+    const out = await runBulk([...bulkEligible], "approve_first", setBulkBusy);
     setBulkBusy(null);
     setBulkOpen(false);
     setPicked(null);
-    if (ok) toast.show(T.bulkDone(ok, items.length), "ok");
+    const sum = bulkSummary(out, "drafts");
+    if (out.ok || out.failed) toast.show(sum.text, sum.kind);
   };
 
   const hubspot = data ? hubspotUsage(data.leads, data.settings, now) : null;
@@ -273,12 +269,13 @@ export function QueueView() {
               {T.cancel}
             </Button>
             <Button variant="primary" busy={!!bulkBusy} disabled={guard.disabled} onClick={() => void doBulk()}>
-              {bulkBusy ? `${bulkBusy.done}/${bulkBusy.total}` : T.bulkConfirm(bulkEligible.length)}
+              {bulkBusy ? T.bulkProgress(bulkBusy) : T.bulkConfirm(bulkEligible.length)}
             </Button>
           </>
         }
       >
         <p className="mb-3">{T.bulkIntro(bulkEligible.length)}</p>
+        <p className="mb-3 text-sm text-muted">{T.bulkPace}</p>
         <ul className="mb-3 max-h-48 list-disc overflow-y-auto pl-5 text-sm">
           {bulkEligible.map((l) => (
             <li key={l["Lead ID"]}>

@@ -58,6 +58,9 @@ const readSettings = node({
   version: 4.7,
   config: {
     name: 'Read Settings',
+    retryOnFail: true,
+    maxTries: 3,
+    waitBetweenTries: 5000,
     executeOnce: true,
     alwaysOutputData: true,
     onError: 'continueErrorOutput',
@@ -72,6 +75,9 @@ const readLeads = node({
   version: 4.7,
   config: {
     name: 'Read Leads',
+    retryOnFail: true,
+    maxTries: 3,
+    waitBetweenTries: 5000,
     executeOnce: true,
     alwaysOutputData: true,
     onError: 'continueErrorOutput',
@@ -140,6 +146,9 @@ const appendLogRow = node({
   version: 4.7,
   config: {
     name: 'Append Log Row',
+    retryOnFail: true,
+    maxTries: 3,
+    waitBetweenTries: 5000,
     executeOnce: true,
     onError: 'continueRegularOutput',
     parameters: {

@@ -8,7 +8,7 @@ import { canDoLeadAction } from "./roles";
 import { checkLeadAction, checkSettingsWrite } from "./rules";
 import type { leadActionSchema, settingsWriteSchema, socialWriteSchema, suppressionWriteSchema } from "./schemas";
 import { suppressionAddErrors } from "./schemas";
-import { invalidate, readSnapshot } from "./snapshot";
+import { invalidate, patchLead, readSnapshot } from "./snapshot";
 import type { SessionUser, Settings } from "./types";
 
 const NO_SHEET = "The dashboard cannot read the sheet through n8n right now, so changes are switched off. Try again in a minute.";
@@ -41,7 +41,10 @@ export async function leadActionWrite(user: SessionUser, body: z.infer<typeof le
     return check.status === 403 ? json({ status: 403, error: check.errors.join(" ") }, 403) : json({ status: 422, errors: check.errors }, 422);
   }
   const r = await postLeadAction({ ...body, data: body.data ?? {}, actor: user.email, actorRole: user.role });
-  if (r.status !== 422 && r.status !== 403) invalidate();
+  // Success: patch the cached snapshot with the row n8n sent back (no new read of the sheet).
+  // 422/403: nothing written. 429: Google refused a call before the write, nothing written.
+  if (r.status === 200) patchLead(r.row);
+  else if (r.status !== 422 && r.status !== 403 && r.status !== 429) invalidate();
   return relay(r);
 }
 

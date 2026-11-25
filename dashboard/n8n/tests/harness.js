@@ -22,12 +22,15 @@ export function fakeNow(local = '2026-11-16T12:00:00') {
   return { setZone: () => zoned };
 }
 
-export function runNode(ref, { nodes = {}, input = [], staticData = {}, now = fakeNow(), opts } = {}) {
+// nodeErrors: { 'Read Leads': 'message' } puts an error item on that node's error branch (all(1)),
+// as n8n does when a node with onError 'continueErrorOutput' fails.
+export function runNode(ref, { nodes = {}, nodeErrors = {}, input = [], staticData = {}, now = fakeNow(), opts } = {}) {
   const code = loadCode(ref, opts);
   const $ = (name) => {
     if (!(name in nodes)) throw new Error(`Node '${name}' hasn't been executed`);
     const items = nodes[name].map(j => ({ json: j }));
-    return { all: () => items, first: () => items[0] };
+    const errs = name in nodeErrors ? [{ json: { error: nodeErrors[name] } }] : [];
+    return { all: (branch) => (branch === 1 ? errs : items), first: () => items[0] };
   };
   const $input = { all: () => input.map(j => ({ json: j })), first: () => ({ json: input[0] }) };
   const fn = new Function('$input', '$', '$now', '$getWorkflowStaticData', 'return (async () => {\n' + code + '\n})();');

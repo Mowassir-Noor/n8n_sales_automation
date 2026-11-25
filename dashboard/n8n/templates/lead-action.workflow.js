@@ -99,6 +99,9 @@ const readLeads = node({
   version: 4.7,
   config: {
     name: 'Read Leads',
+    retryOnFail: true,
+    maxTries: 3,
+    waitBetweenTries: 5000,
     executeOnce: true,
     alwaysOutputData: true,
     onError: 'continueErrorOutput',
@@ -113,6 +116,9 @@ const readSettings = node({
   version: 4.7,
   config: {
     name: 'Read Settings',
+    retryOnFail: true,
+    maxTries: 3,
+    waitBetweenTries: 5000,
     executeOnce: true,
     alwaysOutputData: true,
     onError: 'continueErrorOutput',
@@ -127,11 +133,25 @@ const readSuppression = node({
   version: 4.7,
   config: {
     name: 'Read Suppression',
+    retryOnFail: true,
+    maxTries: 3,
+    waitBetweenTries: 5000,
     executeOnce: true,
     alwaysOutputData: true,
     onError: 'continueErrorOutput',
     parameters: { resource: 'sheet', operation: 'read', documentId: documentRef, sheetName: { __rl: true, mode: 'name', value: 'Suppression' }, options: readFormatting },
     credentials: sheetsCredentials,
+  },
+  output: [{ row_number: 2, Email: 'blocked@example.org', Domain: '', Reason: 'Example', Date: '2026-11-01' }],
+});
+
+const checkReads = node({
+  type: 'n8n-nodes-base.code',
+  version: 2,
+  config: {
+    name: 'Check Reads',
+    onError: 'continueErrorOutput',
+    parameters: { mode: 'runOnceForAllItems', language: 'javaScript', jsCode: '__CODE__(lead-action/check-reads)' },
   },
   output: [{ row_number: 2, Email: 'blocked@example.org', Domain: '', Reason: 'Example', Date: '2026-11-01' }],
 });
@@ -174,6 +194,9 @@ const updateLeadRow = node({
   version: 4.7,
   config: {
     name: 'Update Lead Row',
+    retryOnFail: true,
+    maxTries: 3,
+    waitBetweenTries: 5000,
     onError: 'continueErrorOutput',
     parameters: {
       resource: 'sheet',
@@ -198,6 +221,9 @@ const appendLogRow = node({
   version: 4.7,
   config: {
     name: 'Append Log Row',
+    retryOnFail: true,
+    maxTries: 3,
+    waitBetweenTries: 5000,
     executeOnce: true,
     onError: 'continueRegularOutput',
     parameters: {
@@ -251,6 +277,9 @@ const appendSuppressionRow = node({
   version: 4.7,
   config: {
     name: 'Append Suppression Row',
+    retryOnFail: true,
+    maxTries: 3,
+    waitBetweenTries: 5000,
     executeOnce: true,
     onError: 'continueRegularOutput',
     parameters: {
@@ -336,11 +365,11 @@ export default workflow('db-lead-action', 'DB - Lead action', { settings: { time
   .to(validateRequest)
   .to(respondNow
     .onTrue(finish)
-    .onFalse(checkWf3Running.to(lastWf3Runs.to(readLeads.to(readSettings.to(readSuppression.to(planWrite.to(writeNeeded
+    .onFalse(checkWf3Running.to(lastWf3Runs.to(readLeads.to(readSettings.to(readSuppression.to(checkReads.to(planWrite.to(writeNeeded
       .onTrue(leadUpdateItem.to(updateLeadRow.to(appendLogRow.to(suppressionNeeded
         .onTrue(appendSuppressionRow.to(writeResult))
         .onFalse(writeResult)))))
-      .onFalse(finish)))))))))
+      .onFalse(finish))))))))))
   .add(writeResult)
   .to(finish)
   .add(finish)
@@ -349,6 +378,7 @@ export default workflow('db-lead-action', 'DB - Lead action', { settings: { time
   .add(readLeads.onError(respondError))
   .add(readSettings.onError(respondError))
   .add(readSuppression.onError(respondError))
+  .add(checkReads.onError(respondError))
   .add(planWrite.onError(respondError))
   .add(leadUpdateItem.onError(respondError))
   .add(updateLeadRow.onError(respondError))

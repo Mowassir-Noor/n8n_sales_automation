@@ -43,6 +43,14 @@ async function fromResponse(res: Response): Promise<ToolResult> {
   return fail(msg, { status: res.status });
 }
 
+/** approve_all pacing (Google Sheets allows 60 reads per minute; one approval costs about five). Tests set these to 0. */
+export const BULK_TIMING = { pauseMs: 3_000, retryWaitMs: 20_000 };
+const sleep = (ms: number) => (ms > 0 ? new Promise<void>((r) => setTimeout(r, ms)) : Promise.resolve());
+const isBusy = (r: ToolResult) => {
+  const st = (r.data as { status?: unknown }).status;
+  return st === 429 || st === 503;
+};
+
 const str = (v: unknown) => (v == null ? "" : String(v));
 
 function summary(l: LeadRow) {
@@ -93,8 +101,8 @@ function followupEligible(snap: Snapshot, l: LeadRow): string[] {
   return why;
 }
 
-async function runLeadAction(user: SessionUser, lead: LeadRow, action: LeadAction, data: Record<string, unknown>): Promise<ToolResult> {
-  const parsed = leadActionSchema.safeParse({ action, leadId: lead["Lead ID"], expect: expectFor(lead, action), data, requestId: randomUUID() });
+async function runLeadAction(user: SessionUser, lead: LeadRow, action: LeadAction, data: Record<string, unknown>, requestId: string = randomUUID()): Promise<ToolResult> {
+  const parsed = leadActionSchema.safeParse({ action, leadId: lead["Lead ID"], expect: expectFor(lead, action), data, requestId });
   if (!parsed.success) return fail(parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`));
   return fromResponse(await leadActionWrite(user, parsed.data));
 }
@@ -228,14 +236,33 @@ export const TOOLS: Tool[] = [
       const waiting = first ? firstEmailQueue(snap.leads).waiting : snap.leads.filter((l) => followupTab(l) === "waiting");
       const approved: string[] = [];
       const skipped: { leadId: string; why: unknown }[] = [];
+      // Same pacing as the page: one at a time, and when Google Sheets is busy (429/503) wait and retry the
+      // same requestId once; if it is still busy, stop and leave the rest for another call.
+      let stoppedBusy = false;
+      let n = 0;
       for (const l of waiting) {
         const why = first ? firstEmailEligible(snap, l) : followupEligible(snap, l);
         if (why.length) { skipped.push({ leadId: l["Lead ID"], why }); continue; }
-        const r = await runLeadAction(user, l, first ? "approve_first" : "approve_followup", {});
+        if (stoppedBusy) { skipped.push({ leadId: l["Lead ID"], why: "not tried: Google Sheets was busy; call approve_all again in a minute" }); continue; }
+        if (n++ > 0) await sleep(BULK_TIMING.pauseMs);
+        const requestId = randomUUID();
+        const action = first ? "approve_first" : "approve_followup";
+        let r = await runLeadAction(user, l, action, {}, requestId);
+        if (!r.ok && isBusy(r)) {
+          await sleep(BULK_TIMING.retryWaitMs);
+          r = await runLeadAction(user, l, action, {}, requestId);
+        }
         if (r.ok) approved.push(l["Lead ID"]);
-        else skipped.push({ leadId: l["Lead ID"], why: (r.data as { error: unknown }).error });
+        else {
+          skipped.push({ leadId: l["Lead ID"], why: (r.data as { error: unknown }).error });
+          if (isBusy(r)) stoppedBusy = true;
+        }
       }
-      return ok({ approved, skipped, note: approved.length ? (first ? "WF3 sends approved first emails at its next run." : "WF5 sends approved follow-ups at its next run.") : undefined });
+      const note = [
+        approved.length ? (first ? "WF3 sends approved first emails at its next run." : "WF5 sends approved follow-ups at its next run.") : "",
+        stoppedBusy ? "Stopped early because Google Sheets was busy (per-minute read limit). Everything listed under approved is saved; call approve_all again in a minute for the rest." : "",
+      ].filter(Boolean).join(" ");
+      return ok({ approved, skipped, note: note || undefined });
     },
   },
   {

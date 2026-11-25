@@ -6,7 +6,7 @@ import { readEnv, resetEnvCache } from "./env";
 import { roleFor } from "./roles";
 import { originAllowed, rateLimit, resetRateLimit, RATE_LIMIT } from "./guards";
 import { callN8n, mapN8nResponse, MESSAGES, postLeadAction, getSnapshot, postSettings } from "./n8n";
-import { invalidate, readSnapshot, resetSnapshotCache, setSnapshotLoader } from "./snapshot";
+import { invalidate, patchLead, readSnapshot, resetSnapshotCache, setSnapshotLoader } from "./snapshot";
 import { hashFirst, hashFollowup } from "../../shared/email/index.js";
 import type { LeadRow, Snapshot } from "./types";
 
@@ -70,12 +70,16 @@ describe("n8n response mapping", () => {
     expect(mapN8nResponse(403, { code: 403, message: "Authorization data is wrong!" })).toEqual({ status: 502, error: MESSAGES.badKey });
     expect(mapN8nResponse(404, "")).toEqual({ status: 503, error: MESSAGES.notFound });
     expect(mapN8nResponse(500, { error: "Sheets quota" })).toEqual({ status: 502, error: `${MESSAGES.serverError}: Sheets quota` });
+    // Google's per-minute quota, from Respond Error (500) or from a Code node (503 sheetsBusy)
+    expect(mapN8nResponse(500, { error: "n8n: The service is receiving too many requests from you" })).toEqual({ status: 429, error: MESSAGES.sheetsBusy });
+    expect(mapN8nResponse(503, { error: "Google Sheets is busy", sheetsBusy: true, retryable: true })).toEqual({ status: 429, error: MESSAGES.sheetsBusy });
+    expect(mapN8nResponse(503, { error: "n8n could not read the sheet (Read Social: x).", sheetsBusy: false, retryable: true })).toEqual({ status: 503, error: "n8n could not read the sheet (Read Social: x)." });
     expect(mapN8nResponse(200, "<html>")).toEqual({ status: 502, error: MESSAGES.badResponse });
   });
 });
 
 describe("snapshot cache", () => {
-  const snap = (n: number) => ({ status: 200 as const, ok: true as const, fetchedAt: String(n), headersOk: true, headerProblems: [], leads: [], settings: {} as Snapshot["settings"], suppression: [], social: [] });
+  const snap = (n: number) => ({ status: 200 as const, ok: true as const, fetchedAt: String(n), headersOk: true, headerProblems: [], leads: [], settings: { "Sender Name": "Nil" } as Snapshot["settings"], suppression: [], social: [] });
   beforeEach(() => resetSnapshotCache());
   it("caches for 20 s, invalidates, shares in-flight requests", async () => {
     let calls = 0;
@@ -103,6 +107,30 @@ describe("snapshot cache", () => {
     expect(r.status).toBe(200);
     expect(r.status === 200 && r.body.stale).toBe(true);
     expect(r.status === 200 && typeof r.body.ageSeconds).toBe("number");
+  });
+  it("treats an all-empty snapshot (old DB - Read answer to a refused read) as a failure", async () => {
+    setSnapshotLoader(async () => snap(1));
+    await readSnapshot();
+    setSnapshotLoader(async () => ({ ...snap(2), headersOk: false, settings: {} as Snapshot["settings"] }));
+    const r = await readSnapshot({ fresh: true });
+    expect(r.status === 200 && r.body.stale).toBe(true);
+    expect(r.status === 200 && r.body.fetchedAt).toBe("1");
+    resetSnapshotCache();
+    const r2 = await readSnapshot();
+    expect(r2.status).toBe(503);
+  });
+  it("patchLead updates the cached row without a new read", async () => {
+    let calls = 0;
+    const lead = { "Lead ID": "L1", Approved: "Pending", "Last Updated": "a" } as unknown as LeadRow;
+    setSnapshotLoader(async () => ({ ...snap(++calls), leads: [lead] }));
+    await readSnapshot();
+    patchLead({ ...lead, Approved: "Yes", "Last Updated": "b" });
+    const r = await readSnapshot();
+    expect(calls).toBe(1);
+    expect(r.status === 200 && r.body.leads[0].Approved).toBe("Yes");
+    patchLead({ ...lead, "Lead ID": "L9" } as LeadRow);
+    await readSnapshot();
+    expect(calls).toBe(2);
   });
 });
 

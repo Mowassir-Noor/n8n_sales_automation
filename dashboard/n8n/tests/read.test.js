@@ -24,6 +24,35 @@ describe('DB - Read / snapshot', () => {
     expect(out.body.headersOk).toBe(false);
     expect(out.body.headerProblems[0]).toBe('Column AF: expected "Confidence", found "Follow-up Draft"');
   });
+
+  const QUOTA = 'The service is receiving too many requests from you';
+
+  it('answers 503 "Google Sheets is busy" when a read hit the per-minute quota, not an empty snapshot', async () => {
+    const [out] = await runNode('read/build-snapshot', {
+      nodes: { 'Read Leads': [{}], 'Read Settings': [{}], 'Read Suppression': [{}], 'Read Social': [{}] },
+      nodeErrors: { 'Read Leads': QUOTA, 'Read Settings': QUOTA },
+    });
+    expect(out.status).toBe(503);
+    expect(out.store).toBe(false);
+    expect(out.body.sheetsBusy).toBe(true);
+    expect(out.body.error).toMatch(/Google Sheets is busy/);
+    expect(out.body.leads).toBeUndefined();
+  });
+
+  it('answers 503 for any other failed read, naming the tab', async () => {
+    const [out] = await runNode('read/build-snapshot', {
+      nodes: { 'Read Leads': [lead()], 'Read Settings': [settingsRow()], 'Read Suppression': [{}], 'Read Social': [{}] },
+      nodeErrors: { 'Read Social': 'Sheet not found' },
+    });
+    expect(out.status).toBe(503);
+    expect(out.body.sheetsBusy).toBe(false);
+    expect(out.body.error).toContain('Read Social: Sheet not found');
+  });
+
+  it('treats Leads and Settings both empty as a failed read', async () => {
+    const [out] = await runNode('read/build-snapshot', { nodes: { 'Read Leads': [{}], 'Read Settings': [{}], 'Read Suppression': [{}], 'Read Social': [{}] } });
+    expect(out.status).toBe(503);
+  });
 });
 
 describe('DB - Read / log', () => {

@@ -7,6 +7,10 @@ import { resetRateLimit } from "../guards";
 import { resetSnapshotCache } from "../snapshot";
 import { keyFor, userForKey } from "./keys";
 import { handleMcpPost, handleRpc } from "./server";
+import { BULK_TIMING } from "./tools";
+
+BULK_TIMING.pauseMs = 0;
+BULK_TIMING.retryWaitMs = 0;
 import type { SessionUser } from "../types";
 
 const lists = { approverEmails: ["nil@example.com"], adminEmails: ["admin@example.com"] };

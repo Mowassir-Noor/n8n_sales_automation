@@ -5,7 +5,7 @@ import Link from "next/link";
 import type { LeadRow, Settings, SuppressionRow } from "@/lib/types";
 import { checkFollowup, followupSubject, recipientFor } from "@shared/email";
 import { useSnapshot } from "@/components/api";
-import { useLeadAction, useRole, useWf5Running, useWriteGuard } from "@/components/actions";
+import { bulkSummary, useBulkLeadAction, useLeadAction, useRole, useWf5Running, useWriteGuard, type BulkProgress } from "@/components/actions";
 import { useNow } from "@/components/badges";
 import { useToast } from "@/components/toast";
 import {
@@ -73,7 +73,10 @@ const T = {
   bulkIntro: (n: number) =>
     `Approve these ${n} follow-ups? Only follow-ups that pass the WF5 check and whose lead has not opted out are included. Each is approved separately and logged under your name; WF5 sends them at its next run (weekdays 11:00).`,
   bulkConfirm: (n: number) => `Approve ${n}`,
-  bulkDone: (ok: number, n: number) => `${ok} of ${n} follow-ups approved.`,
+  bulkPace:
+    "They go one at a time with a short pause (about 8 seconds each), because Google Sheets allows only a limited number of reads per minute. If Google is busy the dashboard waits and tries again. Keep this window open until it finishes.",
+  bulkProgress: (p: BulkProgress) =>
+    p.waitSeconds ? `${p.done}/${p.total}, Google Sheets busy, waiting ${p.waitSeconds} s` : `${p.done}/${p.total}`,
 };
 
 export function FollowupsView() {
@@ -94,9 +97,9 @@ export function FollowupsView() {
 
   const guard = useWriteGuard();
   const toast = useToast();
-  const { run } = useLeadAction();
+  const runBulk = useBulkLeadAction();
   const [bulkOpen, setBulkOpen] = useState(false);
-  const [bulkBusy, setBulkBusy] = useState<{ done: number; total: number } | null>(null);
+  const [bulkBusy, setBulkBusy] = useState<BulkProgress | null>(null);
   const bulkEligible = useMemo(() => {
     if (!data) return [];
     return groups.waiting.filter(
@@ -106,18 +109,11 @@ export function FollowupsView() {
     );
   }, [data, groups]);
   const doBulk = async () => {
-    const items = [...bulkEligible];
-    setBulkBusy({ done: 0, total: items.length });
-    let ok = 0;
-    for (let i = 0; i < items.length; i++) {
-      const row = await run(items[i], "approve_followup", {});
-      if (!row) break;
-      ok++;
-      setBulkBusy({ done: i + 1, total: items.length });
-    }
+    const out = await runBulk([...bulkEligible], "approve_followup", setBulkBusy);
     setBulkBusy(null);
     setBulkOpen(false);
-    if (ok) toast.show(T.bulkDone(ok, items.length), "ok");
+    const sum = bulkSummary(out, "follow-ups");
+    if (out.ok || out.failed) toast.show(sum.text, sum.kind);
   };
 
   if (!data) {
@@ -148,12 +144,13 @@ export function FollowupsView() {
               {T.cancel}
             </Button>
             <Button variant="primary" busy={!!bulkBusy} disabled={guard.disabled} onClick={() => void doBulk()}>
-              {bulkBusy ? `${bulkBusy.done}/${bulkBusy.total}` : T.bulkConfirm(bulkEligible.length)}
+              {bulkBusy ? T.bulkProgress(bulkBusy) : T.bulkConfirm(bulkEligible.length)}
             </Button>
           </>
         }
       >
         <p className="mb-3">{T.bulkIntro(bulkEligible.length)}</p>
+        <p className="mb-3 text-sm text-muted">{T.bulkPace}</p>
         <ul className="max-h-48 list-disc overflow-y-auto pl-5 text-sm">
           {bulkEligible.map((l) => (
             <li key={l["Lead ID"]}>

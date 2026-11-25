@@ -17,6 +17,7 @@ This repository holds the workflow exports in n8n's import format plus the docum
 | `WF4-reply-triage.json` | Classifies replies (Hot / Warm / Cold / Not interested / Auto-reply), alerts on Hot |
 | `WF5-follow-ups.json` | Drafts follow-ups at day 4 / 10 / 20, approval gate, sends in the same thread, closes silent leads |
 | `WF6-weekly-report.json` | Monday report and three LinkedIn post drafts |
+| `WF7-clickup-sync.json` | Hourly sync of mailed companies to the ClickUp customer list (see [docs/clickup-sync.md](docs/clickup-sync.md)) |
 | `Test-telegram-group-message.json` | One-node manual test that posts to the Telegram alerts group |
 | `docs/workflows.md` | What each workflow does, step by step, what it reads and writes, what to edit |
 | `docs/google-sheet.md` | Sheet tabs, exact column headers, Settings fields, Stage values |

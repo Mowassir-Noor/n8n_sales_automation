@@ -1,0 +1,1100 @@
+{
+  "name": "Texprove WF7 - ClickUp sync",
+  "nodes": [
+    {
+      "id": "f8d0628a-d0b0-433f-9f18-ce6609c0be08",
+      "name": "Weekdays hourly 08:20-19:20",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "20 8-19 * * 1-5"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "3c11e809-bbed-48f2-a88e-b2c3aa8b4865",
+      "name": "Manual Test",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        192
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "69f2e4bc-0574-42fe-88c6-29f8dd85ffc4",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        224,
+        96
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cfg-list",
+              "name": "list_id",
+              "value": "1100520000006922",
+              "type": "string"
+            },
+            {
+              "id": "cfg-dry",
+              "name": "dry_run",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "cfg-over",
+              "name": "overwrite_hand_filled",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "cfg-only",
+              "name": "only_lead_ids",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "cfg-max",
+              "name": "max_comments_per_run",
+              "value": 80,
+              "type": "number"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "4412e3e8-15ed-4024-bb3f-dbb0e344bcbd",
+      "name": "Read Leads",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        448,
+        96
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Leads"
+        },
+        "options": {}
+      },
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "9d6b739d-5cb5-4691-b6ca-607ff9ecddaa",
+      "name": "Read Actions",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        672,
+        96
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Actions"
+        },
+        "options": {}
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "6a43fbf6-0023-4861-9d5e-3be0dc3d038b",
+      "name": "Get Fields",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        896,
+        96
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.clickup.com/api/v2/list/{{ $(\"Config\").first().json.list_id }}/field",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "clickUpApi",
+        "options": {}
+      },
+      "executeOnce": true,
+      "credentials": {
+        "clickUpApi": {
+          "name": "ClickUp account"
+        }
+      }
+    },
+    {
+      "id": "2296db37-ad3d-46b4-8b3e-53c153dc9bdb",
+      "name": "Get Tasks",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        96
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.clickup.com/api/v2/list/{{ $(\"Config\").first().json.list_id }}/task",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "clickUpApi",
+        "sendQuery": true,
+        "specifyQuery": "keypair",
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "include_closed",
+              "value": "true"
+            },
+            {
+              "name": "subtasks",
+              "value": "false"
+            }
+          ]
+        },
+        "options": {
+          "pagination": {
+            "pagination": {
+              "paginationMode": "updateAParameterInEachRequest",
+              "parameters": {
+                "parameters": [
+                  {
+                    "type": "qs",
+                    "name": "page",
+                    "value": "={{ $pageCount }}"
+                  }
+                ]
+              },
+              "paginationCompleteWhen": "other",
+              "completeExpression": "={{ $response.body.last_page !== false || !($response.body.tasks || []).length }}",
+              "limitPagesFetched": true,
+              "maxRequests": 30,
+              "requestInterval": 700
+            }
+          }
+        }
+      },
+      "executeOnce": true,
+      "credentials": {
+        "clickUpApi": {
+          "name": "ClickUp account"
+        }
+      }
+    },
+    {
+      "id": "5c5451bc-35b1-4964-8c63-e348e066b015",
+      "name": "Plan sync",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        96
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Plan the ClickUp sync: match companies to tasks, work out which fields to write,\n// which tasks to create and which Actions rows to post as comments. Writes nothing itself.\nconst cfg = $('Config').first().json;\nconst dryRun = cfg.dry_run !== false && String(cfg.dry_run) !== 'false';\nconst overwrite = cfg.overwrite_hand_filled === true || String(cfg.overwrite_hand_filled) === 'true';\nconst only = String(cfg.only_lead_ids || '').split(',').map((s) => s.trim().toUpperCase()).filter(Boolean);\nconst maxComments = Number(cfg.max_comments_per_run) || 80;\n\nconst S = (v) => (v === null || v === undefined ? '' : String(v).trim());\nconst norm = (v) => S(v).toLocaleLowerCase('tr').replace(/[–—]/g, '-').replace(/\\s+/g, ' ').replace(/[.:;,!]+$/g, '').trim();\nconst normName = (v) => norm(v).replace(/\\b(a\\.?\\s?ş\\.?|ltd\\.?|şti\\.?|san\\.?|tic\\.?|ve|tekstil|textile|group|grup)\\b/g, ' ').replace(/[^a-z0-9çğıöşü]+/g, '');\n\n// Dates: ISO timestamps, yyyy-mm-dd, dd.mm.yyyy and sheet serial numbers. Result = the Istanbul calendar day.\nconst dayOf = (v) => {\n  const s = S(v);\n  if (!s) return '';\n  let m = s.match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);\n  if (m) return s;\n  m = s.match(/^(\\d{1,2})[./](\\d{1,2})[./](\\d{4})/);\n  if (m) return m[3] + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0');\n  let ms;\n  if (/^\\d+(\\.\\d+)?$/.test(s)) {\n    const n = Number(s);\n    ms = n > 1e11 ? n : Math.round((n - 25569) * 86400000) - 3 * 3600000;\n  } else ms = Date.parse(s);\n  if (!Number.isFinite(ms)) return '';\n  return new Date(ms + 3 * 3600000).toISOString().slice(0, 10);\n};\nconst dayToMs = (d) => Date.parse(d + 'T12:00:00+03:00');\nconst tsOf = (v) => {\n  const s = S(v);\n  if (!s) return 0;\n  const ms = Date.parse(s);\n  if (Number.isFinite(ms)) return ms;\n  const d = dayOf(s);\n  return d ? dayToMs(d) : 0;\n};\n\n// ---------- ClickUp side ----------\nconst fieldList = ($('Get Fields').first().json.fields || []);\nconst fieldByName = {};\nfor (const f of fieldList) fieldByName[norm(f.name)] = f;\nconst tasks = [];\nfor (const it of $('Get Tasks').all()) for (const t of (it.json.tasks || [])) tasks.push(t);\n\nconst optionsOf = (f) => ((f.type_config || {}).options || []);\nconst optLabel = (o) => S(o.name !== undefined ? o.name : o.label);\n// Current value of a field on a task, as comparable text.\nconst currentValue = (task, f) => {\n  const cf = (task.custom_fields || []).find((x) => x.id === f.id);\n  if (!cf || cf.value === undefined || cf.value === null || cf.value === '') return '';\n  const v = cf.value;\n  if (f.type === 'drop_down') {\n    const opts = optionsOf(cf.type_config ? cf : f);\n    const o = opts.find((x) => x.id === v || String(x.orderindex) === String(v));\n    return o ? optLabel(o) : S(v);\n  }\n  if (f.type === 'labels') {\n    const opts = optionsOf(cf.type_config ? cf : f);\n    return (Array.isArray(v) ? v : [v]).map((id) => { const o = opts.find((x) => x.id === id); return o ? optLabel(o) : S(id); }).join(', ');\n  }\n  if (f.type === 'date') return dayOf(v);\n  if (f.type === 'checkbox') return (v === true || v === 'true') ? 'true' : '';\n  return S(v);\n};\n\n// ---------- Sheet side: one company = parent row + its second-contact rows ----------\nconst groups = {};\nfor (const it of $('Read Leads').all()) {\n  const r = it.json;\n  const id = S(r['Lead ID']).toUpperCase();\n  if (!id) continue;\n  const m = id.match(/^(.+)-B$/);\n  const key = S(r['Parent Lead ID']).toUpperCase() || (m ? m[1] : id);\n  if (!groups[key]) groups[key] = { key, rows: [] };\n  groups[key].rows.push(r);\n}\n\nconst derivedStage = (r) => {\n  const cu = S(r['ClickUp Stage']);\n  if (cu) return cu;\n  const st = S(r.Stage);\n  const cat = norm(r['Reply Category']);\n  if (/^(yes|true|evet|1)$/i.test(S(r['Opt-out']))) return 'Opt-out';\n  if (cat === 'hot') return 'Yanıt: demo istiyor';\n  if (cat === 'warm') return 'Yanıt: ilgili, bilgi istiyor';\n  if (cat === 'cold' || cat === 'not interested') return 'Yanıt: olumsuz';\n  if (st === 'Bounced') return 'Ulaşmadı';\n  if (st === 'Closed - No reply') return 'Kapandı – yanıt yok';\n  const fu = st.match(/^Follow-up (\\d)/);\n  if (fu) return fu[1] + '. takip atıldı';\n  if (S(r['Sent At'])) {\n    const n = Number(r['Follow-up Count']) || 0;\n    if (n >= 1 && n <= 3) return n + '. takip atıldı';\n    return /-B$/i.test(S(r['Lead ID'])) || S(r['Parent Lead ID']) ? '2. kişiye ilk mail atıldı' : 'İlk mail atıldı';\n  }\n  return '';\n};\nconst stageRank = (s) => {\n  const n = norm(s);\n  if (n === norm('Demo planlandı')) return 100;\n  if (n === norm('Yanıt: demo istiyor')) return 90;\n  if (n === norm('Yanıt: ilgili, bilgi istiyor')) return 85;\n  if (n === 'opt-out') return 80;\n  if (n === norm('Yanıt: olumsuz')) return 75;\n  return 0;\n};\n\nconst HAND_FILLED = ['Mail Tarihi', 'E-posta', 'İlgili Kişi', 'Mail Konusu', 'Geri Dönüş', 'Geri Dönüş Notu', '2. Mail (Takip)', '2. Mail Tarihi'].map(norm);\n\nconst companies = [];\nfor (const g of Object.values(groups)) {\n  const parent = g.rows.find((r) => S(r['Lead ID']).toUpperCase() === g.key) || g.rows[0];\n  const second = g.rows.find((r) => r !== parent);\n  const mailed = g.rows.some((r) => S(r['Sent At']) || S(r['ClickUp Stage']));\n  if (!mailed) continue;\n  if (only.length && !only.includes(g.key)) continue;\n\n  let stage = '', best = -1, bestTs = -1;\n  for (const r of g.rows) {\n    const s = derivedStage(r);\n    if (!s) continue;\n    const rank = stageRank(s), ts = tsOf(r['Last Updated']);\n    if (rank > best || (rank === best && ts > bestTs)) { stage = s; best = rank; bestTs = ts; }\n  }\n  const replied = g.rows.find((r) => S(r['Reply At']) || S(r['Reply Category']));\n  const lastTs = Math.max(0, ...g.rows.map((r) => tsOf(r['Last Updated'])));\n  const nextDates = g.rows.map((r) => dayOf(r['Next Follow-up Date'])).filter(Boolean).sort();\n  const fu1 = dayOf(parent['Follow-up 1 At']);\n  const followedUp = !!fu1 || (Number(parent['Follow-up Count']) || 0) >= 1;\n\n  // ClickUp field name -> value from the sheet ('' = nothing to write)\n  const want = {\n    'Lead ID': g.key,\n    'Web Sitesi': S(parent.Website),\n    'Segment': norm(parent.Segment) === 'hariç' ? 'Diğer' : S(parent.Segment),\n    'Dalga': ({ '1': '1. dalga', '2': '2. dalga', 'ayrı liste': 'Sourcing ofisi' })[norm(parent.Wave)] || S(parent.Wave),\n    'Çalışan Sayısı': S(parent.Employees),\n    'İhracat / Ciro': S(parent['Export Volume']),\n    'Kriter Uygunluğu': S(parent['Criteria Fit']),\n    'İlgili Kişi': S(parent['Contact Name']),\n    'İlgili Kişi Unvanı': S(parent['Contact Title']),\n    'E-posta': S(parent.Email),\n    'LinkedIn': S(parent.LinkedIn),\n    '2. Kişi': S(parent['Contact 2 Name']) || (second ? S(second['Contact Name']) : ''),\n    '2. Kişi Unvanı': S(parent['Contact 2 Title']) || (second ? S(second['Contact Title']) : ''),\n    '2. Kişi E-posta': S(parent['Contact 2 Email']) || (second ? S(second.Email) : ''),\n    'Kişi Kaynağı': S(parent['Contact Source']),\n    'HubSpot Contact ID': S(parent['HubSpot Contact ID']),\n    'Mail Konusu': S(parent.Subject),\n    'Aşama': stage,\n    'Mail Tarihi': dayOf(parent['Sent At']),\n    '2. Kişi İlk Mail Tarihi': dayOf(parent['Contact 2 First Email At']) || (second ? dayOf(second['Sent At']) : ''),\n    '2. Mail (Takip)': followedUp ? '__SENT__' : '',\n    '2. Mail Tarihi': fu1,\n    '2. Takip Tarihi': dayOf(parent['Follow-up 2 At']),\n    '3. Takip Tarihi': dayOf(parent['Follow-up 3 At']),\n    'Yanıt Tarihi': replied ? dayOf(replied['Reply At']) : '',\n    'Geri Dönüş': replied ? 'Oldu' : 'Olmadı',\n    'Geri Dönüş Notu': replied ? [S(replied['Reply Category']), S(replied['Reply Summary'])].filter(Boolean).join(': ') : '',\n    'Son Aksiyon Tarihi': lastTs ? dayOf(new Date(lastTs).toISOString()) : '',\n    'Sonraki Aksiyon Tarihi': nextDates[0] || '',\n  };\n  const emails = [];\n  for (const r of g.rows) for (const k of ['Email', 'Contact 2 Email', 'General Email']) { const e = S(r[k]).toLowerCase(); if (e && !emails.includes(e)) emails.push(e); }\n  companies.push({ key: g.key, name: S(parent.Company), want, emails, lead_ids: g.rows.map((r) => S(r['Lead ID']).toUpperCase()) });\n}\n\n// ---------- Match companies to tasks: Lead ID, then email, then exact company name ----------\nconst fLead = fieldByName[norm('Lead ID')], fMail = fieldByName[norm('E-posta')], fMail2 = fieldByName[norm('2. Kişi E-posta')];\nconst byLead = {}, byEmail = {}, byName = {};\nfor (const t of tasks) {\n  if (fLead) { const v = currentValue(t, fLead).toUpperCase(); if (v) byLead[v] = t; }\n  for (const f of [fMail, fMail2]) if (f) { const v = currentValue(t, f).toLowerCase(); if (v && !byEmail[v]) byEmail[v] = t; }\n  const n = normName(t.name); if (n && !byName[n]) byName[n] = t;\n}\nconst claimed = {};\nconst notes = [], conflicts = [], creates = [], fieldWrites = [], taskByCompany = {}, matched = [];\n\n// Turn a sheet value into what the ClickUp API wants for this field type. Returns {ok, value, options, shown}.\nconst toApi = (f, name, v) => {\n  if (v === '__SENT__') {\n    if (f.type === 'checkbox') return { ok: true, value: true, shown: 'true' };\n    if (f.type === 'drop_down') {\n      const o = optionsOf(f).find((x) => /^(at[ıi]ld[ıi]|g[öo]nderildi|evet|yap[ıi]ld[ıi]|var)$/.test(norm(optLabel(x))));\n      return o ? { ok: true, value: o.id, shown: optLabel(o) } : { ok: false, why: 'no \"sent\" option among: ' + optionsOf(f).map(optLabel).join(' | ') };\n    }\n    return { ok: true, value: 'Atıldı', shown: 'Atıldı' };\n  }\n  if (f.type === 'drop_down') {\n    const o = optionsOf(f).find((x) => norm(optLabel(x)) === norm(v));\n    return o ? { ok: true, value: o.id, shown: optLabel(o) } : { ok: false, why: 'no option \"' + v + '\" among: ' + optionsOf(f).map(optLabel).join(' | ') };\n  }\n  if (f.type === 'labels') {\n    const o = optionsOf(f).find((x) => norm(optLabel(x)) === norm(v));\n    return o ? { ok: true, value: [o.id], shown: optLabel(o) } : { ok: false, why: 'no label \"' + v + '\"' };\n  }\n  if (f.type === 'date') {\n    const d = dayOf(v);\n    return d ? { ok: true, value: dayToMs(d), options: { time: false }, shown: d } : { ok: false, why: 'not a date: ' + v };\n  }\n  if (f.type === 'number' || f.type === 'currency') {\n    const n = Number(String(v).replace(/[^\\d.,-]/g, '').replace(/\\.(?=\\d{3}\\b)/g, '').replace(',', '.'));\n    return Number.isFinite(n) && String(v).match(/\\d/) ? { ok: true, value: n, shown: String(n) } : { ok: false, why: 'not a number: ' + v };\n  }\n  if (f.type === 'checkbox') return { ok: true, value: /^(true|yes|evet|1|oldu)$/i.test(v), shown: String(/^(true|yes|evet|1|oldu)$/i.test(v)) };\n  if (f.type === 'url') return /^https?:\\/\\//i.test(v) ? { ok: true, value: v, shown: v } : { ok: true, value: 'https://' + v, shown: 'https://' + v };\n  if (f.type === 'email') return /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(v) ? { ok: true, value: v, shown: v } : { ok: false, why: 'not an email: ' + v };\n  return { ok: true, value: String(v).slice(0, 2000), shown: String(v).slice(0, 2000) };\n};\nconst same = (f, cur, shown) => (f.type === 'date' ? cur === shown : f.type === 'url' ? norm(cur).replace(/\\/$/, '') === norm(shown).replace(/\\/$/, '') : norm(cur) === norm(shown));\n\nconst missingFields = {};\nfor (const c of companies) {\n  let task = null, how = '';\n  for (const id of [c.key]) if (byLead[id]) { task = byLead[id]; how = 'Lead ID'; }\n  if (!task) for (const e of c.emails) if (byEmail[e]) { task = byEmail[e]; how = 'email'; break; }\n  if (!task && byName[normName(c.name)]) { task = byName[normName(c.name)]; how = 'name'; }\n  if (task && claimed[task.id]) {\n    notes.push(c.key + ' ' + c.name + ': matches task \"' + task.name + '\" by ' + how + ', but ' + claimed[task.id] + ' already uses it. Skipped.');\n    continue;\n  }\n  const writes = [];\n  for (const [name, v] of Object.entries(c.want)) {\n    if (!v) continue;\n    const f = fieldByName[norm(name)];\n    if (!f) { missingFields[name] = true; continue; }\n    const api = toApi(f, name, v);\n    if (!api.ok) { notes.push(c.key + ' ' + c.name + ': field \"' + name + '\" not set (' + api.why + ').'); continue; }\n    if (task) {\n      const cur = currentValue(task, f);\n      if (same(f, cur, api.shown)) continue;\n      if (cur && HAND_FILLED.includes(norm(name)) && !overwrite) {\n        conflicts.push({ lead_id: c.key, company: c.name, task: task.name, field: name, clickup: cur, sheet: api.shown });\n        continue;\n      }\n      if (norm(name) === norm('Aşama') && norm(cur) === norm('Demo planlandı') && stageRank(api.shown) < 100) continue; // set by hand, keep\n      writes.push({ field: name, from: cur, to: api.shown });\n      fieldWrites.push({ task_id: task.id, field_id: f.id, field: name, lead_id: c.key, company: c.name, body: api.options ? { value: api.value, value_options: api.options } : { value: api.value } });\n    } else {\n      writes.push({ field_id: f.id, value: api.value, options: api.options, field: name, to: api.shown });\n    }\n  }\n  if (task) {\n    claimed[task.id] = c.key;\n    taskByCompany[c.key] = task.id;\n    matched.push({ lead_id: c.key, company: c.name, task: task.name, task_id: task.id, matched_by: how, changes: writes });\n  } else {\n    creates.push({ lead_id: c.key, company: c.name, fields_shown: writes.map((w) => w.field + ' = ' + w.to), body: { name: c.name, custom_fields: writes.map((w) => (w.options ? { id: w.field_id, value: w.value, value_options: w.options } : { id: w.field_id, value: w.value })) } });\n  }\n}\nfor (const n of Object.keys(missingFields)) notes.push('ClickUp list has no field named \"' + n + '\"; it is not synced.');\nconst tasksWithoutLead = tasks.filter((t) => !claimed[t.id]).map((t) => t.name);\n\n// ---------- Actions rows that are not in ClickUp yet ----------\nconst companyOfLead = {};\nfor (const c of companies) for (const id of c.lead_ids) companyOfLead[id] = c.key;\nconst LABEL = { 'first email': 'İlk mail', 'first email (2nd contact)': '2. kişiye ilk mail', 'reply': 'Yanıt', 'opt-out': 'Opt-out', 'bounce': 'Ulaşmadı', 'bounced': 'Ulaşmadı', 'closed - no reply': 'Kapandı – yanıt yok', 'approved': 'Onay', 'approval': 'Onay', 'demo planned': 'Demo planlandı' };\nconst comments = [];\nlet waiting = 0;\nfor (const it of $('Read Actions').all()) {\n  const a = it.json;\n  const lead = S(a['Lead ID']).toUpperCase();\n  if (!lead || S(a['ClickUp Comment ID'])) continue;\n  const key = companyOfLead[lead];\n  if (!key) { if (!only.length) waiting++; continue; }\n  if (comments.length >= maxComments) { waiting++; continue; }\n  const act = S(a.Action);\n  const fu = act.match(/^Follow-up (\\d)/i);\n  const label = fu ? fu[1] + '. takip' : (LABEL[act.toLowerCase()] || act);\n  const incoming = /^(reply|opt-out|bounce)/i.test(act);\n  const ms = tsOf(a.Timestamp);\n  const when = ms ? new Date(ms + 3 * 3600000).toISOString().replace(/^(\\d{4})-(\\d{2})-(\\d{2})T(\\d{2}:\\d{2}).*/, '$3.$2.$1 $4') : S(a.Timestamp);\n  const who = [S(a.Person), S(a.Email) ? '<' + S(a.Email) + '>' : ''].filter(Boolean).join(' ');\n  const lines = ['[n8n] ' + when + ' · ' + label];\n  if (who) lines.push((incoming ? 'Kimden: ' : 'Kime: ') + who);\n  if (S(a.Subject)) lines.push('Konu: ' + S(a.Subject));\n  if (S(a.Summary)) lines.push('Özet: ' + S(a.Summary).slice(0, 1500));\n  if (S(a['Approved By'])) lines.push('Onaylayan: ' + S(a['Approved By']));\n  if (S(a.Result)) lines.push('Sonuç: ' + S(a.Result));\n  if (lead !== key) lines.push('Kayıt: ' + lead + ' (2. kişi)');\n  comments.push({ row_number: a.row_number, lead_id: lead, company_key: key, action: act, comment_text: lines.join('\\n') });\n}\n\nreturn [{ json: {\n  dry_run: dryRun, overwrite_hand_filled: overwrite, only_lead_ids: only,\n  stats: { companies_mailed: companies.length, clickup_tasks: tasks.length, matched: matched.length, to_create: creates.length, field_writes: fieldWrites.length, hand_filled_differences: conflicts.length, comments: comments.length, actions_waiting: waiting },\n  creates, field_writes: fieldWrites, comments, task_by_company: taskByCompany,\n  matched, conflicts, notes, tasks_without_lead: tasksWithoutLead,\n} }];\n"
+      }
+    },
+    {
+      "id": "0885935d-b8bf-4b2e-80b3-aaac16410eaa",
+      "name": "New tasks",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1568,
+        96
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// One item per task to create. Dry run or nothing to create = one marker item, so the chain goes on.\nconst p = $('Plan sync').first().json;\nif (p.dry_run || !p.creates.length) return [{ json: { _noop: true } }];\nreturn p.creates.map((c) => ({ json: c }));\n"
+      }
+    },
+    {
+      "id": "31ef0cf3-db6b-4066-a4fc-37408c1f4f05",
+      "name": "Nothing to create?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1792,
+        96
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json._noop }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "d052cd27-9d35-4267-933f-042405012f45",
+      "name": "Create task",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2016,
+        176
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.clickup.com/api/v2/list/{{ $(\"Config\").first().json.list_id }}/task",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "clickUpApi",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body) }}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 700
+            }
+          }
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "clickUpApi": {
+          "name": "ClickUp account"
+        }
+      }
+    },
+    {
+      "id": "9657b96a-f9a9-40c2-805f-0f05d7cf330e",
+      "name": "Field changes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2240,
+        96
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// One item per field to set on an existing task.\nconst p = $('Plan sync').first().json;\nif (p.dry_run || !p.field_writes.length) return [{ json: { _noop: true } }];\nreturn p.field_writes.map((w) => ({ json: w }));\n"
+      }
+    },
+    {
+      "id": "a9937b84-aa09-4186-81c8-59d4ffcf50a7",
+      "name": "No field changes?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2464,
+        96
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json._noop }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "bffe2e08-8ff6-4f24-9494-61f46cf32e0b",
+      "name": "Set field",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2688,
+        176
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.clickup.com/api/v2/task/{{ $json.task_id }}/field/{{ $json.field_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "clickUpApi",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body) }}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 700
+            }
+          }
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "clickUpApi": {
+          "name": "ClickUp account"
+        }
+      }
+    },
+    {
+      "id": "5df39f03-87ef-48fe-9d6e-a1a50e59511d",
+      "name": "Comments to post",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2912,
+        96
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// One item per Actions row to post as a comment. Tasks created in this run are picked up here.\nconst p = $('Plan sync').first().json;\nif (p.dry_run || !p.comments.length) return [{ json: { _noop: true } }];\nconst taskOf = { ...p.task_by_company };\nlet created = [], planned = [];\ntry { created = $('Create task').all(); planned = $('New tasks').all(); } catch (e) { created = []; }\ncreated.forEach((it, i) => { const c = planned[i] && planned[i].json; if (c && c.lead_id && it.json && it.json.id) taskOf[c.lead_id] = it.json.id; });\nconst out = p.comments.filter((c) => taskOf[c.company_key]).map((c) => ({ json: { ...c, task_id: taskOf[c.company_key] } }));\nreturn out.length ? out : [{ json: { _noop: true } }];\n"
+      }
+    },
+    {
+      "id": "3aa55990-fed4-4800-90c1-5457a2bcb187",
+      "name": "No comments?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3136,
+        96
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json._noop }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "efa919b1-1b29-4b30-886a-7a31f514c6fb",
+      "name": "Post comment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3360,
+        176
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.clickup.com/api/v2/task/{{ $json.task_id }}/comment",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "clickUpApi",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ comment_text: $json.comment_text, notify_all: false }) }}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 700
+            }
+          }
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "clickUpApi": {
+          "name": "ClickUp account"
+        }
+      }
+    },
+    {
+      "id": "220d5530-11c9-4fed-8b08-af93931eef35",
+      "name": "Synced rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3584,
+        176
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Mark the Actions rows whose comment was posted, so they are not posted twice.\nconst sent = $('Comments to post').all();\nconst out = [];\n$input.all().forEach((it, i) => {\n  const src = sent[i] && sent[i].json;\n  const id = it.json && (it.json.id || it.json.hist_id);\n  if (src && src.row_number && id && !it.json.error) out.push({ json: { row_number: src.row_number, 'ClickUp Comment ID': String(id), 'ClickUp Synced At': $now.toISO() } });\n});\nreturn out.length ? out : [{ json: { _noop: true } }];\n"
+      }
+    },
+    {
+      "id": "5d949213-41fe-4e06-8ef1-83c6fa8287f6",
+      "name": "Nothing to mark?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3808,
+        176
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json._noop }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "6019f181-de09-4001-b89b-8425e59259e8",
+      "name": "Mark action synced",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        4032,
+        240
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Actions"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": []
+        },
+        "options": {
+          "cellFormat": "RAW",
+          "handlingExtraData": "insertInNewColumn"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "95d1fa45-4692-4c4c-9292-e793fced6b7e",
+      "name": "Run summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4256,
+        96
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// One Log row per run. Dry runs with nothing to do and live runs with nothing to do are not logged.\nconst p = $('Plan sync').first().json;\nconst ran = (n) => { try { return $(n).all().map((i) => i.json); } catch (e) { return []; } };\nconst errs = [];\nconst count = (name, planName, label) => {\n  const res = ran(name), plan = ran(planName);\n  let ok = 0;\n  res.forEach((r, i) => {\n    if (r && r.error) { const src = plan[i] || {}; errs.push(label + ' ' + (src.lead_id || '') + ' ' + (src.field || src.company || src.action || '') + ': ' + String((r.error && r.error.message) || r.error).slice(0, 200)); }\n    else if (r && !r._noop) ok++;\n  });\n  return ok;\n};\nconst created = count('Create task', 'New tasks', 'create');\nconst fields = count('Set field', 'Field changes', 'field');\nconst comments = count('Post comment', 'Comments to post', 'comment');\nconst s = p.stats;\nconst nothing = !s.to_create && !s.field_writes && !s.comments && !errs.length;\nconst text = p.dry_run\n  ? 'DRY RUN, nothing written. Would create ' + s.to_create + ' tasks, set ' + s.field_writes + ' fields, post ' + s.comments + ' comments.'\n  : 'Created ' + created + ' of ' + s.to_create + ' tasks, set ' + fields + ' of ' + s.field_writes + ' fields, posted ' + comments + ' of ' + s.comments + ' comments.';\nreturn [{ json: {\n  log: !nothing || p.dry_run,\n  failed: errs.length,\n  output: text + (errs.length ? ' ' + errs.length + ' failed.' : ''),\n  input: s.companies_mailed + ' mailed companies, ' + s.clickup_tasks + ' ClickUp tasks, ' + s.matched + ' matched' + (p.only_lead_ids.length ? ' (only ' + p.only_lead_ids.join(', ') + ')' : ''),\n  reason: [s.hand_filled_differences ? s.hand_filled_differences + ' hand-filled values differ from the sheet and were left alone' : '', s.actions_waiting ? s.actions_waiting + ' actions waiting' : '', ...errs.slice(0, 5), ...p.notes.slice(0, 5)].filter(Boolean).join(' | ').slice(0, 3000),\n  errors: errs, stats: s, conflicts: p.conflicts, notes: p.notes, would_create: p.creates.map((c) => c.lead_id + ' ' + c.company), matched: p.matched, tasks_without_lead: p.tasks_without_lead,\n} }];\n"
+      }
+    },
+    {
+      "id": "89e9d795-396f-487d-ad5b-b2e2d6a296b9",
+      "name": "Worth logging?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4480,
+        96
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.log }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "10e3bb1c-2b2d-45e2-a081-8ed8233d5744",
+      "name": "Log run",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        4704,
+        96
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Timestamp": "={{ $now.toISO() }}",
+            "Workflow": "WF7 ClickUp sync",
+            "Lead ID": "",
+            "Company": "",
+            "Step": "={{ $(\"Plan sync\").first().json.dry_run ? \"ClickUp sync (dry run)\" : \"ClickUp sync\" }}",
+            "Input": "={{ $(\"Run summary\").first().json.input }}",
+            "Output": "={{ $(\"Run summary\").first().json.output }}",
+            "Reason": "={{ $(\"Run summary\").first().json.reason }}"
+          },
+          "schema": [
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Workflow",
+              "displayName": "Workflow",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Lead ID",
+              "displayName": "Lead ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Company",
+              "displayName": "Company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Step",
+              "displayName": "Step",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Input",
+              "displayName": "Input",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Output",
+              "displayName": "Output",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Reason",
+              "displayName": "Reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            }
+          ]
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "d334fe34-7695-48d6-93d3-4234f982cc71",
+      "name": "Any write failed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4928,
+        96
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $(\"Run summary\").first().json.failed }}",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              },
+              "rightValue": 0
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "a08cd450-174b-42a0-8a55-15501ba13781",
+      "name": "Stop: ClickUp writes failed",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        5152,
+        96
+      ],
+      "parameters": {
+        "errorMessage": "={{ \"WF7 ClickUp sync: \" + $(\"Run summary\").first().json.output + \" \" + $(\"Run summary\").first().json.errors.slice(0, 3).join(\" | \") }}"
+      }
+    },
+    {
+      "id": "868a12bb-17d3-49b0-9d30-c78d06a0a2bf",
+      "name": "Note: ClickUp sync",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2512,
+        368
+      ],
+      "parameters": {
+        "content": "## WF7 ClickUp sync\nReads Leads and Actions, updates the ClickUp list \"Mail Atılan Kurumlar – Müşteri Listesi\". One task per company (second-contact rows L123-B go to the parent task). Match: Lead ID field, then email, then exact name.\n\n**Config node**\n- dry_run true = plan only, nothing written (see Run summary output)\n- overwrite_hand_filled false = the 8 fields Nil filled by hand are only filled when empty; differences are listed, not written\n- only_lead_ids = comma list for a test on a few companies\n\nEach new Actions row becomes a dated comment; the row then gets a ClickUp Comment ID so it is posted once.",
+        "color": 4
+      }
+    }
+  ],
+  "connections": {
+    "Weekdays hourly 08:20-19:20": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Test": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Read Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Leads": {
+      "main": [
+        [
+          {
+            "node": "Read Actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Actions": {
+      "main": [
+        [
+          {
+            "node": "Get Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Fields": {
+      "main": [
+        [
+          {
+            "node": "Get Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Tasks": {
+      "main": [
+        [
+          {
+            "node": "Plan sync",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plan sync": {
+      "main": [
+        [
+          {
+            "node": "New tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New tasks": {
+      "main": [
+        [
+          {
+            "node": "Nothing to create?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create task": {
+      "main": [
+        [
+          {
+            "node": "Field changes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Field changes": {
+      "main": [
+        [
+          {
+            "node": "No field changes?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set field": {
+      "main": [
+        [
+          {
+            "node": "Comments to post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Comments to post": {
+      "main": [
+        [
+          {
+            "node": "No comments?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post comment": {
+      "main": [
+        [
+          {
+            "node": "Synced rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Synced rows": {
+      "main": [
+        [
+          {
+            "node": "Nothing to mark?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark action synced": {
+      "main": [
+        [
+          {
+            "node": "Run summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run summary": {
+      "main": [
+        [
+          {
+            "node": "Worth logging?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Worth logging?": {
+      "main": [
+        [
+          {
+            "node": "Log run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log run": {
+      "main": [
+        [
+          {
+            "node": "Any write failed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Any write failed?": {
+      "main": [
+        [
+          {
+            "node": "Stop: ClickUp writes failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Nothing to create?": {
+      "main": [
+        [
+          {
+            "node": "Field changes",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "No field changes?": {
+      "main": [
+        [
+          {
+            "node": "Comments to post",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set field",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "No comments?": {
+      "main": [
+        [
+          {
+            "node": "Run summary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Post comment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Nothing to mark?": {
+      "main": [
+        [
+          {
+            "node": "Run summary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark action synced",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Istanbul",
+    "errorWorkflow": "sZJSgJf9658Bdip7"
+  }
+}

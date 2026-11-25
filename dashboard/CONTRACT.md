@@ -23,7 +23,7 @@ Do not edit files outside your area. If you need something from another area, wr
 
 - Next.js 16 (App Router, `src/`), React 19, TypeScript, Tailwind 4, Auth.js v5 (`next-auth@5 beta`), TanStack Query 5, Zod 4, Vitest 3. Read `node_modules/next/dist/docs/` before writing Next.js code: this version differs from older ones (for example `middleware.ts` may be called `proxy.ts`).
 - `output: "standalone"` in `next.config.ts`; container listens on port 3000.
-- Sheet: "Texprove Leads", id `10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM`, tabs `Leads` (A..AG + new AH `Hot Handled`), `Settings` (row 2), `Suppression`, `Social`, `Log`. Headers in `src/lib/types.ts` and `docs/google-sheet.md`.
+- Sheet: "Texprove Leads", id `10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM`, tabs `Leads` (A..AG + new AH `Hot Handled`), `Settings` (row 2; A..AC are read, including `Calendar Link` and the four `Value Prop …` sentences, which the draft checks need), `Suppression`, `Social`, `Log`. Leads columns after `Hot Handled` (wave, criteria fit, second contact, ClickUp fields; see `docs/nil-rules-2026-11-23.md`) are not read by the dashboard. Headers in `src/lib/types.ts` and `docs/google-sheet.md`.
 - Time zone Europe/Istanbul. `Last Updated` is written as `$now.toISO()` in n8n (ISO with +03:00). Compared as a string.
 - Never put real personal data in code, fixtures or tests: use `example.com` / `example.org` addresses and invented companies. Never hard-code anyone's email address; allowlists come from env vars.
 

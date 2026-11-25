@@ -7,7 +7,7 @@
 // <lib:common>
 // </lib:common>
 
-const NEVER = ['Mail Provider', 'SMTP From', 'Sheet URL', 'Nil WhatsApp', 'WhatsApp Phone Number ID', 'HubSpot Owner ID', 'Dashboard URL'];
+const NEVER = ['Mail Provider', 'SMTP From', 'Sheet URL', 'Nil WhatsApp', 'WhatsApp Phone Number ID', 'HubSpot Owner ID', 'Dashboard URL', 'Calendar Link', 'Value Prop Exporter TR', 'Value Prop Exporter EN', 'Value Prop Brand TR', 'Value Prop Brand EN'];
 const ADMIN_ONLY = ['Test Email', 'HubSpot Monthly Limit', 'HubSpot Pause Percent', 'Seed Email', 'Seed Every', 'Target Countries', 'Weekly New Leads', 'Daily Send Limit'];
 
 const cfg = $('Config').first().json;

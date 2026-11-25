@@ -3,13 +3,13 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  buildHtml, checkDraft, fixAddressLineBreak, complianceIssues, sensitiveIssues,
-  checkFollowup, followupSensitiveIssues,
+  buildHtml, checkDraft, fixAddressLineBreak, complianceIssues, nilRuleIssues, sensitiveIssues,
+  checkFollowup, followupNilRuleIssues, followupSensitiveIssues,
   recipientFor, firstEmailSubject, followupSubject, isSuppressed,
   hashText, hashFirst, hashFollowup,
 } from '../email/index.js';
 import { nodeFunctionSource } from '../../scripts/drift.mjs';
-import { settings, lead, drafts } from './fixtures.js';
+import { settings, lead, drafts, followupTr } from './fixtures.js';
 
 const EMAIL_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'email');
 
@@ -123,7 +123,7 @@ describe('checkDraft', () => {
     const noSite = { ...settings, 'Company Website': '' };
     expect(run({ settings: noSite }).notes).toEqual([
       'Texprove website missing from signature',
-      'Links to other sites: https://www.texprove.example.org',
+      'Link other than the calendar link and texprove.com: https://www.texprove.example.org',
     ]);
     expect(run({ settings: noSite, body: ok.body.replace('https://www.texprove.example.org', 'texprove.com') }).notes).toEqual([]);
   });
@@ -143,29 +143,64 @@ describe('checkDraft', () => {
       .toEqual(['Data-source sentence missing']);
   });
 
-  it('Links to other sites', () => {
+  it('Links: only the calendar link and the own website', () => {
     const r = run({ body: ok.body + '\nhttps://other.example.net/x and http://evil.example.com).' });
-    expect(r.notes).toEqual(['Links to other sites: https://other.example.net/x, http://evil.example.com']);
-    expect(run({ body: ok.body + '\nhttps://anadolu-orme.example.com/urunler' }).notes).toEqual([]);
+    expect(r.notes).toEqual(['Link other than the calendar link and texprove.example.org: https://other.example.net/x, http://evil.example.com']);
+    // the lead's own website is no longer allowed either
+    expect(run({ body: ok.body + '\nhttps://anadolu-orme.example.com/urunler' }).notes).toEqual(['Link other than the calendar link and texprove.example.org: https://anadolu-orme.example.com/urunler']);
   });
 
-  it('Too long (over 190 words incl. signature)', () => {
+  it('Too long (over 330 words incl. signature)', () => {
     const words = ok.body.trim().split(/\s+/).length;
-    const pad = ' kelime'.repeat(191 - words);
+    const pad = ' kelime'.repeat(331 - words);
     const r = run({ body: ok.body.replace('Saygılarımla,', 'Saygılarımla' + pad + ',') });
-    expect(r.notes).toEqual(['Too long (191 words incl. signature)']);
-    expect(run({ body: ok.body.replace('Saygılarımla,', 'Saygılarımla' + ' kelime'.repeat(190 - words) + ',') }).notes).toEqual([]);
+    expect(r.notes).toEqual(['Too long (331 words incl. signature)']);
+    expect(run({ body: ok.body.replace('Saygılarımla,', 'Saygılarımla' + ' kelime'.repeat(330 - words) + ',') }).notes).toEqual([]);
+  });
+
+  it("Nil's rules: demo offer, calendar link, value sentence", () => {
+    expect(run({ body: ok.body.replace('30 dakikalık', 'kısa') }).notes).toEqual(['30-minute demo offer missing']);
+    expect(run({ body: ok.body.replace(settings['Calendar Link'], '') }).notes).toEqual(['Calendar link missing']);
+    expect(run({ settings: { ...settings, 'Calendar Link': '' } }).notes).toEqual([
+      "Settings 'Calendar Link' is empty",
+      'Link other than the calendar link and texprove.example.org: https://calendar.example.org/demo',
+    ]);
+    expect(run({ body: ok.body.replace('bir kez düzenleyip', 'düzenleyip') }).notes).toEqual(['Value proposition sentence missing (exporter, TR)']);
+    expect(run({ settings: { ...settings, 'Value Prop Exporter TR': '' } }).notes).toEqual(['Value proposition sentence missing (exporter, TR)']);
+    // a brand needs the sentence of the brand template, not the exporter one
+    expect(run({ lead: lead({ Segment: 'Marka' }) }).notes).toEqual(['Value proposition sentence missing (brand, TR)']);
+  });
+
+  it("Nil's rules: banned offers, claims and dates", () => {
+    const add = (t) => run({ body: ok.body.replace('Saygılarımla,', t + '\n\nSaygılarımla,') }).notes;
+    expect(add('15 dakikalık bir görüşme de olur.')).toEqual(['Mentions 15 minutes (the offer is a 30-minute demo)', 'Offer other than the demo: görüşme']);
+    expect(add('Katalog ve numune gönderebilirim.')).toEqual(['Price, package, catalog or sample wording: katalog, numune']);
+    expect(add('Tier-4 seviyesine kadar izlenebilirlik.')).toEqual(['Mentions Tier (Tier-4 / tier depth claims are not allowed)']);
+    expect(add('Yüzde 40 tasarruf ve daha az denetim.')).toEqual(['Contains a percentage (no savings rates: there is no measured data)', 'Claims fewer audits']);
+    expect(add('Kural 1 Ocak 2027 tarihinde başlıyor.')).toEqual(['Date other than 14 December 2027, 2027 (expected) and April 2028: 1 ocak 2027']);
+    expect(add('Pasaport 2027 yılında bekleniyor, EPR ise Nisan 2028.')).toEqual([]);
+  });
+
+  it("Nil's rules: language follows the country", () => {
+    expect(run({ lead: lead({ Country: 'Bangladesh' }) }).notes).toEqual([
+      'Opt-out sentence missing (EN)',
+      'Data-source sentence missing',
+      'Value proposition sentence missing (exporter, EN)',
+      'Wrong language: firms outside Turkey get English',
+    ]);
+    const en = drafts[2];
+    expect(checkDraft({ subject: en.subject, body: en.body, lead: { ...en.lead, Country: 'Turkey' }, settings, suppression: [] }).notes).toContain('Wrong language: firms in Turkey get Turkish');
   });
 
   it('Hype wording', () => {
-    expect(run({ body: ok.body + '\nGaranti veriyoruz, %100 ücretsiz, son şans!' }).notes).toEqual(['Hype wording: garanti, %100, ücretsiz, son şans']);
-    expect(run({ body: ok.body + '\n100% guaranteed free trial, last chance' }).notes).toEqual(['Hype wording: guaranteed, 100%, free trial, last chance']);
+    expect(run({ body: ok.body + '\nGaranti veriyoruz, son şans!' }).notes).toEqual(['Hype wording: garanti, son şans']);
+    expect(run({ body: ok.body + '\nguaranteed, last chance' }).notes).toEqual(['Hype wording: guaranteed, last chance']);
   });
 
   it('Trade-secret rule checks subject and body', () => {
-    expect(run({ subject: 'Zara tedarikçisi olarak' }).notes).toEqual([
+    expect(run({ subject: 'Zara tedarikçisi olduğunuz için' }).notes).toEqual([
       'Names a buyer or brand: zara',
-      'Commercially sensitive wording: tedarikçisi',
+      'Commercially sensitive wording: tedarikçisi olduğunuz',
     ]);
     expect(run({ body: ok.body + '\nH&M ve LC Waikiki için 5.000 adet, 3 € fiyat, kapasite ve marj.' }).notes).toEqual([
       'Names a buyer or brand: h&m, lc waikiki',
@@ -191,14 +226,17 @@ describe('checkDraft', () => {
     expect(run({ suppression: [{ Email: '', Domain: '@example.com', Reason: 'x', Date: '' }] }))
       .toMatchObject({ status: 'Blocked', notes: ['Email domain on suppression list'] });
     expect(run({ lead: lead({ Email: 'a@elsewhere.example.org' }) }).notes).toEqual(['Email domain does not match website domain']);
-    expect(run({ lead: lead({ Country: 'Germany' }) }).notes).toEqual(['Country not allowed']);
+    expect(run({ lead: lead({ Country: 'Germany' }) }).notes[0]).toBe('Country not allowed');
     expect(run({ lead: lead({ Country: 'Bangladesh' }) }).notes).not.toContain('Country not allowed');
     for (const c of ['Türkiye', ' turkiye ', 'TURKEY']) expect(run({ lead: lead({ Country: c }) }).status).toBe('OK');
+    // a mail to a brand may name that brand
+    expect(sensitiveIssues('Koton için', 'Koton Mağazacılık')).toEqual([]);
   });
 
   it('Blocked wins over Needs fix; notes list compliance reasons first', () => {
     const r = run({ subject: '', lead: lead({ Country: 'France' }) });
-    expect(r).toMatchObject({ status: 'Blocked', notes: ['Country not allowed', 'Subject is empty'] });
+    expect(r.status).toBe('Blocked');
+    expect(r.notes.slice(0, 2)).toEqual(['Country not allowed', 'Subject is empty']);
   });
 
   it('complianceIssues and sensitiveIssues are exported', () => {
@@ -215,14 +253,20 @@ describe('checkDraft', () => {
 
 // ---------------------------------------------------------------------------------------------
 describe('checkFollowup', () => {
-  const body = 'Merhaba Ayşe Hanım,\n\nGeçen haftaki notuma kısa bir ek: DPP takvimi netleşti.\n\nDefne Kılıç\n' + settings['Opt-out TR'];
+  const body = followupTr;
   const run = (over = {}) => checkFollowup({ body, lead: lead({ Stage: 'Sent' }), settings, suppression: [], ...over });
 
   it('OK', () => expect(run()).toEqual({ ok: true, notes: [] }));
-  it('Body is empty', () => expect(run({ body: '  ' })).toEqual({ ok: false, notes: ['Body is empty'] }));
-  it('Too long (over 160 words)', () => {
-    expect(run({ body: 'a '.repeat(161) }).notes).toEqual(['Too long (161 words)']);
-    expect(run({ body: 'a '.repeat(160) }).notes).toEqual([]);
+  it('Body is empty', () => expect(run({ body: '  ' }).notes[0]).toBe('Body is empty'));
+  it('Too long (over 230 words)', () => {
+    const words = body.trim().split(/\s+/).length;
+    expect(run({ body: body.replace('Saygılarımla,', 'Saygılarımla' + ' kelime'.repeat(231 - words) + ',') }).notes).toEqual(['Too long (231 words)']);
+    expect(run({ body: body.replace('Saygılarımla,', 'Saygılarımla' + ' kelime'.repeat(230 - words) + ',') }).notes).toEqual([]);
+  });
+  it("Nil's rules apply to follow-ups too", () => {
+    expect(run({ body: body.replace(settings['Calendar Link'], '') }).notes).toEqual(['Calendar link missing']);
+    expect(run({ body: body.replace('30 dakikalık', 'kısa') }).notes).toEqual(['30-minute demo offer missing']);
+    expect(run({ lead: lead({ Stage: 'Sent', Country: 'Vietnam' }) }).notes).toEqual(['Wrong language: firms outside Turkey get English']);
   });
   it('Hype wording', () => expect(run({ body: body + ' Last chance, GARANTİ değil ama garanti' }).notes).toEqual(['Hype wording: garanti, last chance']));
   it('Trade-secret rule', () => {
@@ -238,9 +282,11 @@ describe('checkFollowup', () => {
     expect(run({ suppression: [{ Email: '', Domain: 'anadolu-orme.example.com', Reason: '', Date: '' }] }).notes)
       .toEqual(['On suppression list (İYS ret / do-not-contact)']);
   });
-  it('works with body only', () => expect(checkFollowup({ body })).toEqual({ ok: true, notes: [] }));
+  it('tolerates missing lead and settings', () => expect(checkFollowup({ body }).ok).toBe(false));
   it('followupSensitiveIssues equals sensitiveIssues', () => {
     for (const t of ['Zara', '5 ton', '₺', 'moq', 'clean text']) expect(followupSensitiveIssues(t)).toEqual(sensitiveIssues(t));
+    const o = { lang: 'tr', calendarLink: settings['Calendar Link'], ownDomain: 'texprove.example.org', senderName: settings['Sender Name'] };
+    for (const t of [body, 'Tier-4', '15 dakika', '']) expect(followupNilRuleIssues(t, o)).toEqual(nilRuleIssues(t, o));
   });
 });
 

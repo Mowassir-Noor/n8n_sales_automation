@@ -84,6 +84,16 @@ const GROUPS: Group[] = [
     ],
   },
   {
+    title: "Email texts (Nil's rules of 23 Nov 2026)",
+    fields: [
+      { key: "Calendar Link", help: "The only link allowed in an email body: the page where a lead books the 30-minute demo. WF2 and WF5 put it into every draft and the draft check requires it." },
+      { key: "Value Prop Exporter TR", help: "Value sentence in Turkish emails to exporters. WF2 inserts it as it is and the draft check requires it word for word.", multiline: true },
+      { key: "Value Prop Exporter EN", help: "Value sentence in English emails to exporters.", multiline: true },
+      { key: "Value Prop Brand TR", help: "Value sentence of the Turkish brand email, kept here for reference (the brand email is a fixed template in WF2).", multiline: true },
+      { key: "Value Prop Brand EN", help: "Value sentence of the English brand email, kept here for reference.", multiline: true },
+    ],
+  },
+  {
     title: "Notifications",
     fields: [
       { key: "Nil Email", help: "Manager's address for approval requests, Hot alerts, summaries and reports.", affects: "Notifications from the next workflow run go to the new address." },
@@ -292,7 +302,7 @@ export function SettingsView() {
                   <p id={`${id}-help`} className="text-xs text-muted">
                     {f.help}
                     {f.key === "Mail Provider" || f.key === "SMTP From" ? ` ${T.readonlyWhy}` : ""}
-                    {f.key === "Sheet URL" ? ` ${T.sheetOnly}` : ""}
+                    {f.key === "Sheet URL" || f.key === "Calendar Link" || f.key.startsWith("Value Prop") ? ` ${T.sheetOnly}` : ""}
                     {access === "readonly" && isAdminField ? ` ${T.adminWhy}` : ""}
                   </p>
                   {sheetMoved ? (

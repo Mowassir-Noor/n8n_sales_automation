@@ -42,18 +42,22 @@ export interface Recipient {
 
 /** Verbatim copy of WF3 'Build HTML'. */
 export function buildHtml(body: string, settings: SettingsLike): string;
-/** WF2 'Compliance check' (=> Blocked) + WF2 'Check Draft' (=> Needs fix) + "signature line not found". */
+/** WF2 'Compliance check' (=> Blocked) + WF2 'Check Draft' (=> Needs fix, Nil's rules of 23 Nov 2026) + "signature line not found". */
 export function checkDraft(input: CheckDraftInput): CheckDraftResult;
 /** WF2 'Check Draft' line break before "No:" after Sk./Sok./Cad./Cd./Bulv./Sokak/Sokağı/Caddesi/Bulvarı. */
 export function fixAddressLineBreak(body: string): string;
 /** WF2 'Compliance check' reasons for one lead (any reason => Blocked). */
 export function complianceIssues(lead: LeadLike, suppression: SuppressionLike[]): string[];
-/** Trade-secret rule from WF2 'Check Draft'. */
-export function sensitiveIssues(text: string): string[];
+/** Nil's rules of 23 Nov 2026 from WF2 'Check Draft': 30-minute demo, calendar link only, allowed claims and dates, language. */
+export function nilRuleIssues(text: string, o: { lang: 'tr' | 'en'; calendarLink?: string; ownDomain?: string; senderName?: string }): string[];
+/** Trade-secret rule from WF2 'Check Draft'. `ownName`: the recipient company (a brand may be named in a mail to itself). */
+export function sensitiveIssues(text: string, ownName?: string): string[];
 /** WF5 'Check Follow-up' (+ opt-out/suppression from 'Follow-up due?'). */
 export function checkFollowup(input: CheckFollowupInput): CheckFollowupResult;
+/** Nil's rules from WF5 'Check Follow-up' (same as nilRuleIssues). */
+export function followupNilRuleIssues(text: string, o: { lang: 'tr' | 'en'; calendarLink?: string; ownDomain?: string; senderName?: string }): string[];
 /** Trade-secret rule from WF5 'Check Follow-up'. */
-export function followupSensitiveIssues(text: string): string[];
+export function followupSensitiveIssues(text: string, ownName?: string): string[];
 export function recipientFor(lead: LeadLike, settings: SettingsLike): Recipient;
 export function firstEmailSubject(lead: LeadLike): string;
 /** 'Re: ' + Subject unless it already starts with "re:" (any case). */

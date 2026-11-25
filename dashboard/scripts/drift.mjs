@@ -7,7 +7,7 @@
 // Two kinds of checks:
 //   1. Function copies: the source of a named function inside an n8n Code node must equal the shared file's
 //      function after whitespace normalisation (buildHtml from WF3 'Build HTML' and 'Seed check'; sensitiveIssues
-//      from WF2 'Check Draft' and WF5 'Check Follow-up').
+//      and nilRuleIssues from WF2 'Check Draft' and WF5 'Check Follow-up').
 //   2. Pinned nodes: nodes that are not pure functions (the n8n code reads $input / other nodes) are ported by
 //      hand. A copy of what was ported is pinned under shared/email/upstream/; when the node in the WF JSON no
 //      longer matches the pin, the shared port may be stale.
@@ -32,6 +32,8 @@ const FUNCTION_COPIES = [
   { wf: WF3, node: 'Seed check', fn: 'buildHtml', file: 'buildHtml.js', sharedFn: 'buildHtml' },
   { wf: WF2, node: 'Check Draft', fn: 'sensitiveIssues', file: 'checkDraft.js', sharedFn: 'sensitiveIssues' },
   { wf: WF5, node: 'Check Follow-up', fn: 'sensitiveIssues', file: 'checkFollowup.js', sharedFn: 'followupSensitiveIssues' },
+  { wf: WF2, node: 'Check Draft', fn: 'nilRuleIssues', file: 'checkDraft.js', sharedFn: 'nilRuleIssues' },
+  { wf: WF5, node: 'Check Follow-up', fn: 'nilRuleIssues', file: 'checkFollowup.js', sharedFn: 'followupNilRuleIssues' },
 ];
 
 const code = (n) => String(n.parameters.jsCode || '');

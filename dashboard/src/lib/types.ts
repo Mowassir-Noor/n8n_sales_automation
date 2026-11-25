@@ -28,7 +28,8 @@ export const SETTINGS_HEADERS = [
   "Company Website", "HubSpot Owner ID", "Mail Provider", "SMTP From",
   "Seed Email", "Seed Every", "Target Countries", "Dashboard URL",
   "Weekly New Leads", "Daily Send Limit",
-] as const; // A..X, row 2 only (W = WF0 weekly target, X = WF3 daily send cap)
+  "Calendar Link", "Value Prop Exporter TR", "Value Prop Exporter EN", "Value Prop Brand TR", "Value Prop Brand EN",
+] as const; // A..AC, row 2 only (W = WF0 weekly target, X = WF3 daily send cap, Y..AC = email texts of Nil's 23 Nov 2026 rules; AD 'WF3 Lock' is WF3's own and not read here)
 
 /** Countries the admin can pick for "Target Countries" (WF0 searches only these; empty = Turkey). */
 export const TARGET_COUNTRIES = ["Turkey", "Bangladesh", "Vietnam", "Malaysia", "Brazil"] as const;

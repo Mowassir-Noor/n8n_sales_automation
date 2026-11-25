@@ -27,14 +27,24 @@ export const settings = {
   'Dashboard URL': 'https://dash.example.com',
   'Weekly New Leads': '50',
   'Daily Send Limit': '10',
+  'Calendar Link': 'https://calendar.example.com/demo',
+  'Value Prop Exporter TR': 'Örnek platform, AB müşterilerinizin istediği uyum verisini bir kez düzenleyip her müşterinize yeniden sunmanızı sağlar.',
+  'Value Prop Exporter EN': 'The example platform lets you organise the compliance data your EU customers ask for once and reuse it for every customer.',
+  'Value Prop Brand TR': 'Örnek platform, markalara tedarikçi verisini tek platformdan talep edip doğrulama imkânı verir.',
+  'Value Prop Brand EN': 'The example platform gives brands one platform to request and verify supplier data.',
 };
 
+// A first email in the shape WF2 'Assemble Email' builds for a firm in Turkey (Nil's rules of 23 Nov 2026).
 export const goodBody = [
-  'Dear Ms. Example,',
+  'Sayın Ayşe Example,',
   '',
-  'We found your contact details on your company website and are writing about EU export compliance support for textile producers.',
+  'Web sitenizde ihracat pazarlarınızı ve sertifikalarınızı inceledim.',
   '',
-  'Would a short call next week be useful?',
+  settings['Value Prop Exporter TR'],
+  '',
+  'Sizin sipariş akışınıza benzer bir örnek üzerinden 30 dakikalık canlı bir demo göstermek isterim. Size uygun zamanı buradan seçebilirsiniz: https://calendar.example.com/demo',
+  '',
+  'Saygılarımla,',
   '',
   'Deniz Örnek',
   'Founder',
@@ -43,7 +53,9 @@ export const goodBody = [
   'No: 1, 06000 Ankara',
   'https://www.example.com',
   '',
-  'If you would rather not receive emails like this, just reply and tell us.',
+  'İletişim bilgilerinizi şirketinizin herkese açık web sitesinden aldık.',
+  '',
+  'Bu tür e-postaları almak istemiyorsanız lütfen yanıtlayın.',
 ].join('\n');
 
 export function lead(over = {}) {
@@ -57,7 +69,7 @@ export function lead(over = {}) {
     Country: 'Turkey',
     'Contact Name': 'Ayşe Example',
     Email: 'ayse@example-tekstil.com.tr',
-    Language: 'en',
+    Language: 'tr',
     'Compliance Status': 'OK',
     Subject: 'EU export compliance',
     'Draft Body': goodBody,

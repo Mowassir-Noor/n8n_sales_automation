@@ -14,7 +14,7 @@ async function validate(body, staticData = {}) {
   return out;
 }
 
-async function plan(body, { rows = [lead()], settings = settingsRow(), suppression = [{}], wf3Running = [{}], wf3Recent = [{}], now } = {}) {
+async function plan(body, { rows = [lead()], settings = settingsRow(), suppression = [{}], wf3Running = [{}], wf3Recent = [{}], now, nodeErrors } = {}) {
   const v = await validate(body);
   expect(v.respond).toBe(false);
   const [out] = await runNode('lead-action/plan', {
@@ -26,6 +26,7 @@ async function plan(body, { rows = [lead()], settings = settingsRow(), suppressi
       'Check WF3 Running': wf3Running,
       'Last WF3 Runs': wf3Recent,
     },
+    nodeErrors,
     now,
   });
   return out;
@@ -60,6 +61,18 @@ describe('DB - Lead action / Validate Request', () => {
     const staticData = {};
     await runNode('common/finish', { input: [{ status: 500, body: { error: 'x' }, requestId: 'req-0000-0001', store: true }], staticData });
     expect((await validate(request(), staticData)).respond).toBe(false);
+  });
+});
+
+describe('DB - Lead action / Check Reads', () => {
+  const reads = { 'Read Leads': [{}], 'Read Settings': [{}], 'Read Suppression': [{ Email: 'x@example.org' }] };
+  it('passes the items on when every read worked', async () => {
+    const out = await runNode('lead-action/check-reads', { nodes: reads, input: [{ Email: 'x@example.org' }] });
+    expect(out).toEqual([{ Email: 'x@example.org' }]);
+  });
+  it('throws (to Respond Error) when Google refused a read, with the quota text kept', async () => {
+    await expect(runNode('lead-action/check-reads', { nodes: reads, nodeErrors: { 'Read Settings': 'The service is receiving too many requests from you' } }))
+      .rejects.toThrow('Read Settings: The service is receiving too many requests from you (nothing was saved)');
   });
 });
 

@@ -5,8 +5,14 @@
 // <lib:common>
 // </lib:common>
 
+const readFail = readFailure($, ['Read Leads', 'Read Settings', 'Read Suppression', 'Read Social']);
+if (readFail) return [{ json: readFailureReply(readFail, '') }];
 const now = nowInfo($now);
 const leadRows = sheetRows($('Read Leads').all());
+// Leads and Settings are never both empty in real use: treat that as a read that silently failed.
+if (!leadRows.length && !sheetRows($('Read Settings').all()).length) {
+  return [{ json: readFailureReply({ node: 'Read Leads', message: 'the Leads and Settings tabs came back empty' }, '') }];
+}
 const headerCheck = checkLeadHeaders(detectHeaders(leadRows));
 const leadHeaders = LEAD_HEADERS.concat([HOT_HANDLED]);
 

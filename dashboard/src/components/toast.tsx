@@ -19,7 +19,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const show = useCallback((text: string, tone: ToastTone = "neutral") => {
     const id = nextId.current++;
     setItems((xs) => [...xs.slice(-3), { id, text, tone }]);
-    setTimeout(() => setItems((xs) => xs.filter((x) => x.id !== id)), tone === "danger" ? 8000 : 4000);
+    setTimeout(() => setItems((xs) => xs.filter((x) => x.id !== id)), tone === "danger" ? Math.max(8000, text.length * 70) : 4000);
   }, []);
   const api = useMemo(() => ({ show }), [show]);
   return (

@@ -85,6 +85,9 @@ const readSuppression = node({
   version: 4.7,
   config: {
     name: 'Read Suppression',
+    retryOnFail: true,
+    maxTries: 3,
+    waitBetweenTries: 5000,
     executeOnce: true,
     alwaysOutputData: true,
     onError: 'continueErrorOutput',
@@ -127,6 +130,9 @@ const appendSuppressionRow = node({
   version: 4.7,
   config: {
     name: 'Append Suppression Row',
+    retryOnFail: true,
+    maxTries: 3,
+    waitBetweenTries: 5000,
     executeOnce: true,
     onError: 'continueErrorOutput',
     parameters: {
@@ -161,6 +167,9 @@ const deleteSuppressionRow = node({
   version: 4.7,
   config: {
     name: 'Delete Suppression Row',
+    retryOnFail: true,
+    maxTries: 3,
+    waitBetweenTries: 5000,
     executeOnce: true,
     alwaysOutputData: true,
     onError: 'continueErrorOutput',
@@ -183,6 +192,9 @@ const logSuppressionChange = node({
   version: 4.7,
   config: {
     name: 'Log Suppression Change',
+    retryOnFail: true,
+    maxTries: 3,
+    waitBetweenTries: 5000,
     executeOnce: true,
     onError: 'continueRegularOutput',
     parameters: {
@@ -225,6 +237,9 @@ const rereadSuppression = node({
   version: 4.7,
   config: {
     name: 'Re-read Suppression',
+    retryOnFail: true,
+    maxTries: 3,
+    waitBetweenTries: 5000,
     executeOnce: true,
     alwaysOutputData: true,
     onError: 'continueErrorOutput',
@@ -250,6 +265,9 @@ const readSocial = node({
   version: 4.7,
   config: {
     name: 'Read Social',
+    retryOnFail: true,
+    maxTries: 3,
+    waitBetweenTries: 5000,
     executeOnce: true,
     alwaysOutputData: true,
     onError: 'continueErrorOutput',
@@ -297,6 +315,9 @@ const updateSocialRow = node({
   version: 4.7,
   config: {
     name: 'Update Social Row',
+    retryOnFail: true,
+    maxTries: 3,
+    waitBetweenTries: 5000,
     onError: 'continueErrorOutput',
     parameters: {
       resource: 'sheet',
@@ -321,6 +342,9 @@ const logSocialChange = node({
   version: 4.7,
   config: {
     name: 'Log Social Change',
+    retryOnFail: true,
+    maxTries: 3,
+    waitBetweenTries: 5000,
     executeOnce: true,
     onError: 'continueRegularOutput',
     parameters: {

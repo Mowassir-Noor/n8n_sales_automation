@@ -1,12 +1,13 @@
 // Typed client for the n8n "DB - …" webhook API (CONTRACT.md, "n8n webhook API").
-// POST ${N8N_INTERNAL_URL}/webhook/${dash|dash-staging}/<path>, header X-Dash-Key, 15 s timeout.
+// POST ${N8N_INTERNAL_URL}/webhook/${dash|dash-staging}/<path>, header X-Dash-Key, 40 s timeout
+// (the DB workflows retry a refused Google Sheets call twice, 5 s apart, so a slow answer can take ~30 s).
 import { env } from "./env";
 import type {
   LeadRow, LogPage, LogQuery, N8nLeadActionRequest, Role, Settings, SettingsWriteRequest, SocialRow,
   SocialWriteRequest, Snapshot, StatusResponse, SuppressionRow, SuppressionWriteRequest,
 } from "./types";
 
-export const N8N_TIMEOUT_MS = 15_000;
+export const N8N_TIMEOUT_MS = 40_000;
 
 export type N8nPath = "snapshot" | "log" | "lead" | "settings" | "suppression" | "social" | "status";
 
@@ -27,11 +28,12 @@ export function setFetch(f: FetchLike) { fetchImpl = f; }
 
 export const MESSAGES = {
   conflict: "This changed since you opened it (in the sheet, by a workflow or by the other user). Nothing was saved. Look at the current version and try again.",
-  timeout: "n8n did not answer within 15 seconds. The change may or may not have been saved; refresh, check, and try again (repeating the same click is safe).",
+  timeout: "n8n did not answer within 40 seconds. The change may or may not have been saved; refresh, check, and try again (repeating the same click is safe).",
   unreachable: "The dashboard cannot reach n8n right now, so nothing was saved. Try again in a minute.",
   badKey: "n8n refused the dashboard's key (X-Dash-Key). Nothing was saved. The admin needs to check DASH_KEY and the n8n Header Auth credential.",
   notFound: "The n8n workflow for this action is not active (webhook not found). Nothing was saved. The admin needs to publish the DB workflows.",
-  serverError: "n8n hit an error and nothing was saved",
+  serverError: "n8n hit an error before it confirmed the change. Refresh and check whether it was saved",
+  sheetsBusy: "Google Sheets is busy: it allows a limited number of reads per minute and that limit was just reached. This change was not saved. Wait a minute and try again.",
   badResponse: "n8n sent an answer the dashboard does not understand. Refresh and check whether the change was saved.",
 } as const;
 
@@ -43,9 +45,22 @@ async function readJson(res: Response): Promise<unknown> {
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 
+/** Google's per-minute quota answer ("429 … The service is receiving too many requests from you"). */
+export function isSheetsBusy(text: unknown): boolean {
+  return typeof text === "string" && /too many requests|quota exceeded|rate.?limit|resource.?exhausted|\b429\b/i.test(text);
+}
+
 /** Maps an n8n HTTP response (or failure) to the body the app returns. Exported for tests. */
 export function mapN8nResponse(httpStatus: number, json: unknown): ApiBody {
   const o = isObj(json) ? json : {};
+  const errText = typeof o.error === "string" ? o.error : typeof o.message === "string" ? o.message : "";
+  // Google Sheets refused a call (per-minute quota). n8n answers 503 { sheetsBusy } from a Code node, or
+  // 500 { error: "n8n: The service is receiving too many requests from you" } from Respond Error.
+  if (httpStatus >= 400 && (o.sheetsBusy === true || isSheetsBusy(errText))) {
+    return { status: 429, error: MESSAGES.sheetsBusy };
+  }
+  // A read failed for another reason; the workflow says so and nothing was written.
+  if (httpStatus === 503 && o.retryable === true && errText) return { status: 503, error: errText };
   if (httpStatus >= 200 && httpStatus < 300) {
     if (o.ok === true) return { ...o, status: 200, ok: true };
     // A 200 without ok:true: treat 409/422-shaped bodies as such (n8n set the wrong code), else unknown.

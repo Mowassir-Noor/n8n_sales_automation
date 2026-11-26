@@ -1,5 +1,7 @@
 # Workflow reference
 
+> **25 Nov 2026:** WF0 to WF5 changed when Nil's rules of 23 Nov 2026 were applied (fixed-text emails, 30-minute demo and calendar link, waves, two contacts, bounce handling, send lock). See [nil-rules-2026-11-23.md](nil-rules-2026-11-23.md); the step lists below still describe the earlier version in places.
+
 All seven workflows run in Europe/Istanbul time with n8n execution order v1. Each has a schedule trigger and a **Manual Test** trigger (except WF4, which has only its mail trigger: IMAP, or Gmail). Every Claude call has an "(account 2)" twin: in WF0 and WF1 the Anthropic node's error output feeds a clone with the same prompt; in WF2, WF4, WF5 and WF6 the LLM chain has **Enable Fallback Model** on with a second chat-model node. When the first account errors (credits, rate limit, outage) that one call is retried on the second account.
 
 Every notification node to the manager (email and Telegram; WhatsApp nodes were removed on 2026-11-13) is wired in parallel from the Settings read, has **On Error → Continue** and **Execute Once**, so a failing channel never stops the run or the channels next to it.

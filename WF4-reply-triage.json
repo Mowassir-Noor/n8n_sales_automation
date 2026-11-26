@@ -2,7 +2,7 @@
   "name": "Texprove WF4 - Reply triage",
   "nodes": [
     {
-      "id": "40790d8b-3741-490a-8730-44a3a0bb934d",
+      "id": "3babd0be-a031-40d5-a01f-f502acf3b5f9",
       "name": "Gmail Trigger",
       "type": "n8n-nodes-base.gmailTrigger",
       "typeVersion": 1.4,
@@ -27,15 +27,28 @@
         },
         "options": {}
       },
+      "disabled": true,
       "credentials": {
         "gmailOAuth2": {
           "name": "Gmail account"
         }
-      },
-      "disabled": true
+      }
     },
     {
-      "id": "807857ab-a390-4517-bb44-1ee45da7985b",
+      "id": "a68ffd5e-993f-42c2-916b-33a74d01526f",
+      "name": "Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        128,
+        416
+      ],
+      "parameters": {
+        "jsCode": "// Normalises an incoming reply from either the Gmail Trigger or the IMAP Trigger.\n// Also recognises delivery-failure notices (bounces) in plain code: hard failures only, delays are ignored.\nconst addr = (v) => {\n  if (!v) return '';\n  if (typeof v === 'string') { const m = v.match(/<([^>]+)>/); return (m ? m[1] : v).trim(); }\n  return (v.value && v.value[0] && v.value[0].address) || '';\n};\nreturn $input.all().map((it, i) => {\n  const j = it.json;\n  const isGmail = !!j.threadId;\n  const subject = String(j.subject || '');\n  const text = String(j.text || j.textPlain || '');\n  const from = addr(j.from).toLowerCase();\n  const fromText = from + ' ' + (typeof j.from === 'string' ? j.from : String((j.from && j.from.text) || ''));\n  const daemon = /mailer-daemon|postmaster|mail delivery (sub)?system/i.test(fromText);\n  const failSubj = /undeliver|delivery status notification|delivery (has )?failed|mail delivery failed|returned to sender|failure notice|teslim edilemedi|iletilemedi|ulaştırılamadı/i.test(subject);\n  const delay = /\\bdelay|warning|gecik|still (being )?(undelivered|retried)|will be retried|temporar/i.test(subject);\n  const hardRe = /\\b5\\.\\d{1,3}\\.\\d{1,3}\\b|\\b55\\d\\b|user unknown|no such user|does not exist|unknown recipient|recipient address rejected|mailbox unavailable|mailbox not found|address not found|domain name not found|domain not found|permanent/i;\n  const hard = hardRe.test(text + ' ' + subject);\n  const isBounce = (daemon || failSubj) && !delay && (hard || failSubj);\n  const reasonLine = text.split(/\\r?\\n/).map(l => l.trim()).find(l => hardRe.test(l)) || subject;\n  return {\n    json: {\n      source: isGmail ? 'gmail' : 'imap',\n      message_id: isGmail ? j.id : String(j.messageId || ''),\n      thread_id: isGmail ? j.threadId : '',\n      in_reply_to: isGmail ? '' : String(j.inReplyTo || ''),\n      references: isGmail ? '' : (Array.isArray(j.references) ? j.references.join(' ') : String(j.references || '')),\n      subject,\n      text,\n      from,\n      to: addr(j.to),\n      is_bounce: isBounce,\n      bounce_reason: isBounce ? String(reasonLine).slice(0, 250) : '',\n    },\n    pairedItem: { item: i },\n  };\n});\n"
+      }
+    },
+    {
+      "id": "1b242b9b-23fb-4a3f-9b9c-32f9d5755ef2",
       "name": "Get Leads (reply)",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
@@ -66,7 +79,20 @@
       }
     },
     {
-      "id": "f194ed1d-272f-4e21-8a88-298127524efc",
+      "id": "c0cc79e9-683e-49dc-bd6b-b7f57f18c306",
+      "name": "Find Lead by Thread",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        416
+      ],
+      "parameters": {
+        "jsCode": "// Matches each reply to its lead. No match = the reply is ignored.\n// Gmail: by Gmail Thread ID. IMAP/SMTP: by In-Reply-To/References against the stored 'smtp:<Message-ID>',\n// then by sender = lead email, then by subject (without Re:/Ynt:) among leads still in Sent / Follow-up stages.\n// Bounces: by the same ids, then by our Message-ID or the lead's address quoted inside the failure notice.\n// _siblings = the firm's other contact rows (second contact rows carry 'Parent Lead ID') that are still active.\nconst replies = $('Reply').all().map(i => i.json);\nconst leads = $('Get Leads (reply)').all().map(i => i.json).filter(r => r && r['Lead ID']);\nconst norm = (s) => String(s || '').replace(/[<>]/g, '').trim().toLowerCase();\nconst baseSubj = (s) => String(s || '').replace(/^\\s*((re|ynt|aw|fw|fwd|ynt\\.)\\s*:\\s*)+/i, '').trim().toLowerCase();\nconst open = ['Sent', 'Follow-up 1', 'Follow-up 2', 'Follow-up 3'];\nconst active = ['Researched', 'Drafted', 'Waiting - 2nd contact', 'Sent', 'Follow-up 1', 'Follow-up 2', 'Follow-up 3'];\nconst root = (l) => String(l['Parent Lead ID'] || '').trim() || String(l['Lead ID']).trim();\nconst out = [];\nfor (const r of replies) {\n  let lead;\n  if (r.source === 'gmail') {\n    lead = leads.find(l => String(l['Gmail Thread ID'] || '') === r.thread_id);\n  } else {\n    const ids = (r.in_reply_to + ' ' + r.references).split(/\\s+/).map(norm).filter(Boolean);\n    lead = leads.find(l => { const t = String(l['Gmail Thread ID'] || ''); return t.startsWith('smtp:') && ids.includes(norm(t.slice(5))); });\n    if (r.is_bounce) {\n      const low = String(r.text || '').toLowerCase();\n      const sent = leads.filter(l => String(l['Sent At'] || '').trim());\n      if (!lead) lead = sent.find(l => { const t = String(l['Gmail Thread ID'] || ''); return t.startsWith('smtp:') && norm(t.slice(5)) && low.includes(norm(t.slice(5))); });\n      if (!lead) lead = sent.find(l => open.includes(l.Stage) && norm(l.Email) && low.includes(norm(l.Email)));\n    } else {\n      if (!lead) lead = leads.find(l => open.includes(l.Stage) && r.from && norm(l.Email) === r.from);\n      if (!lead) { const s = baseSubj(r.subject); if (s) lead = leads.find(l => open.includes(l.Stage) && baseSubj(l.Subject) === s); }\n    }\n  }\n  if (lead) {\n    const siblings = leads.filter(l => l['Lead ID'] !== lead['Lead ID'] && root(l) === root(lead) && active.includes(l.Stage)).map(l => l['Lead ID']);\n    out.push({ json: { ...lead, _reply: r, _siblings: siblings } });\n  }\n}\nreturn out;"
+      }
+    },
+    {
+      "id": "e3e3abed-ee1b-4e2b-8fcf-512bda34987b",
       "name": "Summarize Reply",
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
@@ -76,14 +102,14 @@
       ],
       "parameters": {
         "promptType": "define",
-        "text": "=Email reply from a sales lead (may be Turkish or English).\nSubject: {{ $('Find Lead by Thread').item.json._reply.subject }}\n\n{{ $('Find Lead by Thread').item.json._reply.text }}\n\nReturn: (1) a one-sentence summary IN ENGLISH; (2) whether the sender asked to be removed / not contacted again (yes or no); (3) exactly one category: Hot = wants a call, demo or pricing; Warm = interested, asks a question, or says later; Cold = vague or not now, but no refusal; Not interested = refuses or asks not to be contacted; Auto-reply = out of office, bounce or other automatic message.",
+        "text": "=Email reply from a sales lead (may be Turkish or English).\nSubject: {{ $('Find Lead by Thread').item.json._reply.subject }}\n\n{{ $('Find Lead by Thread').item.json._reply.text }}\n\nReturn: (1) a one-sentence summary IN ENGLISH; (2) whether the sender asked to be removed / not contacted again (yes or no); (3) exactly one category: Hot = wants a demo, a call or pricing, or booked a time; Warm = interested, asks a question, or says later; Cold = vague or not now, but no refusal; Not interested = refuses or asks not to be contacted; Auto-reply = out of office or other automatic message.",
         "hasOutputParser": true,
         "needsFallback": true,
         "batching": {}
       }
     },
     {
-      "id": "bcb90691-a14c-4ef6-9835-d45300c9a420",
+      "id": "66e0df02-aa79-44c3-82ff-de55c6afab92",
       "name": "Claude Haiku (summary)",
       "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
       "typeVersion": 1.6,
@@ -107,7 +133,7 @@
       }
     },
     {
-      "id": "a6218ab1-14b9-48e2-a03d-e254dd3bc423",
+      "id": "1b6518ec-26d5-43df-8ec4-212b1db8dfeb",
       "name": "Claude Haiku (summary, account 2)",
       "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
       "typeVersion": 1.6,
@@ -132,7 +158,7 @@
       }
     },
     {
-      "id": "2a6087cb-eed1-4246-ad71-bf02cabc7972",
+      "id": "90819e5f-0613-4777-9faa-d9a3ffc819cc",
       "name": "Summary JSON",
       "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
       "typeVersion": 1.3,
@@ -146,7 +172,121 @@
       }
     },
     {
-      "id": "efe84626-8dc6-42e6-8655-7b38b519c2b0",
+      "id": "d5cfb4a1-3ed1-413c-b019-7272623bf543",
+      "name": "Route by Category",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        848,
+        416
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "hot",
+                    "leftValue": "={{ $json.output.category }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "Hot"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                }
+              },
+              "renameOutput": true,
+              "outputKey": "Hot"
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "warm",
+                    "leftValue": "={{ $json.output.category }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "Warm"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                }
+              },
+              "renameOutput": true,
+              "outputKey": "Warm"
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "cold",
+                    "leftValue": "={{ $json.output.category }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "Cold"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                }
+              },
+              "renameOutput": true,
+              "outputKey": "Cold"
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "ni",
+                    "leftValue": "={{ $json.output.category }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "Not interested"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                }
+              },
+              "renameOutput": true,
+              "outputKey": "Not interested"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "notes": "Auto-reply matches no rule and is dropped (nothing changes for the lead), as before."
+    },
+    {
+      "id": "5eaedc21-dbc5-423a-9260-c9031ae2fea2",
       "name": "Category Hot",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
@@ -169,7 +309,7 @@
       }
     },
     {
-      "id": "92f2309e-2e85-48ee-a507-b32d4893c890",
+      "id": "7aa4b05b-4a89-48bd-ab60-1c08be24d531",
       "name": "Decide Outcome",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
@@ -209,75 +349,48 @@
               "name": "reply_summary",
               "type": "string",
               "value": "={{ $('Summarize Reply').item.json.output.summary }}"
-            }
-          ]
-        },
-        "options": {}
-      }
-    },
-    {
-      "id": "6d44472d-d010-4b61-8ab3-f0512e15dc4b",
-      "name": "Category Warm",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [
-        752,
-        192
-      ],
-      "parameters": {
-        "assignments": {
-          "assignments": [
+            },
             {
-              "id": "cat",
-              "name": "category",
-              "value": "Warm",
-              "type": "string"
-            }
-          ]
-        },
-        "options": {}
-      }
-    },
-    {
-      "id": "f8ade447-2eae-47d0-99d1-ee53428bc723",
-      "name": "Category Cold",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [
-        752,
-        384
-      ],
-      "parameters": {
-        "assignments": {
-          "assignments": [
+              "id": "cu",
+              "name": "clickup_stage",
+              "type": "string",
+              "value": "={{ $('Summarize Reply').item.json.output.removal_requested === 'yes' ? 'Opt-out' : ({ Hot: 'Yanıt: demo istiyor', Warm: 'Yanıt: ilgili, bilgi istiyor', Cold: 'Yanıt: olumsuz', 'Not interested': 'Yanıt: olumsuz' }[$json.category] || '') }}"
+            },
             {
-              "id": "cat",
-              "name": "category",
-              "value": "Cold",
-              "type": "string"
-            }
-          ]
-        },
-        "options": {}
-      }
-    },
-    {
-      "id": "a47bc76c-bcfd-431c-a862-a4a72f3006e5",
-      "name": "Category Not interested",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [
-        752,
-        576
-      ],
-      "parameters": {
-        "assignments": {
-          "assignments": [
+              "id": "ng",
+              "name": "negative",
+              "type": "boolean",
+              "value": "={{ $('Summarize Reply').item.json.output.removal_requested === 'yes' || $json.category === 'Not interested' }}"
+            },
             {
-              "id": "cat",
-              "name": "category",
-              "value": "Not interested",
-              "type": "string"
+              "id": "sd",
+              "name": "supp_email",
+              "type": "string",
+              "value": "={{ (() => { const e = String($('Find Lead by Thread').item.json.Email || '').trim().toLowerCase(); const d = e.includes('@') ? e.split('@')[1] : ''; return ['gmail.com','hotmail.com','yahoo.com','outlook.com','yandex.com','icloud.com'].includes(d) || !d ? e : ''; })() }}"
+            },
+            {
+              "id": "sdd",
+              "name": "supp_domain",
+              "type": "string",
+              "value": "={{ (() => { const e = String($('Find Lead by Thread').item.json.Email || '').trim().toLowerCase(); const d = e.includes('@') ? e.split('@')[1] : ''; return ['gmail.com','hotmail.com','yahoo.com','outlook.com','yandex.com','icloud.com'].includes(d) ? '' : d; })() }}"
+            },
+            {
+              "id": "li",
+              "name": "lead_id",
+              "type": "string",
+              "value": "={{ $('Find Lead by Thread').item.json['Lead ID'] }}"
+            },
+            {
+              "id": "co",
+              "name": "company",
+              "type": "string",
+              "value": "={{ $('Find Lead by Thread').item.json.Company }}"
+            },
+            {
+              "id": "sb",
+              "name": "siblings",
+              "type": "array",
+              "value": "={{ $('Find Lead by Thread').item.json._siblings || [] }}"
             }
           ]
         },
@@ -285,7 +398,7 @@
       }
     },
     {
-      "id": "26e46c14-2e51-4a44-9434-100bcd584af7",
+      "id": "1d476494-fca2-4b93-a3b9-07989491e758",
       "name": "Update Lead Row",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
@@ -312,15 +425,6 @@
           "matchingColumns": [
             "Lead ID"
           ],
-          "value": {
-            "Lead ID": "={{ $('Find Lead by Thread').item.json['Lead ID'] }}",
-            "Stage": "={{ $json.stage }}",
-            "Opt-out": "={{ $json.opt_out }}",
-            "Reply Category": "={{ $json.final_category }}",
-            "Reply Summary": "={{ $json.reply_summary }}",
-            "Next Follow-up Date": "",
-            "Last Updated": "={{ $now.toISO() }}"
-          },
           "schema": [
             {
               "canBeUsedToMatch": true,
@@ -380,12 +484,41 @@
               "canBeUsedToMatch": false,
               "defaultMatch": false,
               "display": true,
+              "displayName": "Reply At",
+              "id": "Reply At",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "ClickUp Stage",
+              "id": "ClickUp Stage",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
               "displayName": "Last Updated",
               "id": "Last Updated",
               "required": false,
               "type": "string"
             }
-          ]
+          ],
+          "value": {
+            "ClickUp Stage": "={{ $json.clickup_stage }}",
+            "Last Updated": "={{ $now.toISO() }}",
+            "Lead ID": "={{ $('Find Lead by Thread').item.json['Lead ID'] }}",
+            "Next Follow-up Date": "",
+            "Opt-out": "={{ $json.opt_out }}",
+            "Reply At": "={{ $now.toISO() }}",
+            "Reply Category": "={{ $json.final_category }}",
+            "Reply Summary": "={{ $json.reply_summary }}",
+            "Stage": "={{ $json.stage }}"
+          }
         },
         "options": {}
       },
@@ -396,7 +529,38 @@
       }
     },
     {
-      "id": "fae4cb1d-34b8-4437-a6bb-fd3513c7cd49",
+      "id": "e37db34e-5006-4a2c-b572-58da985928c1",
+      "name": "Read Settings (test mode)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1360,
+        560
+      ],
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "demoSheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk",
+          "mode": "list",
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM"
+        },
+        "options": {},
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Settings"
+        }
+      },
+      "notes": "Reads Settings once per reply so the HubSpot steps can honour the Test Email switch.",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "c7839a65-2e34-4ec9-8bac-3692e814af48",
       "name": "HubSpot Log Reply",
       "type": "n8n-nodes-base.hubspot",
       "typeVersion": 2.2,
@@ -429,7 +593,7 @@
       }
     },
     {
-      "id": "a09a2012-2add-4215-914d-b980a905dcac",
+      "id": "f702e20a-85f3-4d1b-aae6-d638f6fac7ad",
       "name": "HubSpot Set Lead Status",
       "type": "n8n-nodes-base.hubspot",
       "typeVersion": 2.2,
@@ -453,7 +617,41 @@
       }
     },
     {
-      "id": "10d78489-b2b6-4fb5-a1e9-038a7d996ba0",
+      "id": "70380642-852b-4e2c-9b92-6aef3d0554fe",
+      "name": "From Gmail?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1808,
+        416
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "gm",
+              "leftValue": "={{ $('Find Lead by Thread').item.json._reply.source }}",
+              "operator": {
+                "operation": "equals",
+                "type": "string"
+              },
+              "rightValue": "gmail"
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      },
+      "notes": "IMAP already marks the message read itself."
+    },
+    {
+      "id": "aa381f5b-51fb-4837-9d40-358b0a39f2d9",
       "name": "Mark Reply Read",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
@@ -465,16 +663,16 @@
         "operation": "markAsRead",
         "messageId": "={{ $('Find Lead by Thread').item.json._reply.message_id }}"
       },
-      "webhookId": "27f33e37-ea7e-4d8f-8e84-d0ccaab5e7f0",
+      "webhookId": "38e778a0-4485-49a1-8f30-65659c7af750",
+      "disabled": true,
       "credentials": {
         "gmailOAuth2": {
           "name": "Gmail account"
         }
-      },
-      "disabled": true
+      }
     },
     {
-      "id": "6f27610f-13fa-4ef9-a132-bf7288ef1001",
+      "id": "50c56426-33e7-40fe-83a8-55be6bd8de3f",
       "name": "Hot reply?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
@@ -507,7 +705,7 @@
       }
     },
     {
-      "id": "c35d8f38-f4a2-45fd-83d0-609381da6dc2",
+      "id": "e826569b-9fc1-4be7-b040-4672760c3d2b",
       "name": "Read Settings",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
@@ -537,7 +735,97 @@
       }
     },
     {
-      "id": "1d3bd1bd-8fd3-4e8f-a204-2635342a7828",
+      "id": "0204c110-b70e-4eb3-86da-e0a5d873413b",
+      "name": "Telegram Nil (hot)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2000,
+        576
+      ],
+      "parameters": {
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        },
+        "chatId": "={{ $('Read Settings').item.json['Nil Telegram Chat ID'] }}",
+        "operation": "sendMessage",
+        "resource": "message",
+        "text": "=Texprove: Hot reply from {{ String($('Find Lead by Thread').item.json['Contact Name'] || '').replace(/&/g, '&amp;').replace(/</g, '&lt;') }} at {{ String($('Find Lead by Thread').item.json.Company || '').replace(/&/g, '&amp;').replace(/</g, '&lt;') }}: {{ String($('Decide Outcome').item.json.reply_summary || '').replace(/&/g, '&amp;').replace(/</g, '&lt;') }}{{ ($('Read Settings').item.json['Dashboard URL'] ? String($('Read Settings').item.json['Dashboard URL']).replace(/\\/+$/, '') + '/replies' : ($('Read Settings').item.json['Sheet URL'] || '')) ? ' ' + ($('Read Settings').item.json['Dashboard URL'] ? String($('Read Settings').item.json['Dashboard URL']).replace(/\\/+$/, '') + '/replies' : ($('Read Settings').item.json['Sheet URL'] || '')) : '' }}"
+      },
+      "notes": "Same Hot-reply alert as the email, on Telegram.",
+      "onError": "continueRegularOutput",
+      "webhookId": "6c7400ae-f9a4-4605-9730-0e4e384452ab",
+      "credentials": {
+        "telegramApi": {
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "id": "19c3f05c-b1a1-4576-aca1-0c591de72676",
+      "name": "Use SMTP? (alert)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1888,
+        256
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "smtp",
+              "leftValue": "={{ String($json['Mail Provider'] || '').trim().toUpperCase() === 'SMTP' }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "4b3584df-9465-42c1-be01-025365ef8edb",
+      "name": "Alert Nil (SMTP)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        2000,
+        112
+      ],
+      "parameters": {
+        "emailFormat": "text",
+        "fromEmail": "={{ $json['SMTP From'] }}",
+        "options": {
+          "appendAttribution": false
+        },
+        "subject": "=Hot reply: {{ $('Find Lead by Thread').item.json['Contact Name'] }} at {{ $('Find Lead by Thread').item.json.Company }}",
+        "text": "=Hot reply from {{ $('Find Lead by Thread').item.json['Contact Name'] }} at {{ $('Find Lead by Thread').item.json.Company }}: {{ $('Decide Outcome').item.json.reply_summary }}\n\nOpen: {{ ($json['Dashboard URL'] ? String($json['Dashboard URL']).replace(/\\/+$/, '') + '/replies' : ($json['Sheet URL'] || '')) || 'open the \"Texprove Leads\" Google Sheet, tab Leads' }}",
+        "toEmail": "={{ $json['Nil Email'] }}"
+      },
+      "disabled": false,
+      "onError": "continueRegularOutput",
+      "webhookId": "0b28f5c3-2d00-4d02-aa2b-77863084ed2f",
+      "credentials": {
+        "smtp": {
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "id": "709ba9d9-c46f-44e9-ac8c-81e8e6b14291",
       "name": "Alert Nil",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
@@ -549,37 +837,22 @@
         "sendTo": "={{ $json['Nil Email'] }}",
         "subject": "=Hot reply: {{ $('Find Lead by Thread').item.json['Contact Name'] }} at {{ $('Find Lead by Thread').item.json.Company }}",
         "emailType": "text",
-        "message": "=Hot reply from {{ $('Find Lead by Thread').item.json['Contact Name'] }} at {{ $('Find Lead by Thread').item.json.Company }}: {{ $('Decide Outcome').item.json.reply_summary }}\n\nSheet: {{ $json['Sheet URL'] ?? 'open the \"Texprove Leads\" Google Sheet, tab Leads' }}",
+        "message": "=Hot reply from {{ $('Find Lead by Thread').item.json['Contact Name'] }} at {{ $('Find Lead by Thread').item.json.Company }}: {{ $('Decide Outcome').item.json.reply_summary }}\n\nOpen: {{ ($json['Dashboard URL'] ? String($json['Dashboard URL']).replace(/\\/+$/, '') + '/replies' : ($json['Sheet URL'] || '')) || 'open the \"Texprove Leads\" Google Sheet, tab Leads' }}",
         "options": {
           "appendAttribution": false
         }
       },
       "onError": "continueRegularOutput",
-      "webhookId": "b6a7748b-a596-4e65-8413-8fcd6b92215c",
+      "webhookId": "e400b3c5-e377-4225-bc57-50f8a6452f35",
+      "disabled": true,
       "credentials": {
         "gmailOAuth2": {
           "name": "Gmail account"
         }
-      },
-      "disabled": true
-    },
-    {
-      "id": "47da299d-a800-487a-8962-af8fc25f9d3d",
-      "name": "Note: Reply triage",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        928,
-        864
-      ],
-      "parameters": {
-        "content": "## Reply triage\nMatches the incoming email to a lead by Gmail Thread ID (no match = stop). One Claude Haiku call summarises the reply, checks for a removal request and classifies it (Hot / Warm / Cold / Not interested / Auto-reply); a Switch routes on the category. If the first Anthropic account errors (credits exhausted, rate limit), the chain retries on the account-2 model. Writes Stage / Reply Category / Reply Summary, logs the reply in HubSpot and alerts Nil on Hot replies. Auto-replies change nothing. Each classified reply is appended to the Log tab.",
-        "width": 400,
-        "height": 180
       }
     },
     {
-      "id": "9d7a0903-3bd4-4ba0-b4d4-be759f752432",
+      "id": "eb52e178-5ede-44b8-87d6-56ac2afd32fe",
       "name": "Log Reply",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
@@ -700,180 +973,91 @@
       }
     },
     {
-      "id": "3ef364d0-ba7a-44f7-b0df-9e231bda6cd1",
-      "name": "Route by Category",
-      "type": "n8n-nodes-base.switch",
-      "typeVersion": 3.2,
+      "id": "beb00b41-2b88-49fb-9fad-9d4d65ecfb13",
+      "name": "Category Warm",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
       "position": [
-        848,
-        416
+        752,
+        192
       ],
       "parameters": {
-        "rules": {
-          "values": [
+        "assignments": {
+          "assignments": [
             {
-              "conditions": {
-                "combinator": "and",
-                "conditions": [
-                  {
-                    "id": "hot",
-                    "leftValue": "={{ $json.output.category }}",
-                    "operator": {
-                      "operation": "equals",
-                      "type": "string"
-                    },
-                    "rightValue": "Hot"
-                  }
-                ],
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 2
-                }
-              },
-              "renameOutput": true,
-              "outputKey": "Hot"
-            },
-            {
-              "conditions": {
-                "combinator": "and",
-                "conditions": [
-                  {
-                    "id": "warm",
-                    "leftValue": "={{ $json.output.category }}",
-                    "operator": {
-                      "operation": "equals",
-                      "type": "string"
-                    },
-                    "rightValue": "Warm"
-                  }
-                ],
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 2
-                }
-              },
-              "renameOutput": true,
-              "outputKey": "Warm"
-            },
-            {
-              "conditions": {
-                "combinator": "and",
-                "conditions": [
-                  {
-                    "id": "cold",
-                    "leftValue": "={{ $json.output.category }}",
-                    "operator": {
-                      "operation": "equals",
-                      "type": "string"
-                    },
-                    "rightValue": "Cold"
-                  }
-                ],
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 2
-                }
-              },
-              "renameOutput": true,
-              "outputKey": "Cold"
-            },
-            {
-              "conditions": {
-                "combinator": "and",
-                "conditions": [
-                  {
-                    "id": "ni",
-                    "leftValue": "={{ $json.output.category }}",
-                    "operator": {
-                      "operation": "equals",
-                      "type": "string"
-                    },
-                    "rightValue": "Not interested"
-                  }
-                ],
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 2
-                }
-              },
-              "renameOutput": true,
-              "outputKey": "Not interested"
+              "id": "cat",
+              "name": "category",
+              "value": "Warm",
+              "type": "string"
             }
           ]
         },
         "options": {}
-      },
-      "notes": "Auto-reply matches no rule and is dropped (nothing changes for the lead), as before."
+      }
     },
     {
-      "id": "145384f6-a690-40df-aad6-bd4f31489c32",
-      "name": "Telegram Nil (hot)",
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.2,
+      "id": "0d49f08a-3ea8-4032-bf36-7a30ce10c68b",
+      "name": "Category Cold",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
       "position": [
-        2000,
+        752,
+        384
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cat",
+              "name": "category",
+              "value": "Cold",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "4d7f8e0d-fb80-4fd4-9d44-0c00e395d422",
+      "name": "Category Not interested",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        752,
         576
       ],
       "parameters": {
-        "additionalFields": {
-          "appendAttribution": false,
-          "parse_mode": "HTML"
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cat",
+              "name": "category",
+              "value": "Not interested",
+              "type": "string"
+            }
+          ]
         },
-        "chatId": "={{ $('Read Settings').item.json['Nil Telegram Chat ID'] }}",
-        "operation": "sendMessage",
-        "resource": "message",
-        "text": "=Texprove: Hot reply from {{ String($('Find Lead by Thread').item.json['Contact Name'] || '').replace(/&/g, '&amp;').replace(/</g, '&lt;') }} at {{ String($('Find Lead by Thread').item.json.Company || '').replace(/&/g, '&amp;').replace(/</g, '&lt;') }}: {{ String($('Decide Outcome').item.json.reply_summary || '').replace(/&/g, '&amp;').replace(/</g, '&lt;') }}{{ $('Read Settings').item.json['Sheet URL'] ? ' ' + $('Read Settings').item.json['Sheet URL'] : '' }}"
-      },
-      "notes": "Same Hot-reply alert as the email, on Telegram.",
-      "onError": "continueRegularOutput",
-      "webhookId": "1da8c39e-1959-4e73-98f9-3609dc89ab5f",
-      "credentials": {
-        "telegramApi": {
-          "name": "Telegram account"
-        }
+        "options": {}
       }
     },
     {
-      "id": "420bbed5-0f5b-4d4b-ba77-f79008dd8c76",
-      "name": "Read Settings (test mode)",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
+      "id": "0a4aab80-186a-4887-aa48-4be64ebf39ee",
+      "name": "Note: Reply triage",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
       "position": [
-        1360,
-        560
+        928,
+        864
       ],
       "parameters": {
-        "documentId": {
-          "__rl": true,
-          "cachedResultName": "demoSheet",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk",
-          "mode": "list",
-          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM"
-        },
-        "options": {},
-        "sheetName": {
-          "__rl": true,
-          "mode": "name",
-          "value": "Settings"
-        }
-      },
-      "notes": "Reads Settings once per reply so the HubSpot steps can honour the Test Email switch.",
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "name": "Google Sheets account"
-        }
+        "content": "## Reply triage\nMatches the incoming email to a lead by Gmail Thread ID (no match = stop). One Claude Haiku call summarises the reply, checks for a removal request and classifies it (Hot / Warm / Cold / Not interested / Auto-reply); a Switch routes on the category. If the first Anthropic account errors (credits exhausted, rate limit), the chain retries on the account-2 model. Writes Stage / Reply Category / Reply Summary, logs the reply in HubSpot and alerts Nil on Hot replies. Auto-replies change nothing. Each classified reply is appended to the Log tab.",
+        "width": 400,
+        "height": 180
       }
     },
     {
-      "id": "7422bbec-b321-4289-92a8-bd3bdf51cd40",
+      "id": "cd639298-49e1-4d54-ae73-7abbc2c223fb",
       "name": "IMAP Trigger",
       "type": "n8n-nodes-base.emailReadImap",
       "typeVersion": 2.2,
@@ -889,6 +1073,7 @@
         },
         "postProcessAction": "read"
       },
+      "disabled": false,
       "notes": "Use instead of Gmail Trigger when Settings Mail Provider = SMTP: select the IMAP credential, enable this node and disable Gmail Trigger.",
       "credentials": {
         "imap": {
@@ -897,52 +1082,84 @@
       }
     },
     {
-      "id": "e4528ea8-c0e0-47aa-9435-251acb88a6a9",
-      "name": "Reply",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "id": "ad720143-c86c-4293-8cde-7125b6462849",
+      "name": "Read Settings (other replies)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
       "position": [
-        128,
-        416
+        1776,
+        736
       ],
       "parameters": {
-        "jsCode": "// Normalises an incoming reply from either the Gmail Trigger or the IMAP Trigger.\nconst addr = (v) => {\n  if (!v) return '';\n  if (typeof v === 'string') { const m = v.match(/<([^>]+)>/); return (m ? m[1] : v).trim(); }\n  return (v.value && v.value[0] && v.value[0].address) || '';\n};\nreturn $input.all().map((it, i) => {\n  const j = it.json;\n  const isGmail = !!j.threadId;\n  return {\n    json: {\n      source: isGmail ? 'gmail' : 'imap',\n      message_id: isGmail ? j.id : String(j.messageId || ''),\n      thread_id: isGmail ? j.threadId : '',\n      in_reply_to: isGmail ? '' : String(j.inReplyTo || ''),\n      references: isGmail ? '' : (Array.isArray(j.references) ? j.references.join(' ') : String(j.references || '')),\n      subject: String(j.subject || ''),\n      text: String(j.text || j.textPlain || ''),\n      from: addr(j.from).toLowerCase(),\n      to: addr(j.to),\n    },\n    pairedItem: { item: i },\n  };\n});"
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM"
+        },
+        "options": {},
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Settings"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
       }
     },
     {
-      "id": "81bd7e43-abb9-469f-b63a-599832c76c4d",
-      "name": "Find Lead by Thread",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "id": "d3b63ac9-a3db-4530-8027-870d8166d96a",
+      "name": "Telegram Nil (reply)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
       "position": [
-        400,
-        416
+        2000,
+        736
       ],
       "parameters": {
-        "jsCode": "// Matches each reply to its lead. No match = the reply is ignored.\n// Gmail: by Gmail Thread ID. IMAP/SMTP: by In-Reply-To/References against the stored 'smtp:<Message-ID>',\n// then by sender = lead email, then by subject (without Re:/Ynt:) among leads still in Sent / Follow-up stages.\nconst replies = $('Reply').all().map(i => i.json);\nconst leads = $('Get Leads (reply)').all().map(i => i.json).filter(r => r && r['Lead ID']);\nconst norm = (s) => String(s || '').replace(/[<>]/g, '').trim().toLowerCase();\nconst baseSubj = (s) => String(s || '').replace(/^\\s*((re|ynt|aw|fw|fwd|ynt\\.)\\s*:\\s*)+/i, '').trim().toLowerCase();\nconst open = ['Sent', 'Follow-up 1', 'Follow-up 2', 'Follow-up 3'];\nconst out = [];\nfor (const r of replies) {\n  let lead;\n  if (r.source === 'gmail') {\n    lead = leads.find(l => String(l['Gmail Thread ID'] || '') === r.thread_id);\n  } else {\n    const ids = (r.in_reply_to + ' ' + r.references).split(/\\s+/).map(norm).filter(Boolean);\n    lead = leads.find(l => { const t = String(l['Gmail Thread ID'] || ''); return t.startsWith('smtp:') && ids.includes(norm(t.slice(5))); });\n    if (!lead) lead = leads.find(l => open.includes(l.Stage) && r.from && norm(l.Email) === r.from);\n    if (!lead) { const s = baseSubj(r.subject); if (s) lead = leads.find(l => open.includes(l.Stage) && baseSubj(l.Subject) === s); }\n  }\n  if (lead) out.push({ json: { ...lead, _reply: r } });\n}\nreturn out;"
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true,
+          "parse_mode": "HTML"
+        },
+        "chatId": "={{ $json['Nil Telegram Chat ID'] }}",
+        "operation": "sendMessage",
+        "resource": "message",
+        "text": "={{ (() => { const esc = (t) => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); const l = $('Find Lead by Thread').item.json; const d = $('Decide Outcome').item.json; const who = (l['Contact Name'] ? esc(l['Contact Name']) + ' at ' : '') + esc(l.Company || l['Lead ID']); const dash = String($json['Dashboard URL'] || '').trim().replace(/\\/+$/, ''); const link = dash ? '\\n' + esc(dash + '/replies') : ''; if (d.stage === 'Opted out') return '<b>Texprove: opt-out</b>\\n' + who + ' asked not to be contacted. Marked opted out; no more emails or follow-ups will go to them.\\nReply: ' + esc(d.reply_summary) + link; return '<b>Texprove: ' + esc(d.final_category) + ' reply</b> from ' + who + '\\n' + esc(d.reply_summary) + '\\nFollow-ups to this lead have stopped; answer it yourself if needed.' + link; })() }}"
+      },
+      "onError": "continueRegularOutput",
+      "webhookId": "85c9a41f-6904-42e4-831a-d9a3624543df",
+      "credentials": {
+        "telegramApi": {
+          "name": "Telegram account"
+        }
       }
     },
     {
-      "id": "c4f4799b-95cc-4139-bccd-b56f139894bf",
-      "name": "From Gmail?",
+      "id": "2b6b0205-4d20-4287-a4bb-e6304d4badd0",
+      "name": "Bounce?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        1808,
-        416
+        448,
+        592
       ],
       "parameters": {
         "conditions": {
           "combinator": "and",
           "conditions": [
             {
-              "id": "gm",
-              "leftValue": "={{ $('Find Lead by Thread').item.json._reply.source }}",
+              "id": "b",
+              "leftValue": "={{ $json._reply.is_bounce === true }}",
               "operator": {
-                "operation": "equals",
-                "type": "string"
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
               },
-              "rightValue": "gmail"
+              "rightValue": ""
             }
           ],
           "options": {
@@ -954,24 +1171,534 @@
         },
         "options": {}
       },
-      "notes": "IMAP already marks the message read itself."
+      "notes": "Delivery-failure notices skip the AI step and go to the bounce branch."
     },
     {
-      "id": "f80f34fb-622e-4b68-b591-5ecc428a5306",
-      "name": "Use SMTP? (alert)",
+      "id": "6934ce0c-4f7b-444c-b1ad-ecea9b66aae6",
+      "name": "Bounce: update lead",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        896,
+        1760
+      ],
+      "parameters": {
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "Lead ID"
+          ],
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": true,
+              "display": true,
+              "displayName": "Lead ID",
+              "id": "Lead ID",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Stage",
+              "id": "Stage",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Reply Summary",
+              "id": "Reply Summary",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Next Follow-up Date",
+              "id": "Next Follow-up Date",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Follow-up Draft",
+              "id": "Follow-up Draft",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Reply At",
+              "id": "Reply At",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "ClickUp Stage",
+              "id": "ClickUp Stage",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Last Updated",
+              "id": "Last Updated",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "ClickUp Stage": "Ulaşmadı",
+            "Follow-up Draft": "",
+            "Last Updated": "={{ $now.toISO() }}",
+            "Lead ID": "={{ $json['Lead ID'] }}",
+            "Next Follow-up Date": "",
+            "Reply At": "={{ $now.toISO() }}",
+            "Reply Summary": "={{ 'Delivery failed: ' + $json._reply.bounce_reason }}",
+            "Stage": "Bounced"
+          }
+        },
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM"
+        },
+        "operation": "update",
+        "options": {
+          "cellFormat": "RAW"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Leads"
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "3a6145f3-beda-4428-b5a6-ed2271d3b5d7",
+      "name": "Bounce: suppress address",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        672,
+        1120
+      ],
+      "parameters": {
+        "columns": {
+          "mappingMode": "defineBelow",
+          "schema": [
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Email",
+              "id": "Email",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Domain",
+              "id": "Domain",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Reason",
+              "id": "Reason",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Date",
+              "id": "Date",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "Date": "={{ $now.setZone('Europe/Istanbul').toFormat('yyyy-MM-dd') }}",
+            "Domain": "",
+            "Email": "={{ String($json.Email || '').trim().toLowerCase() }}",
+            "Reason": "={{ 'Bounce (' + $json['Lead ID'] + '): ' + $json._reply.bounce_reason }}"
+          }
+        },
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM"
+        },
+        "operation": "append",
+        "options": {
+          "cellFormat": "RAW"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Suppression"
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "a433064e-de2c-44fb-b98e-737f5447231e",
+      "name": "Bounce: log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        672,
+        1280
+      ],
+      "parameters": {
+        "columns": {
+          "mappingMode": "defineBelow",
+          "schema": [
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Timestamp",
+              "id": "Timestamp",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Workflow",
+              "id": "Workflow",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Lead ID",
+              "id": "Lead ID",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Company",
+              "id": "Company",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Step",
+              "id": "Step",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Input",
+              "id": "Input",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Output",
+              "id": "Output",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Reason",
+              "id": "Reason",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "Company": "={{ $json.Company }}",
+            "Input": "={{ 'Subject: ' + $json._reply.subject + '. ' + String($json._reply.text || '').slice(0, 1500) }}",
+            "Lead ID": "={{ $json['Lead ID'] }}",
+            "Output": "={{ 'Delivery to ' + $json.Email + ' failed: ' + $json._reply.bounce_reason }}",
+            "Reason": "Stage set to Bounced; address added to Suppression; follow-ups stopped",
+            "Step": "Bounce",
+            "Timestamp": "={{ $now.toISO() }}",
+            "Workflow": "WF4 Reply triage"
+          }
+        },
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM"
+        },
+        "operation": "append",
+        "options": {
+          "cellFormat": "RAW"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Log"
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "38f58d0e-52b4-446d-bd42-7b5a87c08fd3",
+      "name": "Bounce: action",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        672,
+        1440
+      ],
+      "parameters": {
+        "columns": {
+          "mappingMode": "defineBelow",
+          "schema": [
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Timestamp",
+              "id": "Timestamp",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Lead ID",
+              "id": "Lead ID",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Company",
+              "id": "Company",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Action",
+              "id": "Action",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Person",
+              "id": "Person",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Email",
+              "id": "Email",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Subject",
+              "id": "Subject",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Summary",
+              "id": "Summary",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Approved By",
+              "id": "Approved By",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Result",
+              "id": "Result",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "Action": "Bounce",
+            "Approved By": "",
+            "Company": "={{ $json.Company }}",
+            "Email": "={{ $json.Email }}",
+            "Lead ID": "={{ $json['Lead ID'] }}",
+            "Person": "={{ $json['Contact Name'] || '' }}",
+            "Result": "Stage Bounced; address suppressed; follow-ups stopped",
+            "Subject": "={{ $json._reply.subject }}",
+            "Summary": "={{ 'Delivery failed: ' + $json._reply.bounce_reason }}",
+            "Timestamp": "={{ $now.toISO() }}"
+          }
+        },
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM"
+        },
+        "operation": "append",
+        "options": {
+          "cellFormat": "RAW"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Actions"
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "b44bb100-97e0-453c-8e27-43470d122819",
+      "name": "Read Settings (bounce)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        672,
+        1600
+      ],
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM"
+        },
+        "options": {},
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Settings"
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "944e61d4-6951-4501-974c-6fbca4ed3ef9",
+      "name": "Telegram Nil (bounce)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        896,
+        1600
+      ],
+      "parameters": {
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true,
+          "parse_mode": "HTML"
+        },
+        "chatId": "={{ $json['Nil Telegram Chat ID'] }}",
+        "operation": "sendMessage",
+        "resource": "message",
+        "text": "={{ (() => { const esc = (t) => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); const l = $('Bounce?').item.json; return '<b>Texprove: email did not arrive</b>\\n' + esc(l.Company || l['Lead ID']) + ' (' + esc(l.Email) + '): ' + esc(l._reply.bounce_reason) + '\\nMarked Bounced, address added to the Suppression list, follow-ups stopped.'; })() }}"
+      },
+      "webhookId": "eab2b007-8812-4669-8ebc-15f4735db82f",
+      "credentials": {
+        "telegramApi": {
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "id": "41320123-2f75-4b2e-93a3-ec5d00af5ef9",
+      "name": "Negative reply?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        1888,
-        256
+        1248,
+        960
       ],
       "parameters": {
         "conditions": {
           "combinator": "and",
           "conditions": [
             {
-              "id": "smtp",
-              "leftValue": "={{ String($json['Mail Provider'] || '').trim().toUpperCase() === 'SMTP' }}",
+              "id": "n",
+              "leftValue": "={{ $json.negative === true }}",
               "operator": {
                 "operation": "true",
                 "singleValue": true,
@@ -991,34 +1718,385 @@
       }
     },
     {
-      "id": "a49a7ff3-47a9-4a01-bde7-d5a92b469f5e",
-      "name": "Alert Nil (SMTP)",
-      "type": "n8n-nodes-base.emailSend",
-      "typeVersion": 2.1,
+      "id": "ed888f55-8423-4ad0-8304-6ce6464be73c",
+      "name": "Suppress domain",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
       "position": [
-        2000,
-        112
+        1472,
+        960
       ],
       "parameters": {
-        "emailFormat": "text",
-        "fromEmail": "={{ $json['SMTP From'] }}",
-        "options": {
-          "appendAttribution": false
+        "columns": {
+          "mappingMode": "defineBelow",
+          "schema": [
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Email",
+              "id": "Email",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Domain",
+              "id": "Domain",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Reason",
+              "id": "Reason",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Date",
+              "id": "Date",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "Date": "={{ $now.setZone('Europe/Istanbul').toFormat('yyyy-MM-dd') }}",
+            "Domain": "={{ $json.supp_domain }}",
+            "Email": "={{ $json.supp_email }}",
+            "Reason": "={{ 'Negative reply (' + $json.lead_id + ' ' + $json.company + '): ' + String($json.reply_summary || '').slice(0, 300) }}"
+          }
         },
-        "subject": "=Hot reply: {{ $('Find Lead by Thread').item.json['Contact Name'] }} at {{ $('Find Lead by Thread').item.json.Company }}",
-        "text": "=Hot reply from {{ $('Find Lead by Thread').item.json['Contact Name'] }} at {{ $('Find Lead by Thread').item.json.Company }}: {{ $('Decide Outcome').item.json.reply_summary }}\n\nSheet: {{ $json['Sheet URL'] ?? 'open the \"Texprove Leads\" Google Sheet, tab Leads' }}",
-        "toEmail": "={{ $json['Nil Email'] }}"
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM"
+        },
+        "operation": "append",
+        "options": {
+          "cellFormat": "RAW"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Suppression"
+        }
       },
-      "onError": "continueRegularOutput",
-      "webhookId": "6dc42434-8f3f-45b6-9b36-745f586f35a9",
+      "notes": "Nil's fix 4: a firm that says no is suppressed at domain level (free-mail addresses: the address only).",
       "credentials": {
-        "smtp": {
-          "name": "SMTP account"
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
         }
       }
+    },
+    {
+      "id": "d215755d-5c7a-41bd-b0d4-4e1089c214a8",
+      "name": "Other contact rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1248,
+        1120
+      ],
+      "parameters": {
+        "jsCode": "// Any reply from one person at a firm stops automatic mail to the firm's other contact row (Nil's decision 7).\nconst out = [];\nfor (const i of $input.all()) for (const id of (i.json.siblings || [])) out.push({ json: { 'Lead ID': id, reason: 'Reply from ' + i.json.lead_id + ' (' + i.json.final_category + ')' } });\nreturn out;"
+      }
+    },
+    {
+      "id": "a99c9023-138e-4327-91f9-b7cadad9d16b",
+      "name": "Close other contact",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1472,
+        1120
+      ],
+      "parameters": {
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "Lead ID"
+          ],
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": true,
+              "display": true,
+              "displayName": "Lead ID",
+              "id": "Lead ID",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Stage",
+              "id": "Stage",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Next Follow-up Date",
+              "id": "Next Follow-up Date",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Follow-up Draft",
+              "id": "Follow-up Draft",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Compliance Notes",
+              "id": "Compliance Notes",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Last Updated",
+              "id": "Last Updated",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "Compliance Notes": "={{ $json.reason }}",
+            "Follow-up Draft": "",
+            "Last Updated": "={{ $now.toISO() }}",
+            "Lead ID": "={{ $json['Lead ID'] }}",
+            "Next Follow-up Date": "",
+            "Stage": "Closed - Other contact replied"
+          }
+        },
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM"
+        },
+        "operation": "update",
+        "options": {
+          "cellFormat": "RAW"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Leads"
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "b566aac2-e8ba-4c5d-a54d-20c352e2b713",
+      "name": "Action: reply",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1248,
+        1280
+      ],
+      "parameters": {
+        "columns": {
+          "mappingMode": "defineBelow",
+          "schema": [
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Timestamp",
+              "id": "Timestamp",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Lead ID",
+              "id": "Lead ID",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Company",
+              "id": "Company",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Action",
+              "id": "Action",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Person",
+              "id": "Person",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Email",
+              "id": "Email",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Subject",
+              "id": "Subject",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Summary",
+              "id": "Summary",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Approved By",
+              "id": "Approved By",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Result",
+              "id": "Result",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "Action": "={{ $json.clickup_stage === 'Opt-out' ? 'Opt-out' : 'Reply' }}",
+            "Approved By": "",
+            "Company": "={{ $json.company }}",
+            "Email": "={{ $('Find Lead by Thread').item.json._reply.from || $('Find Lead by Thread').item.json.Email }}",
+            "Lead ID": "={{ $json.lead_id }}",
+            "Person": "={{ $('Find Lead by Thread').item.json['Contact Name'] || '' }}",
+            "Result": "={{ 'Stage ' + $json.stage + '; ClickUp stage ' + $json.clickup_stage + ($json.negative ? '; domain suppressed' : '') }}",
+            "Subject": "={{ $('Find Lead by Thread').item.json._reply.subject }}",
+            "Summary": "={{ $json.final_category + ': ' + $json.reply_summary }}",
+            "Timestamp": "={{ $now.toISO() }}"
+          }
+        },
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM"
+        },
+        "operation": "append",
+        "options": {
+          "cellFormat": "RAW"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Actions"
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "name": "Bounce: wait for sender's write",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        672,
+        1760
+      ],
+      "parameters": {
+        "amount": 45,
+        "unit": "seconds"
+      },
+      "notes": "A bounce can come back seconds after a send. WF3 and WF5 write the lead row a few seconds after sending; waiting here makes sure 'Bounced' is written after them and is not overwritten."
     }
   ],
   "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply": {
+      "main": [
+        [
+          {
+            "node": "Get Leads (reply)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Leads (reply)": {
+      "main": [
+        [
+          {
+            "node": "Find Lead by Thread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Summarize Reply": {
       "main": [
         [
@@ -1063,6 +2141,38 @@
         ]
       ]
     },
+    "Route by Category": {
+      "main": [
+        [
+          {
+            "node": "Category Hot",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Category Warm",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Category Cold",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Category Not interested",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Category Hot": {
       "main": [
         [
@@ -1084,6 +2194,146 @@
           },
           {
             "node": "Log Reply",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Negative reply?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Other contact rows",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Action: reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Lead Row": {
+      "main": [
+        [
+          {
+            "node": "Read Settings (test mode)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Settings (test mode)": {
+      "main": [
+        [
+          {
+            "node": "HubSpot Log Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HubSpot Log Reply": {
+      "main": [
+        [
+          {
+            "node": "HubSpot Set Lead Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HubSpot Set Lead Status": {
+      "main": [
+        [
+          {
+            "node": "From Gmail?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "From Gmail?": {
+      "main": [
+        [
+          {
+            "node": "Mark Reply Read",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Hot reply?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Reply Read": {
+      "main": [
+        [
+          {
+            "node": "Hot reply?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hot reply?": {
+      "main": [
+        [
+          {
+            "node": "Read Settings",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read Settings (other replies)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Settings": {
+      "main": [
+        [
+          {
+            "node": "Telegram Nil (hot)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Use SMTP? (alert)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Use SMTP? (alert)": {
+      "main": [
+        [
+          {
+            "node": "Alert Nil (SMTP)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Alert Nil",
             "type": "main",
             "index": 0
           }
@@ -1123,120 +2373,6 @@
         ]
       ]
     },
-    "HubSpot Log Reply": {
-      "main": [
-        [
-          {
-            "node": "HubSpot Set Lead Status",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Mark Reply Read": {
-      "main": [
-        [
-          {
-            "node": "Hot reply?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Hot reply?": {
-      "main": [
-        [
-          {
-            "node": "Read Settings",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Read Settings": {
-      "main": [
-        [
-          {
-            "node": "Telegram Nil (hot)",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Use SMTP? (alert)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Route by Category": {
-      "main": [
-        [
-          {
-            "node": "Category Hot",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Category Warm",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Category Cold",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Category Not interested",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Update Lead Row": {
-      "main": [
-        [
-          {
-            "node": "Read Settings (test mode)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Read Settings (test mode)": {
-      "main": [
-        [
-          {
-            "node": "HubSpot Log Reply",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Gmail Trigger": {
-      "main": [
-        [
-          {
-            "node": "Reply",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "IMAP Trigger": {
       "main": [
         [
@@ -1248,22 +2384,11 @@
         ]
       ]
     },
-    "Reply": {
+    "Read Settings (other replies)": {
       "main": [
         [
           {
-            "node": "Get Leads (reply)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Get Leads (reply)": {
-      "main": [
-        [
-          {
-            "node": "Find Lead by Thread",
+            "node": "Telegram Nil (reply)",
             "type": "main",
             "index": 0
           }
@@ -1274,6 +2399,44 @@
       "main": [
         [
           {
+            "node": "Bounce?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bounce?": {
+      "main": [
+        [
+          {
+            "node": "Bounce: suppress address",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Bounce: log",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Bounce: action",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read Settings (bounce)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Bounce: wait for sender's write",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
             "node": "Summarize Reply",
             "type": "main",
             "index": 0
@@ -1281,47 +2444,44 @@
         ]
       ]
     },
-    "HubSpot Set Lead Status": {
+    "Read Settings (bounce)": {
       "main": [
         [
           {
-            "node": "From Gmail?",
+            "node": "Telegram Nil (bounce)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "From Gmail?": {
+    "Negative reply?": {
       "main": [
         [
           {
-            "node": "Mark Reply Read",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Hot reply?",
+            "node": "Suppress domain",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Use SMTP? (alert)": {
+    "Other contact rows": {
       "main": [
         [
           {
-            "node": "Alert Nil (SMTP)",
+            "node": "Close other contact",
             "type": "main",
             "index": 0
           }
-        ],
+        ]
+      ]
+    },
+    "Bounce: wait for sender's write": {
+      "main": [
         [
           {
-            "node": "Alert Nil",
+            "node": "Bounce: update lead",
             "type": "main",
             "index": 0
           }
@@ -1333,7 +2493,8 @@
     "executionOrder": "v1",
     "availableInMCP": true,
     "timezone": "Europe/Istanbul",
-    "binaryMode": "separate"
+    "binaryMode": "separate",
+    "errorWorkflow": "sZJSgJf9658Bdip7"
   },
   "pinData": {},
   "meta": {

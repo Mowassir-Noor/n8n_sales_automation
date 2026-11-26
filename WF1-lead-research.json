@@ -2,6 +2,14 @@
   "name": "Texprove WF1 - Lead research",
   "nodes": [
     {
+      "id": "f3584d74-c225-43d7-96ac-23b19e841324",
+      "name": "Weekdays 08:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        128
+      ],
       "parameters": {
         "rule": {
           "interval": [
@@ -11,41 +19,10 @@
             }
           ]
         }
-      },
-      "id": "533535e6-f1c0-4a25-b3e4-4da7eb3d6bd6",
-      "name": "Weekdays 08:00",
-      "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1.4,
-      "position": [
-        0,
-        128
-      ]
+      }
     },
     {
-      "parameters": {
-        "documentId": {
-          "__rl": true,
-          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM",
-          "mode": "list",
-          "cachedResultName": "demoSheet",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk"
-        },
-        "sheetName": {
-          "__rl": true,
-          "mode": "name",
-          "value": "Leads"
-        },
-        "filtersUI": {
-          "values": [
-            {
-              "lookupColumn": "Stage",
-              "lookupValue": "New"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "0db3a84e-7f82-48f9-b627-45f3e6649b52",
+      "id": "bc68dafe-dba1-4d9e-96dd-a4ad32fca4a4",
       "name": "Get New Leads",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
@@ -53,6 +30,21 @@
         224,
         224
       ],
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "demoSheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk",
+          "mode": "list",
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM"
+        },
+        "options": {},
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Leads"
+        }
+      },
       "credentials": {
         "googleSheetsOAuth2Api": {
           "name": "Google Sheets account"
@@ -60,167 +52,120 @@
       }
     },
     {
-      "parameters": {},
-      "id": "7c2871f2-b0e8-4e3b-bbe5-6d1ef59296f6",
-      "name": "Manual Test",
-      "type": "n8n-nodes-base.manualTrigger",
-      "typeVersion": 1,
-      "position": [
-        0,
-        320
-      ]
-    },
-    {
-      "parameters": {
-        "maxItems": 10
-      },
-      "id": "718c6444-eade-44b7-b575-025c4dc50f36",
+      "id": "548afe0b-5d96-43b4-a073-0f22a990f3ff",
       "name": "Limit 10",
       "type": "n8n-nodes-base.limit",
       "typeVersion": 1,
       "position": [
         448,
         224
-      ]
+      ],
+      "parameters": {
+        "maxItems": 15
+      }
     },
     {
+      "id": "df7a0313-5473-4aa4-9c3e-ffe924694b29",
+      "name": "Research with Claude",
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        960,
+        112
+      ],
       "parameters": {
-        "operation": "update",
-        "documentId": {
-          "__rl": true,
-          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM",
-          "mode": "list",
-          "cachedResultName": "demoSheet",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk"
-        },
-        "sheetName": {
-          "__rl": true,
-          "mode": "name",
-          "value": "Leads"
-        },
-        "columns": {
-          "mappingMode": "defineBelow",
-          "matchingColumns": [
-            "Lead ID"
-          ],
-          "value": {
-            "Lead ID": "={{ $('Limit 10').all()[$runIndex].json['Lead ID'] }}",
-            "Research Notes": "={{ $json.output?.research_notes ?? '' }}",
-            "Personalisation Hook": "={{ $json.output?.personalisation_hook ?? '' }}",
-            "Contact Name": "={{ $json.output?.contact_name ?? '' }}",
-            "Contact Title": "={{ $json.output?.contact_title ?? '' }}",
-            "Email": "={{ $json.output?.email ?? '' }}",
-            "LinkedIn": "={{ $json.output?.linkedin ?? '' }}",
-            "Segment": "={{ $json.output?.segment ?? '' }}",
-            "Language": "={{ $json.output?.language ?? '' }}",
-            "Stage": "={{ $json.output?.personalisation_hook ? 'Researched' : 'Research failed' }}",
-            "Last Updated": "={{ $now.toISO() }}"
-          },
-          "schema": [
+        "messages": {
+          "values": [
             {
-              "id": "Lead ID",
-              "displayName": "Lead ID",
-              "required": false,
-              "defaultMatch": true,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true
-            },
-            {
-              "id": "Research Notes",
-              "displayName": "Research Notes",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": false
-            },
-            {
-              "id": "Personalisation Hook",
-              "displayName": "Personalisation Hook",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": false
-            },
-            {
-              "id": "Contact Name",
-              "displayName": "Contact Name",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": false
-            },
-            {
-              "id": "Contact Title",
-              "displayName": "Contact Title",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": false
-            },
-            {
-              "id": "Email",
-              "displayName": "Email",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": false
-            },
-            {
-              "id": "LinkedIn",
-              "displayName": "LinkedIn",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": false
-            },
-            {
-              "id": "Segment",
-              "displayName": "Segment",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": false
-            },
-            {
-              "id": "Language",
-              "displayName": "Language",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": false
-            },
-            {
-              "id": "Stage",
-              "displayName": "Stage",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": false
-            },
-            {
-              "id": "Last Updated",
-              "displayName": "Last Updated",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": false
+              "content": "=Today is {{ $now.toFormat('yyyy-MM-dd') }}. Treat anything dated before today as past, not upcoming.\n\nCompany: {{ $json.Company }}\nWebsite: {{ $json.Website }}\nCountry: {{ $json.Country }}\nKnown contact on file: {{ $json['Contact Name'] ? $json['Contact Name'] + ' (' + ($json['Contact Title'] || 'title unknown') + '), ' + ($json.Email || 'no email') : 'none' }}\n\nResearch this company with web search and return only the JSON object.",
+              "role": "user"
             }
           ]
         },
-        "options": {}
+        "modelId": {
+          "__rl": true,
+          "cachedResultName": "Claude Sonnet 5.5",
+          "mode": "list",
+          "value": "claude-sonnet-5-5"
+        },
+        "operation": "message",
+        "options": {
+          "includeMergedResponse": true,
+          "maxTokens": 4096,
+          "maxToolsIterations": 14,
+          "maxUses": 10,
+          "system": "You are a B2B sales researcher for Texprove, a Digital Product Passport and compliance-data platform for textile and apparel companies that sell to the EU. For the given company, use web search to establish the facts below. Never invent facts, names, numbers or emails: leave a field empty if you cannot verify it on a page you found. Never record order volumes, prices or buyer contract details.\n\n1. SEGMENT. What the company makes, and segment_class, exactly one of:\n- garment: makes ready-made garments (knitwear, woven apparel, jeans and other denim garments, sportswear, underwear, socks, babywear) and exports to the EU\n- integrated: yarn or fabric production and garment production in the same group\n- fabric_yarn_dye: only fabric, yarn, or dyeing and finishing (denim fabric mills belong here)\n- home_textile: towels, bathrobes, bed linen, curtains and other home textile\n- workwear: workwear and uniforms\n- sourcing_office: the sourcing or buying office in Turkey of an EU brand\n- brand: a brand or retailer that sells under its own label and buys from suppliers\n- excluded: a wholesaler, a trader without its own production, or a company that sells only in its home market\nAlso product_type: three to six words on what they make.\n\n2. SIZE. employees: the latest head count you can find (LinkedIn company page, company site, news, chamber or exporter-association lists), as a number. export_volume: approximate yearly export or revenue as short text with year and source, for example \"about 12 million USD export (2025, TIM list)\". export_usd_m: the same as a number in million USD. Leave these empty when you find nothing; never guess.\n\n3. PEOPLE. Find two different people.\n- Contact 1, the decision maker: in a company with fewer than 250 employees (or unknown size) the owner, general manager or a board member; otherwise the export, marketing or sustainability director.\n- Contact 2, the data owner, the person who actually answers a brand's data requests: first choice a sustainability, corporate compliance or certification manager; then a merchandising, export or marketing manager; then an IT or ERP manager (IT or ERP only ever as contact 2).\n- Purchasing roles are never a target. For a brand, look for the CEO or general manager, then export manager, sustainability manager, board member, and leave contact 2 empty.\n- If a known contact is given below, keep that person as contact 1 unless it is a purchasing role or clearly wrong, and state their role.\n- If you can verify only one person, return that person as contact 1. If you can verify no person, leave the contact fields empty.\nSources: the LinkedIn company page and employee profiles; press (interviews, news, trade fair participation, association and chamber announcements); the company website.\nFor each person: name, title, work email ONLY if it is published for that person or address (never construct an email from a pattern), LinkedIn URL, role (decision_maker or data_owner) and source (LinkedIn, Press or Website).\ngeneral_email: the company's general address (info@, export@ and the like) as published on its own website.\n\n4. HOOK. personalisation_hook: one specific, verifiable fact to open an email with, preferring news from the last year (new factory, new certificate, trade fair, sustainability report). research_notes: at most 80 words (products, EU markets, certificates such as OEKO-TEX, GOTS, GRS, BCI, recent news).\n\nSearch plan (at most 10 searches): the company website with its about, sustainability, certificate and contact pages; the company name with ihracat, export, Europe, GOTS, OEKO-TEX; with news words (haber, yeni fabrika, sertifika, fuar); with çalışan sayısı, employees, ihracat, ciro; with LinkedIn and the titles above (sürdürülebilirlik, kurumsal uyum, ihracat müdürü, merchandising, genel müdür, yönetim kurulu).\n\nRespond with ONLY a JSON object, no markdown fences, no commentary, with exactly these keys: research_notes, personalisation_hook, segment_class, product_type, employees, export_volume, export_usd_m, contact_name, contact_title, email, linkedin, contact_role, contact_source, contact2_name, contact2_title, contact2_email, contact2_linkedin, contact2_source, general_email.",
+          "webSearch": true
+        },
+        "resource": "text",
+        "simplify": true
       },
-      "id": "b14b1a2e-d0c8-4d4a-b854-e9a21171d191",
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "anthropicApi": {
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "id": "420d3548-74d1-4dbc-8e2d-ba1a56781f70",
+      "name": "Parse Research",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1216,
+        112
+      ],
+      "parameters": {
+        "jsCode": "// Pulls the JSON object out of Claude's reply and turns it into what is written to the sheet (Nil's decisions of\n// 23 Nov 2026, sections 4 to 6 and 13): segment and wave, size and criteria fit, decision maker and second contact.\n// Output: { output, update (columns for the lead row), child (row for the second contact, or null), error }.\nconst lead = $('Limit 10').all()[$runIndex].json;\nconst backfill = lead._mode === 'backfill';\nconst existingIds = new Set($('Get New Leads').all().map(i => String((i.json || {})['Lead ID'] || '').trim()));\nconst keys = ['research_notes', 'personalisation_hook', 'segment_class', 'product_type', 'employees', 'export_volume', 'export_usd_m', 'contact_name', 'contact_title', 'email', 'linkedin', 'contact_role', 'contact_source', 'contact2_name', 'contact2_title', 'contact2_email', 'contact2_linkedin', 'contact2_source', 'general_email'];\nfunction strings(v, acc) {\n  if (typeof v === 'string') acc.push(v);\n  else if (Array.isArray(v)) v.forEach(x => strings(x, acc));\n  else if (v && typeof v === 'object') Object.values(v).forEach(x => strings(x, acc));\n  return acc;\n}\nfunction extract(text) {\n  const s = text.indexOf('{'); const e = text.lastIndexOf('}');\n  if (s < 0 || e <= s) return null;\n  for (let end = e; end > s; end = text.lastIndexOf('}', end - 1)) {\n    try { const o = JSON.parse(text.slice(s, end + 1)); if (o && typeof o === 'object') return o; } catch (err) { /* try a shorter slice */ }\n  }\n  return null;\n}\nconst SEG = {\n  garment: ['Hazır giyim / konfeksiyon', '1'],\n  integrated: ['Entegre tesis', '1'],\n  fabric_yarn_dye: ['Kumaş / iplik / boyahane', '2'],\n  home_textile: ['Ev tekstili', '2'],\n  workwear: ['İş kıyafeti', '2'],\n  sourcing_office: ['Sourcing ofisi', 'Ayrı liste'],\n  brand: ['Marka', '1'],\n  excluded: ['Hariç', 'Hariç'],\n};\nconst num = (v) => { const n = Number(String(v == null ? '' : v).replace(/[^\\d.]/g, '')); return Number.isFinite(n) && n > 0 ? n : null; };\nconst isEmail = (e) => /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(e);\nconst source = (v, hasPerson) => {\n  if (!hasPerson) return 'Genel adres';\n  const s = String(v || '').toLowerCase();\n  if (s.includes('linkedin')) return 'LinkedIn';\n  if (/press|basın|basin|news|haber/.test(s)) return 'Basın';\n  return 'Web sitesi';\n};\nconst now = $now.toISO();\n\nconst body = $input.item.json || {};\nlet parsed = null;\nlet error = '';\nif (body.error && !body.content && !body.merged) error = String(body.error.message || body.error).slice(0, 500);\nelse {\n  const texts = strings(body, []).filter(t => t.includes('personalisation_hook'));\n  for (const t of texts) { parsed = extract(t); if (parsed) break; }\n  if (!parsed) error = 'No JSON in reply: ' + strings(body, []).join(' ').slice(0, 400);\n}\nconst o = {};\nfor (const k of keys) o[k] = String((parsed || {})[k] ?? '').trim();\n// Titles go into the sheet and ClickUp as they are: drop notes in brackets.\nfor (const k of ['contact_title', 'contact2_title']) o[k] = o[k].replace(/\\s*\\([^)]*\\)/g, '').trim();\nconst hook = o.personalisation_hook || (backfill ? String(lead['Personalisation Hook'] || '').trim() : '');\n\nif (!parsed || !hook) {\n  // Research failed. A new lead is marked as failed; an older lead keeps its stage and is not tried again.\n  const update = backfill\n    ? { 'Lead ID': lead['Lead ID'], 'Contact Source': 'Bilinmiyor (araştırma tekrarlanamadı)', 'Last Updated': now }\n    : { 'Lead ID': lead['Lead ID'], Stage: 'Research failed', 'Last Updated': now };\n  return { json: { error: error || 'No personalisation hook found', update, child: null, stage: update.Stage || lead.Stage, company: lead.Company } };\n}\n\nconst seg = SEG[o.segment_class] || null;\nconst employees = num(o.employees);\nconst exportM = num(o.export_usd_m);\nconst bespoke = employees != null && employees > 2500;\nlet fit = '';\nlet stage = 'Researched';\nif (seg && seg[1] === 'Hariç') { fit = 'Uygun değil: kapsam dışı'; stage = 'Not eligible'; }\nelse if (seg && seg[1] === '2') stage = 'Parked - Wave 2';\nelse if (seg && seg[1] === 'Ayrı liste') stage = 'Parked - Sourcing office';\nelse if (bespoke) { fit = 'Kişiye özel (2.500+ çalışan)'; stage = 'Parked - Bespoke'; }\nelse if (employees != null && employees < 100 && exportM != null && exportM < 5) { fit = 'Uygun değil: ölçek küçük'; stage = 'Not eligible'; }\n// Eligible needs one figure at or above the floor (100 staff or about 5 million USD export). One small figure with the other unknown stays open.\nelse if (!((employees != null && employees >= 100) || (exportM != null && exportM >= 5))) fit = 'Ölçek bilinmiyor';\nelse fit = 'Uygun';\n\n// Contact 1: the person found (or the one already on file); the email falls back to the general address.\nconst keep = (fresh, old) => (String(fresh || '').trim() || (backfill ? String(old || '').trim() : ''));\nconst name1 = keep(o.contact_name, lead['Contact Name']);\nconst general = isEmail(o.general_email) ? o.general_email.toLowerCase() : '';\nconst email1 = (isEmail(o.email) ? o.email.toLowerCase() : '') || (backfill ? String(lead.Email || '').trim().toLowerCase() : '') || general;\nconst role1 = /data/.test(o.contact_role.toLowerCase()) ? 'Veri sorumlusu' : 'Karar verici';\nconst update = {\n  'Lead ID': lead['Lead ID'],\n  'Research Notes': backfill && String(lead['Research Notes'] || '').trim() ? String(lead['Research Notes']) : o.research_notes,\n  'Personalisation Hook': hook,\n  'Contact Name': name1,\n  'Contact Title': keep(o.contact_title, lead['Contact Title']),\n  Email: email1,\n  LinkedIn: keep(o.linkedin, lead.LinkedIn),\n  Stage: stage,\n  'Last Updated': now,\n  'Product Type': o.product_type || String(lead['Product Type'] || ''),\n  Employees: employees != null ? String(employees) : '',\n  'Export Volume': o.export_volume,\n  'Criteria Fit': fit,\n  Bespoke: bespoke ? 'Yes' : '',\n  'Contact Role': name1 ? role1 : '',\n  'Contact Source': source(o.contact_source, !!name1),\n  'General Email': general,\n  'Contact 2 Name': o.contact2_name,\n  'Contact 2 Title': o.contact2_title,\n  'Contact 2 Email': isEmail(o.contact2_email) ? o.contact2_email.toLowerCase() : '',\n  'Contact 2 LinkedIn': o.contact2_linkedin,\n};\nif (seg) { update.Segment = seg[0]; update.Wave = seg[1]; }\nif (!backfill) update.Language = ['turkey', 'türkiye', 'turkiye'].includes(String(lead.Country || '').trim().toLowerCase()) ? 'tr' : 'en';\n\n// Second contact as its own row, so it gets its own draft, approval, send and follow-ups. If no second person was\n// found, the second step goes to the general address (greeting to the team). Not for brands (Nil has not decided\n// who the second contact is there), and never to the same address as the first mail.\nlet child = null;\nconst childId = String(lead['Lead ID']).trim() + '-B';\nconst isBrand = seg && seg[0] === 'Marka';\nif (stage === 'Researched' && !isBrand && !existingIds.has(childId)) {\n  const person2 = !!update['Contact 2 Email'] && update['Contact 2 Email'] !== email1;\n  const email2 = person2 ? update['Contact 2 Email'] : (general && general !== email1 ? general : '');\n  if (email2) {\n    child = {\n      'Lead ID': childId,\n      Company: lead.Company || '', Website: lead.Website || '', Country: lead.Country || '',\n      Segment: update.Segment || lead.Segment || '',\n      'Contact Name': person2 ? o.contact2_name : '',\n      'Contact Title': person2 ? o.contact2_title : '',\n      Email: email2,\n      LinkedIn: person2 ? o.contact2_linkedin : '',\n      'Research Notes': update['Research Notes'],\n      'Personalisation Hook': hook,\n      Language: update.Language || lead.Language || '',\n      Stage: 'Waiting - 2nd contact',\n      'Last Updated': now,\n      'Source URL': lead['Source URL'] || '', 'Source Date': lead['Source Date'] || '', Confidence: lead.Confidence || '',\n      'Parent Lead ID': lead['Lead ID'],\n      Wave: update.Wave || lead.Wave || '',\n      'Product Type': update['Product Type'],\n      Employees: update.Employees, 'Export Volume': update['Export Volume'], 'Criteria Fit': fit, Bespoke: '',\n      'Contact Role': person2 ? 'Veri sorumlusu' : '',\n      'Contact Source': person2 ? source(o.contact2_source, true) : 'Genel adres',\n      'General Email': general,\n    };\n  }\n}\nreturn { json: { output: o, update, child, stage, company: lead.Company } };",
+        "mode": "runOnceForEachItem"
+      }
+    },
+    {
+      "id": "969f5703-09a7-49b0-8808-c4c7b03a5985",
+      "name": "Research with Claude (account 2)",
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        960,
+        352
+      ],
+      "parameters": {
+        "messages": {
+          "values": [
+            {
+              "content": "=Today is {{ $now.toFormat('yyyy-MM-dd') }}. Treat anything dated before today as past, not upcoming.\n\nCompany: {{ $('Limit 10').all()[$runIndex].json.Company }}\nWebsite: {{ $('Limit 10').all()[$runIndex].json.Website }}\nCountry: {{ $('Limit 10').all()[$runIndex].json.Country }}\nKnown contact on file: {{ $('Limit 10').all()[$runIndex].json['Contact Name'] ? $('Limit 10').all()[$runIndex].json['Contact Name'] + ' (' + ($('Limit 10').all()[$runIndex].json['Contact Title'] || 'title unknown') + '), ' + ($('Limit 10').all()[$runIndex].json.Email || 'no email') : 'none' }}\n\nResearch this company with web search and return only the JSON object.",
+              "role": "user"
+            }
+          ]
+        },
+        "modelId": {
+          "__rl": true,
+          "cachedResultName": "Claude Sonnet 4.6",
+          "mode": "list",
+          "value": "claude-sonnet-4-6"
+        },
+        "operation": "message",
+        "options": {
+          "includeMergedResponse": true,
+          "maxTokens": 4096,
+          "maxToolsIterations": 14,
+          "maxUses": 10,
+          "system": "You are a B2B sales researcher for Texprove, a Digital Product Passport and compliance-data platform for textile and apparel companies that sell to the EU. For the given company, use web search to establish the facts below. Never invent facts, names, numbers or emails: leave a field empty if you cannot verify it on a page you found. Never record order volumes, prices or buyer contract details.\n\n1. SEGMENT. What the company makes, and segment_class, exactly one of:\n- garment: makes ready-made garments (knitwear, woven apparel, jeans and other denim garments, sportswear, underwear, socks, babywear) and exports to the EU\n- integrated: yarn or fabric production and garment production in the same group\n- fabric_yarn_dye: only fabric, yarn, or dyeing and finishing (denim fabric mills belong here)\n- home_textile: towels, bathrobes, bed linen, curtains and other home textile\n- workwear: workwear and uniforms\n- sourcing_office: the sourcing or buying office in Turkey of an EU brand\n- brand: a brand or retailer that sells under its own label and buys from suppliers\n- excluded: a wholesaler, a trader without its own production, or a company that sells only in its home market\nAlso product_type: three to six words on what they make.\n\n2. SIZE. employees: the latest head count you can find (LinkedIn company page, company site, news, chamber or exporter-association lists), as a number. export_volume: approximate yearly export or revenue as short text with year and source, for example \"about 12 million USD export (2025, TIM list)\". export_usd_m: the same as a number in million USD. Leave these empty when you find nothing; never guess.\n\n3. PEOPLE. Find two different people.\n- Contact 1, the decision maker: in a company with fewer than 250 employees (or unknown size) the owner, general manager or a board member; otherwise the export, marketing or sustainability director.\n- Contact 2, the data owner, the person who actually answers a brand's data requests: first choice a sustainability, corporate compliance or certification manager; then a merchandising, export or marketing manager; then an IT or ERP manager (IT or ERP only ever as contact 2).\n- Purchasing roles are never a target. For a brand, look for the CEO or general manager, then export manager, sustainability manager, board member, and leave contact 2 empty.\n- If a known contact is given below, keep that person as contact 1 unless it is a purchasing role or clearly wrong, and state their role.\n- If you can verify only one person, return that person as contact 1. If you can verify no person, leave the contact fields empty.\nSources: the LinkedIn company page and employee profiles; press (interviews, news, trade fair participation, association and chamber announcements); the company website.\nFor each person: name, title, work email ONLY if it is published for that person or address (never construct an email from a pattern), LinkedIn URL, role (decision_maker or data_owner) and source (LinkedIn, Press or Website).\ngeneral_email: the company's general address (info@, export@ and the like) as published on its own website.\n\n4. HOOK. personalisation_hook: one specific, verifiable fact to open an email with, preferring news from the last year (new factory, new certificate, trade fair, sustainability report). research_notes: at most 80 words (products, EU markets, certificates such as OEKO-TEX, GOTS, GRS, BCI, recent news).\n\nSearch plan (at most 10 searches): the company website with its about, sustainability, certificate and contact pages; the company name with ihracat, export, Europe, GOTS, OEKO-TEX; with news words (haber, yeni fabrika, sertifika, fuar); with çalışan sayısı, employees, ihracat, ciro; with LinkedIn and the titles above (sürdürülebilirlik, kurumsal uyum, ihracat müdürü, merchandising, genel müdür, yönetim kurulu).\n\nRespond with ONLY a JSON object, no markdown fences, no commentary, with exactly these keys: research_notes, personalisation_hook, segment_class, product_type, employees, export_volume, export_usd_m, contact_name, contact_title, email, linkedin, contact_role, contact_source, contact2_name, contact2_title, contact2_email, contact2_linkedin, contact2_source, general_email.",
+          "webSearch": true
+        },
+        "resource": "text",
+        "simplify": true
+      },
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "anthropicApi": {
+          "name": "Anthropic account 2"
+        }
+      }
+    },
+    {
+      "id": "1d476494-fca2-4b93-a3b9-07989491e758",
       "name": "Update Lead Row",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
@@ -228,6 +173,43 @@
         1488,
         224
       ],
+      "parameters": {
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "matchingColumns": [
+            "Lead ID"
+          ],
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": true,
+              "display": true,
+              "displayName": "Lead ID",
+              "id": "Lead ID",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {}
+        },
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "demoSheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk",
+          "mode": "list",
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM"
+        },
+        "operation": "update",
+        "options": {
+          "cellFormat": "RAW",
+          "handlingExtraData": "ignoreIt"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Leads"
+        }
+      },
       "credentials": {
         "googleSheetsOAuth2Api": {
           "name": "Google Sheets account"
@@ -235,63 +217,27 @@
       }
     },
     {
-      "parameters": {
-        "options": {}
-      },
-      "id": "c33d6814-0c6d-4484-b5e6-a8ed817d38e6",
+      "id": "97d8ca6c-cdda-4f45-8526-27f10914bf16",
       "name": "Loop Over Leads",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
         672,
         224
-      ]
-    },
-    {
+      ],
       "parameters": {
-        "content": "## 1. Pick leads\nRuns weekdays 08:00 (Europe/Istanbul) or manually. Reads rows from \"Texprove Leads\" / \"Leads\" where Stage = New, max 10 per run.",
-        "height": 140,
-        "width": 360
-      },
-      "id": "ca04c164-d977-4e07-83af-0041771b84c3",
-      "name": "Note: Pick leads",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        144,
-        480
-      ]
+        "options": {}
+      }
     },
     {
-      "parameters": {
-        "content": "## 2. Research each lead\nOne lead at a time. \"Research with Claude\" is the Anthropic node (Claude Sonnet 4.6) with Claude's built-in web search switched on (max 8 searches per company): Claude searches, reads the pages itself and answers with one JSON object. If that call fails (credits exhausted, rate limit, outage), the error output runs the same call on \"Research with Claude (account 2)\" with the second Anthropic credential. \"Parse Research\" pulls the JSON out of either reply. It never invents facts; unknown fields stay empty.",
-        "width": 360
-      },
-      "id": "a7cf30da-6d99-4285-92f0-5e4792ad50a0",
-      "name": "Note: Research",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
+      "id": "b6110c7d-1557-4616-90ab-5c0dfb6760fd",
+      "name": "Log Research",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
       "position": [
-        624,
-        480
-      ]
-    },
-    {
-      "parameters": {
-        "content": "## 3. Write back\nUpdates the row (match on Lead ID). Stage = Researched, or \"Research failed\" when the agent errors or returns an empty personalisation hook. \"Log Research\" appends the agent's output and the decision to the Log tab.",
-        "height": 140,
-        "width": 360
-      },
-      "id": "f63d3eaa-9600-489e-ad20-64a0f5d015f9",
-      "name": "Note: Write back",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        608,
-        848
-      ]
-    },
-    {
+        1488,
+        -32
+      ],
       "parameters": {
         "operation": "append",
         "documentId": {
@@ -387,7 +333,7 @@
             "Input": "={{ 'Website: ' + $('Limit 10').all()[$runIndex].json.Website + '; country: ' + $('Limit 10').all()[$runIndex].json.Country }}",
             "Lead ID": "={{ $('Limit 10').all()[$runIndex].json['Lead ID'] }}",
             "Output": "={{ JSON.stringify($json.output ?? $json.error ?? {}).slice(0, 3000) }}",
-            "Reason": "={{ $json.output?.personalisation_hook ? 'Hook found; Stage = Researched' : 'No hook or agent error; Stage = Research failed' }}",
+            "Reason": "={{ ($json.error ? 'Research failed: ' + String($json.error).slice(0, 200) : 'Hook found') + '; Stage = ' + ($json.stage || '') + ($json.update && $json.update['Criteria Fit'] ? '; ' + $json.update['Criteria Fit'] : '') + ($json.child ? '; second contact row ' + $json.child['Lead ID'] + ' added' : '') }}",
             "Step": "Research",
             "Timestamp": "={{ $now.toISO() }}",
             "Workflow": "WF1 Lead research"
@@ -397,14 +343,6 @@
           "cellFormat": "RAW"
         }
       },
-      "id": "84b92b83-2dc1-469b-823c-79f32edac845",
-      "name": "Log Research",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        1488,
-        -32
-      ],
       "onError": "continueRegularOutput",
       "credentials": {
         "googleSheetsOAuth2Api": {
@@ -413,101 +351,245 @@
       }
     },
     {
-      "id": "272f5d8c-1f28-4c4c-a4a9-42a262adcce3",
-      "name": "Research with Claude",
-      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "id": "98682a94-0fbf-4686-b720-710eecaf7ac0",
+      "name": "Manual Test",
+      "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
       "position": [
-        960,
-        112
+        0,
+        320
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "bed1e3bd-6fcb-47d6-af82-061aa7c35be8",
+      "name": "Note: Pick leads",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        144,
+        480
       ],
       "parameters": {
-        "messages": {
-          "values": [
-            {
-              "content": "=Today is {{ $now.toFormat('yyyy-MM-dd') }}. Treat anything dated before today as past, not upcoming.\n\nCompany: {{ $json.Company }}\nWebsite: {{ $json.Website }}\nCountry: {{ $json.Country }}\n\nResearch this company with web search and return only the JSON object.",
-              "role": "user"
-            }
-          ]
-        },
-        "modelId": {
-          "__rl": true,
-          "cachedResultName": "Claude Sonnet 5.5",
-          "mode": "list",
-          "value": "claude-sonnet-5-5"
-        },
-        "operation": "message",
-        "options": {
-          "includeMergedResponse": true,
-          "maxTokens": 4096,
-          "maxToolsIterations": 12,
-          "maxUses": 8,
-          "system": "You are a B2B sales researcher for Texprove, a Digital Product Passport SaaS for textile and apparel exporters to the EU. For the given textile company, use web search to find: what they make, which EU markets or brands they export to, company size, sustainability or certification signals (OEKO-TEX, GOTS, GRS, BCI), recent news from the last year (new factory, new certification, EU brand deal, trade fair), and the best decision maker (export manager, sustainability manager, CEO) with their title, work email and LinkedIn URL if published.\n\nSearch plan (at most 8 searches): the company website and its about, sustainability, certificate and contact pages; the company name with words like ihracat, export, Europe, GOTS, OEKO-TEX; the company name with news words (haber, yeni fabrika, sertifika, fuar); the company name with export manager, ihracat müdürü, genel müdür, LinkedIn. Never invent facts, names or emails; leave a field empty if you cannot verify it on a page you found. Never record order volumes, prices or buyer contract details.\n\nRespond with ONLY a JSON object, no markdown fences, no commentary, with exactly these keys: research_notes (max 80 words), personalisation_hook (one specific, verifiable fact to open an email with, preferring recent news), contact_name, contact_title, email, linkedin, segment (one of Knitwear, Woven apparel, Denim, Home textile, Fabric mill, Yarn, Sportswear, Technical textile, Other), language (tr or en: tr when the company site is mainly Turkish).",
-          "webSearch": true
-        },
-        "resource": "text",
-        "simplify": true
+        "content": "## 1. Pick leads\nRuns weekdays 08:00 (Europe/Istanbul) or manually. Reads rows from \"Texprove Leads\" / \"Leads\" where Stage = New, max 10 per run.",
+        "width": 360,
+        "height": 140
+      }
+    },
+    {
+      "id": "f4d3c3c1-0139-4509-b8ad-0ee69c667193",
+      "name": "Note: Research",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        624,
+        480
+      ],
+      "parameters": {
+        "content": "## 2. Research each lead\nOne lead at a time. \"Research with Claude\" is the Anthropic node (Claude Sonnet 4.6) with Claude's built-in web search switched on (max 8 searches per company): Claude searches, reads the pages itself and answers with one JSON object. If that call fails (credits exhausted, rate limit, outage), the error output runs the same call on \"Research with Claude (account 2)\" with the second Anthropic credential. \"Parse Research\" pulls the JSON out of either reply. It never invents facts; unknown fields stay empty.",
+        "width": 360
+      }
+    },
+    {
+      "id": "d793247e-defd-4faa-b5a7-9e221138f58f",
+      "name": "Note: Write back",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        608,
+        848
+      ],
+      "parameters": {
+        "content": "## 3. Write back\nUpdates the row (match on Lead ID). Stage = Researched, or \"Research failed\" when the agent errors or returns an empty personalisation hook. \"Log Research\" appends the agent's output and the decision to the Log tab.",
+        "width": 360,
+        "height": 140
+      }
+    },
+    {
+      "id": "2da95805-99a5-4d00-b176-b6214c90eb36",
+      "name": "Research summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        640
+      ],
+      "parameters": {
+        "jsCode": "// Telegram summary of this run: what was researched and where each company went under Nil's rules of 23 Nov 2026.\nconst esc = (t) => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst picked = $('Limit 10').all().map(i => i.json || {});\nconst byId = {};\nfor (const r of picked) byId[r['Lead ID']] = r;\nconst rows = $input.all().map(i => i.json || {});\nif (!rows.length) return [];\nconst name = (r) => esc((byId[r['Lead ID']] || {}).Company || r['Lead ID']);\nconst stageOf = (r) => r.Stage || (byId[r['Lead ID']] || {}).Stage || '';\nconst group = (s) => rows.filter(r => stageOf(r) === s);\nconst ready = group('Researched');\nconst lines = ['<b>Texprove: researched ' + rows.length + ' compan' + (rows.length === 1 ? 'y' : 'ies') + '</b>'];\nlines.push(ready.length + ' ready for drafting' + (ready.length ? ': ' + ready.map(name).join(', ') : ''));\nconst second = ready.filter(r => String(r['Contact 2 Email'] || '').trim()).length;\nif (second) lines.push(second + ' of them with a named second contact');\nconst noEmail = ready.filter(r => 'Email' in r && !String(r.Email || '').trim());\nif (noEmail.length) lines.push(noEmail.length + ' without an email (will be blocked): ' + noEmail.map(name).join(', '));\nfor (const [stage, label] of [['Parked - Wave 2', 'parked for wave 2 (fabric, yarn, home textile, workwear)'], ['Parked - Sourcing office', 'sourcing offices (separate list)'], ['Parked - Bespoke', 'over 2,500 employees (write by hand)'], ['Not eligible', 'not eligible (too small or out of scope)'], ['Research failed', 'research failed']]) {\n  const g = group(stage);\n  if (g.length) lines.push(g.length + ' ' + label + ': ' + g.map(name).join(', '));\n}\nreturn [{ json: { text: lines.join('\\n').slice(0, 4000) } }];\n"
       },
-      "onError": "continueErrorOutput",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "514f91ca-0808-433a-bcb4-3ce26b6b065a",
+      "name": "Read Settings (notify)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1184,
+        640
+      ],
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM"
+        },
+        "options": {},
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Settings"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "executeOnce": true,
       "credentials": {
-        "anthropicApi": {
-          "name": "Anthropic account"
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
         }
       }
     },
     {
-      "id": "fee3b7e2-dc38-4778-a45c-073e1aba9e91",
-      "name": "Parse Research",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "id": "ab420578-f9c6-4224-903e-8d9df325793d",
+      "name": "Telegram Nil (research)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
       "position": [
-        1216,
-        112
+        1408,
+        640
       ],
       "parameters": {
-        "jsCode": "// Pulls the JSON object out of Claude's reply (the reply can contain search blocks and text). Output shape: { output: {...} } like the old agent, or { error } when nothing parsable came back.\nconst keys = ['research_notes', 'personalisation_hook', 'contact_name', 'contact_title', 'email', 'linkedin', 'segment', 'language'];\nfunction strings(v, acc) {\n  if (typeof v === 'string') acc.push(v);\n  else if (Array.isArray(v)) v.forEach(x => strings(x, acc));\n  else if (v && typeof v === 'object') Object.values(v).forEach(x => strings(x, acc));\n  return acc;\n}\nfunction extract(text) {\n  const s = text.indexOf('{'); const e = text.lastIndexOf('}');\n  if (s < 0 || e <= s) return null;\n  for (let end = e; end > s; end = text.lastIndexOf('}', end - 1)) {\n    try { const o = JSON.parse(text.slice(s, end + 1)); if (o && typeof o === 'object') return o; } catch (err) { /* try a shorter slice */ }\n  }\n  return null;\n}\nreturn $input.all().map(item => {\n  const body = item.json || {};\n  if (body.error && !body.content && !body.merged) return { json: { error: String(body.error.message || body.error).slice(0, 500) } };\n  const texts = strings(body, []).filter(t => t.includes('personalisation_hook'));\n  let parsed = null;\n  for (const t of texts) { parsed = extract(t); if (parsed) break; }\n  if (!parsed) return { json: { error: 'No JSON in reply: ' + strings(body, []).join(' ').slice(0, 400) } };\n  const out = {};\n  for (const k of keys) out[k] = String(parsed[k] ?? '').trim();\n  if (!['tr', 'en'].includes(out.language)) out.language = 'en';\n  return { json: { output: out } };\n});"
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true,
+          "parse_mode": "HTML"
+        },
+        "chatId": "={{ $json['Nil Telegram Chat ID'] }}",
+        "operation": "sendMessage",
+        "resource": "message",
+        "text": "={{ $('Research summary').first().json.text }}"
+      },
+      "onError": "continueRegularOutput",
+      "executeOnce": true,
+      "webhookId": "f647d220-ff70-44fa-b4bb-910ba91f7bce",
+      "credentials": {
+        "telegramApi": {
+          "name": "Telegram account"
+        }
       }
     },
     {
-      "id": "02853a2e-7a49-4718-bac1-1b9639de2e17",
-      "name": "Research with Claude (account 2)",
-      "type": "@n8n/n8n-nodes-langchain.anthropic",
-      "typeVersion": 1,
+      "id": "66253f3c-e0d6-44d3-9052-e2614765c735",
+      "name": "Pick leads to research",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
-        960,
-        352
+        336,
+        384
       ],
       "parameters": {
-        "messages": {
-          "values": [
+        "jsCode": "// Chooses which leads are researched in this run (Nil's decisions of 23 Nov 2026).\n// 1. 'Researched' leads from before the new rules ('Contact Source' still empty): researched again for segment,\n//    size and the second contact, so WF2 can draft them. Their existing contact, email and hook are kept.\n// 2. 'New' leads from WF0.\n// Second-contact rows (with 'Parent Lead ID') are never researched on their own.\nconst backfill = [];\nconst fresh = [];\nfor (const i of $input.all()) {\n  const j = i.json || {};\n  if (String(j['Parent Lead ID'] || '').trim()) continue;\n  const stage = String(j.Stage || '').trim();\n  if (stage === 'Researched' && !String(j['Contact Source'] || '').trim()) backfill.push({ json: { ...j, _mode: 'backfill' } });\n  else if (stage === 'New') fresh.push({ json: { ...j, _mode: 'new' } });\n}\nreturn backfill.concat(fresh);\n"
+      }
+    },
+    {
+      "id": "51613a89-4432-43fc-b978-1cd04ed83091",
+      "name": "Row to write",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1376,
+        224
+      ],
+      "parameters": {
+        "jsCode": "// Only the columns that should change go to the sheet (matched on Lead ID).\nreturn { json: $json.update };\n",
+        "mode": "runOnceForEachItem"
+      }
+    },
+    {
+      "id": "52325530-326d-490f-9a3c-7615649beb51",
+      "name": "Second contact found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1488,
+        -224
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
             {
-              "content": "=Today is {{ $now.toFormat('yyyy-MM-dd') }}. Treat anything dated before today as past, not upcoming.\n\nCompany: {{ $('Limit 10').all()[$runIndex].json.Company }}\nWebsite: {{ $('Limit 10').all()[$runIndex].json.Website }}\nCountry: {{ $('Limit 10').all()[$runIndex].json.Country }}\n\nResearch this company with web search and return only the JSON object.",
-              "role": "user"
+              "id": "c",
+              "leftValue": "={{ !!$json.child }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
             }
-          ]
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
         },
-        "modelId": {
+        "options": {}
+      }
+    },
+    {
+      "id": "8db5d9f2-200c-45a3-9b42-311f3958a31a",
+      "name": "Second contact row",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1712,
+        -224
+      ],
+      "parameters": {
+        "jsCode": "// The second contact gets its own row (Lead ID with -B, 'Parent Lead ID' = the company's row), stage 'Waiting - 2nd contact'.\nreturn { json: $json.child };\n",
+        "mode": "runOnceForEachItem"
+      }
+    },
+    {
+      "id": "a403dbd2-f328-449d-831e-821b4de00339",
+      "name": "Add second contact",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1936,
+        -224
+      ],
+      "parameters": {
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "matchingColumns": [],
+          "schema": [],
+          "value": {}
+        },
+        "documentId": {
           "__rl": true,
-          "cachedResultName": "Claude Sonnet 4.6",
-          "mode": "list",
-          "value": "claude-sonnet-4-6"
+          "mode": "id",
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM"
         },
-        "operation": "message",
+        "operation": "append",
         "options": {
-          "includeMergedResponse": true,
-          "maxTokens": 4096,
-          "maxToolsIterations": 12,
-          "maxUses": 8,
-          "system": "You are a B2B sales researcher for Texprove, a Digital Product Passport SaaS for textile and apparel exporters to the EU. For the given textile company, use web search to find: what they make, which EU markets or brands they export to, company size, sustainability or certification signals (OEKO-TEX, GOTS, GRS, BCI), recent news from the last year (new factory, new certification, EU brand deal, trade fair), and the best decision maker (export manager, sustainability manager, CEO) with their title, work email and LinkedIn URL if published.\n\nSearch plan (at most 8 searches): the company website and its about, sustainability, certificate and contact pages; the company name with words like ihracat, export, Europe, GOTS, OEKO-TEX; the company name with news words (haber, yeni fabrika, sertifika, fuar); the company name with export manager, ihracat müdürü, genel müdür, LinkedIn. Never invent facts, names or emails; leave a field empty if you cannot verify it on a page you found. Never record order volumes, prices or buyer contract details.\n\nRespond with ONLY a JSON object, no markdown fences, no commentary, with exactly these keys: research_notes (max 80 words), personalisation_hook (one specific, verifiable fact to open an email with, preferring recent news), contact_name, contact_title, email, linkedin, segment (one of Knitwear, Woven apparel, Denim, Home textile, Fabric mill, Yarn, Sportswear, Technical textile, Other), language (tr or en: tr when the company site is mainly Turkish).",
-          "webSearch": true
+          "cellFormat": "RAW",
+          "handlingExtraData": "ignoreIt"
         },
-        "resource": "text",
-        "simplify": true
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Leads"
+        }
       },
+      "notes": "WF2 drafts this row two days after the first person's mail; WF3 sends it after three days without a reply.",
       "onError": "continueRegularOutput",
       "credentials": {
-        "anthropicApi": {
-          "name": "Anthropic account 2"
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
         }
       }
     }
@@ -524,56 +606,11 @@
         ]
       ]
     },
-    "Get New Leads": {
-      "main": [
-        [
-          {
-            "node": "Limit 10",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Manual Test": {
-      "main": [
-        [
-          {
-            "node": "Get New Leads",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Limit 10": {
       "main": [
         [
           {
             "node": "Loop Over Leads",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Update Lead Row": {
-      "main": [
-        [
-          {
-            "node": "Loop Over Leads",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Loop Over Leads": {
-      "main": [
-        null,
-        [
-          {
-            "node": "Research with Claude",
             "type": "main",
             "index": 0
           }
@@ -602,12 +639,17 @@
       "main": [
         [
           {
-            "node": "Update Lead Row",
+            "node": "Log Research",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Log Research",
+            "node": "Row to write",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Second contact found?",
             "type": "main",
             "index": 0
           }
@@ -624,13 +666,131 @@
           }
         ]
       ]
+    },
+    "Update Lead Row": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Leads": {
+      "main": [
+        [
+          {
+            "node": "Research summary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Research with Claude",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Test": {
+      "main": [
+        [
+          {
+            "node": "Get New Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Research summary": {
+      "main": [
+        [
+          {
+            "node": "Read Settings (notify)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Settings (notify)": {
+      "main": [
+        [
+          {
+            "node": "Telegram Nil (research)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get New Leads": {
+      "main": [
+        [
+          {
+            "node": "Pick leads to research",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pick leads to research": {
+      "main": [
+        [
+          {
+            "node": "Limit 10",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Row to write": {
+      "main": [
+        [
+          {
+            "node": "Update Lead Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Second contact found?": {
+      "main": [
+        [
+          {
+            "node": "Second contact row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Second contact row": {
+      "main": [
+        [
+          {
+            "node": "Add second contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
     "executionOrder": "v1",
     "availableInMCP": true,
     "timezone": "Europe/Istanbul",
-    "binaryMode": "separate"
+    "binaryMode": "separate",
+    "errorWorkflow": "sZJSgJf9658Bdip7"
   },
   "pinData": {},
   "meta": {

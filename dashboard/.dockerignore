@@ -1,0 +1,27 @@
+# Keep the build context small and free of secrets.
+node_modules
+.next
+out
+coverage
+build
+*.tsbuildinfo
+npm-debug.log*
+
+# Secrets and local env files (the image never contains them; they come from dashboard.env at runtime)
+.env
+.env.*
+!.env.example
+dashboard.env
+*.pem
+
+# Not needed in the image
+.git
+.gitignore
+.vscode
+.idea
+.DS_Store
+Dockerfile
+.dockerignore
+README.md
+CONTRACT.md
+AGENTS.md

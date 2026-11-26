@@ -2,7 +2,7 @@
   "name": "Texprove WF2 - Compliance check and draft",
   "nodes": [
     {
-      "id": "b1596bec-2567-4955-8545-dd9a695a49eb",
+      "id": "811a8b24-e80c-4d4d-b103-545455aafe93",
       "name": "Weekdays 09:00",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.4,
@@ -22,7 +22,7 @@
       }
     },
     {
-      "id": "25a55cae-bb18-4a10-8e99-b00404c2bb4d",
+      "id": "f342738c-9246-440c-ad19-254ea869455d",
       "name": "Get Researched Leads",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
@@ -33,25 +33,17 @@
       "parameters": {
         "documentId": {
           "__rl": true,
-          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM",
-          "mode": "list",
           "cachedResultName": "demoSheet",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk"
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk",
+          "mode": "list",
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM"
         },
+        "options": {},
         "sheetName": {
           "__rl": true,
           "mode": "name",
           "value": "Leads"
-        },
-        "filtersUI": {
-          "values": [
-            {
-              "lookupColumn": "Stage",
-              "lookupValue": "Researched"
-            }
-          ]
-        },
-        "options": {}
+        }
       },
       "credentials": {
         "googleSheetsOAuth2Api": {
@@ -60,18 +52,7 @@
       }
     },
     {
-      "id": "9b698e63-3134-453a-b441-4a999fc16d41",
-      "name": "Manual Test",
-      "type": "n8n-nodes-base.manualTrigger",
-      "typeVersion": 1,
-      "position": [
-        0,
-        352
-      ],
-      "parameters": {}
-    },
-    {
-      "id": "c5225346-4e31-467a-9b3d-7794073a52df",
+      "id": "1880eb6f-7ffc-4780-8001-a9ca067ad2e7",
       "name": "Limit 20",
       "type": "n8n-nodes-base.limit",
       "typeVersion": 1,
@@ -80,11 +61,11 @@
         256
       ],
       "parameters": {
-        "maxItems": 20
+        "maxItems": 15
       }
     },
     {
-      "id": "1afeac31-36dd-4fee-9a9f-b2cb391f6e8d",
+      "id": "e826569b-9fc1-4be7-b040-4672760c3d2b",
       "name": "Read Settings",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
@@ -115,7 +96,40 @@
       }
     },
     {
-      "id": "9b8a0279-be2a-4757-ae1b-57625334a86c",
+      "id": "280b82bc-4934-497f-936a-70d98c3256ea",
+      "name": "Read Suppression",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        784,
+        96
+      ],
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "demoSheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk",
+          "mode": "list",
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Suppression"
+        },
+        "options": {}
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "2eba5ce6-dcf5-4e6b-9a9e-f747c0cd0d17",
       "name": "Compliance check",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -124,11 +138,11 @@
         256
       ],
       "parameters": {
-        "jsCode": "const leads = $('Limit 20').all();\nconst freeDomains = ['gmail.com', 'hotmail.com', 'yahoo.com', 'outlook.com', 'yandex.com', 'icloud.com'];\nconst allowedCountries = ['turkey', 'türkiye', 'turkiye'];\n\n// Suppression tab: emails and domains that must never be contacted (İYS \"ret\" opt-outs, manual do-not-contact, bounces).\nconst supp = $('Read Suppression').all().map(i => i.json).filter(r => r && (r.Email || r.Domain));\nconst suppEmails = new Set(supp.map(r => String(r.Email || '').toLowerCase().trim()).filter(Boolean));\nconst suppDomains = supp.map(r => String(r.Domain || '').toLowerCase().replace(/^@/, '').trim()).filter(Boolean);\n\nfunction domainOf(url) {\n  return String(url || '')\n    .toLowerCase()\n    .replace(/^https?:\\/\\//, '')\n    .replace(/^www\\./, '')\n    .split('/')[0]\n    .split(':')[0]\n    .trim();\n}\n\nreturn leads.map((item) => {\n  const lead = item.json;\n  const reasons = [];\n  const email = String(lead.Email || '').trim().toLowerCase();\n  const emailDomain = email.includes('@') ? email.split('@')[1] : '';\n  const siteDomain = domainOf(lead.Website);\n\n  if (!email) reasons.push('Email is empty');\n  if (emailDomain && freeDomains.includes(emailDomain)) reasons.push('Free or personal email domain');\n  if (String(lead['Opt-out'] || '').trim().toLowerCase() === 'yes') reasons.push('Lead opted out');\n  if (email && suppEmails.has(email)) reasons.push('On suppression list (İYS ret / do-not-contact)');\n  else if (emailDomain && suppDomains.some(sd => emailDomain === sd || emailDomain.endsWith('.' + sd))) reasons.push('Email domain on suppression list');\n  if (emailDomain && siteDomain && !freeDomains.includes(emailDomain)) {\n    const matches = emailDomain === siteDomain || emailDomain.endsWith('.' + siteDomain) || siteDomain.endsWith('.' + emailDomain);\n    if (!matches) reasons.push('Email domain does not match website domain');\n  }\n  if (!allowedCountries.includes(String(lead.Country || '').trim().toLowerCase())) reasons.push('Country not allowed');\n\n  return {\n    json: {\n      ...lead,\n      'Compliance Status': reasons.length ? 'Blocked' : 'OK',\n      'Compliance Notes': reasons.join('; '),\n    },\n  };\n});\n"
+        "jsCode": "const leads = $('Limit 20').all();\nconst freeDomains = ['gmail.com', 'hotmail.com', 'yahoo.com', 'outlook.com', 'yandex.com', 'icloud.com'];\n// Every country the admin can pick in Settings 'Target Countries' (WF0 only searches the picked ones).\nconst allowedCountries = ['turkey', 'türkiye', 'turkiye', 'bangladesh', 'vietnam', 'viet nam', 'malaysia', 'brazil', 'brasil'];\n\n// Suppression tab: emails and domains that must never be contacted (İYS \"ret\" opt-outs, manual do-not-contact, bounces).\nconst supp = $('Read Suppression').all().map(i => i.json).filter(r => r && (r.Email || r.Domain));\nconst suppEmails = new Set(supp.map(r => String(r.Email || '').toLowerCase().trim()).filter(Boolean));\nconst suppDomains = supp.map(r => String(r.Domain || '').toLowerCase().replace(/^@/, '').trim()).filter(Boolean);\n\nfunction domainOf(url) {\n  return String(url || '')\n    .toLowerCase()\n    .replace(/^https?:\\/\\//, '')\n    .replace(/^www\\./, '')\n    .split('/')[0]\n    .split(':')[0]\n    .trim();\n}\n\nreturn leads.map((item) => {\n  const lead = item.json;\n  const reasons = [];\n  const email = String(lead.Email || '').trim().toLowerCase();\n  const emailDomain = email.includes('@') ? email.split('@')[1] : '';\n  const siteDomain = domainOf(lead.Website);\n\n  if (!email) reasons.push('Email is empty');\n  if (emailDomain && freeDomains.includes(emailDomain)) reasons.push('Free or personal email domain');\n  if (String(lead['Opt-out'] || '').trim().toLowerCase() === 'yes') reasons.push('Lead opted out');\n  if (email && suppEmails.has(email)) reasons.push('On suppression list (İYS ret / do-not-contact)');\n  else if (emailDomain && suppDomains.some(sd => emailDomain === sd || emailDomain.endsWith('.' + sd))) reasons.push('Email domain on suppression list');\n  if (emailDomain && siteDomain && !freeDomains.includes(emailDomain)) {\n    const matches = emailDomain === siteDomain || emailDomain.endsWith('.' + siteDomain) || siteDomain.endsWith('.' + emailDomain);\n    if (!matches) reasons.push('Email domain does not match website domain');\n  }\n  if (!allowedCountries.includes(String(lead.Country || '').trim().toLowerCase())) reasons.push('Country not allowed');\n\n  return {\n    json: {\n      ...lead,\n      'Compliance Status': reasons.length ? 'Blocked' : 'OK',\n      'Compliance Notes': reasons.join('; '),\n    },\n  };\n});\n"
       }
     },
     {
-      "id": "ddfd3e93-17a3-4759-8d11-ce1f980942ab",
+      "id": "21e6c45a-db60-410e-b77b-ba30c425ad1f",
       "name": "Compliance OK?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
@@ -161,7 +175,7 @@
       }
     },
     {
-      "id": "cba7c8e9-bf24-4b60-984f-9f146c3d1579",
+      "id": "9cf76e61-ce2e-4151-a165-c3a636e77577",
       "name": "Draft First Email",
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
@@ -171,14 +185,14 @@
       ],
       "parameters": {
         "promptType": "define",
-        "text": "=Write a short first-contact B2B email from {{ $('Read Settings').first().json['Sender Name'] }}, {{ $('Read Settings').first().json['Sender Title'] }} at Texprove to {{ $json['Contact Name'] }} ({{ $json['Contact Title'] }}) at {{ $json.Company }}.\nLanguage: Turkish if Language = tr, otherwise English; write natural business Turkish, not a translation. This lead's Language is: {{ $json.Language }}.\nGreeting: if the Contact Name above is a real person's name, greet that person (Turkish: \"Sayın\" + full name; English: \"Dear\" + full name). If the Contact Name is empty, or is a job title, role or placeholder rather than a person's name (for example \"General Manager\", \"Export Contact\", \"Sales Team\", or anything containing \"/\"), greet the company instead: English \"Dear {{ $json.Company }} team,\", Turkish \"Sayın {{ $json.Company }} ekibi,\". Never use a job title or role as the greeting.\nOpen with this verified fact: {{ $json['Personalisation Hook'] }}.\nExplain in one sentence that EU Digital Product Passport rules for textiles are coming and exporters to the EU will need product-level data. One sentence on how Texprove helps. Ask for a 15-minute call.\nMax 120 words for the main text, no hype, no attachments. The only links allowed are the recipient company's own website and Texprove's website in the signature.\nNever mention the company's customers, buyers or the brands or retailers it supplies, nor any order volumes, quantities, prices, capacities, margins or revenue, even if that information is public. If the verified fact contains such details, refer to it in general terms (for example \"your exports to European retailers\").\nEnd with the sender's full name ({{ $('Read Settings').first().json['Sender Name'] }}), title ({{ $('Read Settings').first().json['Sender Title'] }}), company legal name ({{ $('Read Settings').first().json['Company Legal Name'] }}), address ({{ $('Read Settings').first().json['Company Address'] }}) and website ({{ $('Read Settings').first().json['Company Website'] || 'https://www.texprove.com' }}), each on its own line, exactly as given.\nThen add this sentence saying where we found their details, in the email's language, exactly as given:\nTurkish: İletişim bilgilerinizi şirketinizin herkese açık web sitesinden aldık.\nEnglish: We found your contact details on your company's public website.\nThen this opt-out line, in the email's language, exactly as given:\nTurkish: {{ $('Read Settings').first().json['Opt-out TR'] }}\nEnglish: {{ $('Read Settings').first().json['Opt-out EN'] }}\nReturn JSON: subject (max 7 words), body.",
+        "text": "=You prepare the variable parts of a first-contact B2B email from {{ $('Read Settings').first().json['Sender Name'] }}, {{ $('Read Settings').first().json['Sender Title'] }} at Texprove, to {{ $json['Contact Name'] || '(no named contact)' }} ({{ $json['Contact Title'] || 'title unknown' }}) at {{ $json.Company }}. Do NOT write a full email. The greeting, the value sentence, the offer of a 30-minute live demo with the calendar link, the sign-off, the signature and the opt-out line are fixed text that code adds around your parts.\n\nLanguage of everything you write: {{ ['turkey','türkiye','turkiye'].includes(String($json.Country || '').trim().toLowerCase()) ? 'Turkish (natural business Turkish, not a translation)' : 'English' }}.\nAudience: {{ /^(marka|brand)$/i.test(String($json.Segment || '').trim()) ? 'a BRAND that is legally accountable for its supplier data' : 'an EXPORTER / MANUFACTURER whose EU customers ask for Digital Product Passport and compliance data' }}.\nRecipient's role: {{ $json['Contact Role'] || 'unknown' }}. For a decision maker lean on the business side (answering EU customers once, keeping the customer); for a data owner (sustainability, compliance, quality, certification) lean on the practical side (existing data is imported, Excel or API, no ERP change).\nVerified fact about the company: {{ $json['Personalisation Hook'] }}\nThe fixed sentence that follows your opening is: {{ /^(marka|brand)$/i.test(String($json.Segment || '').trim()) ? ($('Read Settings').first().json['Value Prop Brand EN'] || '') : ($('Read Settings').first().json['Value Prop Exporter EN'] || '') }} Do not repeat it.\n\nReturn JSON with these keys:\n- person_full_name: the contact's full name with normal capitalisation, ONLY if the Contact Name above is a real person's name. Empty string if it is empty, a job title, a role, a department or a placeholder (for example \"General Manager\", \"Export Contact\", \"Sales Team\", anything containing \"/\").\n- person_first_name: that person's first name, or empty string.\n- company_short: the company's everyday name without legal suffixes (drop \"San. ve Tic. A.Ş.\", \"Ltd. Şti.\", \"Dış Ticaret\", text in brackets), for example \"Yusteks Tekstil\".\n- opening: ONE sentence, at most 30 words, personal to this company and based only on the verified fact, showing that we looked at them specifically. No greeting, nothing about Texprove, no question.\n- support: {{ /^(marka|brand)$/i.test(String($json.Segment || '').trim()) ? 'empty string (brands get a fixed text)' : 'one or two sentences, at most 45 words in total, built only from the approved messages below, choosing what fits this company and this role' }}.\n- subject: {{ /^(marka|brand)$/i.test(String($json.Segment || '').trim()) ? 'empty string (brands get a fixed subject)' : 'at most 7 words, plain, about Digital Product Passport or compliance data for their EU customers; no hype, no question mark' }}.\n\nApproved messages for exporters (use only these, lightly rephrased; add no other claims):\n- Today the same certificate, report and audit data is prepared again for every customer; in Texprove it is organised once and reused for every customer.\n- You do not start from scratch: you import your existing data and can export it any time; your data stays yours.\n- Texprove is a GS1 Türkiye solution partner.\n- The EU forced labour ban applies from 14 December 2027. The textile Digital Product Passport rules are expected in 2027 (never give a fixed date). Textile EPR national schemes are due by April 2028; that obligation sits with the brand, so to an exporter say \"for your customer, the brand\".\n\nNever write: prices or package names, percentages or savings rates, \"fewer audits\", Tier claims, a catalog or a sample, a video, a call or a meeting, 15 minutes, any link or web address, competitor figures, any date other than the three above. Never mention the company's customers, buyers or the brands or retailers it supplies by name, nor order volumes, quantities, capacities, margins or revenue, even if that is public; if the verified fact contains such details, refer to it in general terms (for example \"your exports to European retailers\").",
         "hasOutputParser": true,
         "needsFallback": true,
         "batching": {}
       }
     },
     {
-      "id": "5573a6a8-24a3-41b9-8274-e0bd62f5494c",
+      "id": "708ea8c4-5f01-4fcf-ba54-ec97963e70b2",
       "name": "Claude Sonnet 5.5",
       "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
       "typeVersion": 1.6,
@@ -202,7 +216,7 @@
       }
     },
     {
-      "id": "9e2cc4ae-982c-4372-bada-50ee98270116",
+      "id": "f6596ff8-e587-43f5-b63f-2d4c7b4f78e4",
       "name": "Claude Sonnet 5.5 (account 2)",
       "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
       "typeVersion": 1.6,
@@ -227,7 +241,7 @@
       }
     },
     {
-      "id": "3db6752e-b003-44b2-8942-6f003cbacb41",
+      "id": "187ced36-3d1c-4b58-9af0-75b2ac617a73",
       "name": "Email JSON",
       "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
       "typeVersion": 1.3,
@@ -237,11 +251,114 @@
       ],
       "parameters": {
         "schemaType": "manual",
-        "inputSchema": "{\"type\":\"object\",\"properties\":{\"subject\":{\"type\":\"string\"},\"body\":{\"type\":\"string\"}},\"required\":[\"subject\",\"body\"]}"
+        "inputSchema": "{\"type\": \"object\", \"properties\": {\"person_full_name\": {\"type\": \"string\"}, \"person_first_name\": {\"type\": \"string\"}, \"company_short\": {\"type\": \"string\"}, \"opening\": {\"type\": \"string\"}, \"support\": {\"type\": \"string\"}, \"subject\": {\"type\": \"string\"}}, \"required\": [\"person_full_name\", \"company_short\", \"opening\", \"support\", \"subject\"]}"
       }
     },
     {
-      "id": "f26ee5dc-0079-4d4b-bd45-5dbcd1ce6183",
+      "id": "55c7d825-7b0f-4130-a40d-4f943d19f574",
+      "name": "Check Draft",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1584,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Plain-code check of the assembled email, no AI (Nil's decisions of 23 Nov 2026, section 9). Marks the draft OK or Needs fix.\nconst draft = ($input.item.json.output) || {};\nconst subject = String(draft.subject || '').trim();\nconst body = String(draft.body || '');\nconst lower = body.toLowerCase();\nconst settings = $('Read Settings').first().json || {};\nconst lead = $('Compliance check').item.json || {};\n// Language follows the company's country, not its website: Turkey = Turkish, everywhere else English.\nconst isTr = ['turkey', 'türkiye', 'turkiye'].includes(String(lead.Country || '').trim().toLowerCase());\nconst brand = /^(marka|brand)$/i.test(String(lead.Segment || '').trim());\nconst reasons = [];\n\nconst has = (s) => s && lower.includes(String(s).toLowerCase().trim());\nconst start = (s, n) => String(s || '').trim().slice(0, n);\nconst domainOf = (u) => String(u || '').toLowerCase().replace(/^https?:\\/\\//, '').replace(/^www\\./, '').split('/')[0].split(':')[0].trim();\nconst squash = (s) => String(s || '').toLowerCase().replace(/\\s+/g, ' ').trim();\n\nif (!subject) reasons.push('Subject is empty');\nif (!body.trim()) reasons.push('Body is empty');\nif (!has(settings['Sender Name'])) reasons.push('Sender name missing');\nif (!has(settings['Company Legal Name'])) reasons.push('Company legal name missing');\nif (!has(start(settings['Company Address'], 12))) reasons.push('Company address missing');\n\n// Texprove's own website (Settings 'Company Website', default texprove.com) must be in the signature so prospects can check us out.\nconst ownDomain = domainOf(settings['Company Website'] || 'texprove.com') || 'texprove.com';\nif (!lower.includes(ownDomain)) reasons.push('Texprove website missing from signature');\n\nconst optOut = isTr ? settings['Opt-out TR'] : settings['Opt-out EN'];\nif (!has(start(optOut, 25))) reasons.push('Opt-out sentence missing (' + (isTr ? 'TR' : 'EN') + ')');\n\nconst sourceOk = isTr ? has('web sitesinden aldık') : has('contact details on your company');\nif (!sourceOk) reasons.push('Data-source sentence missing');\n\n// The value sentence for this audience and language must be in the mail (exporters: Settings 'Value Prop Exporter TR/EN';\n// brands: the sentence of Nil's brand template).\nconst valueProp = brand ? (isTr ? 'tek platformdan talep edip doğrulama' : 'one platform to request and verify') : (isTr ? settings['Value Prop Exporter TR'] : settings['Value Prop Exporter EN']);\nif (!squash(valueProp) || !squash(body).includes(squash(valueProp))) reasons.push('Value proposition sentence missing (' + (brand ? 'brand' : 'exporter') + ', ' + (isTr ? 'TR' : 'EN') + ')');\n\nconst words = body.trim().split(/\\s+/).length;\nif (words > 330) reasons.push('Too long (' + words + ' words incl. signature)');\n\nconst banned = ['garanti', 'guaranteed', '%100', '100%', 'son şans', 'last chance'];\nconst hits = banned.filter(b => lower.includes(b));\nif (hits.length) reasons.push('Hype wording: ' + hits.join(', '));\n\n// Nil's rules: one offer (30-minute demo), one link (calendar), allowed dates and claims only, right language.\nfor (const r of nilRuleIssues(subject + '\\n' + body, { lang: isTr ? 'tr' : 'en', calendarLink: settings['Calendar Link'], ownDomain, senderName: settings['Sender Name'] })) reasons.push(r);\n\n// Trade-secret rule: check subject and body (the signature is from Settings and should never trip it).\nfor (const r of sensitiveIssues(subject + '\\n' + body, brand ? lead.Company : '')) reasons.push(r);\n\n// Gmail turns \"<street> Sk. No: 41\" into a map link; a line break before \"No:\" stops it (tested 2026-11-14).\nconst fixedBody = body.replace(/(\\b(?:Sk|Sok|Cad|Cd|Bulv)\\.|\\bSokak|\\bSokağı|\\bCaddesi|\\bBulvarı)[ \\t]+(No\\s*[:.])/g, '$1\\n$2');\n\nreturn { json: {\n  ...$input.item.json,\n  output: { ...draft, body: fixedBody },\n  draft_check_status: reasons.length ? 'Needs fix' : 'OK',\n  draft_check_notes: reasons.join('; '),\n} };\n\n// Nil's email rules of 23 Nov 2026 (decision log sections 1, 3, 8, 9), as plain code. Same function in WF2 'Check Draft',\n// WF5 'Check Follow-up' and the dashboard (shared/email/nilRules.js).\n// o = { lang: 'tr' | 'en', calendarLink, ownDomain, senderName }. Returns a list of reasons (empty = passes).\nfunction nilRuleIssues(text, o) {\n  const t = String(text || '');\n  const low = t.toLowerCase();\n  const issues = [];\n  const opt = o || {};\n  const cal = String(opt.calendarLink || '').trim();\n  const own = String(opt.ownDomain || 'texprove.com').toLowerCase();\n\n  // Required: the 30-minute live demo and the calendar link (read from Settings 'Calendar Link').\n  if (!/30[\\s-]*(dakikalık|dakika|dk|minute|min)\\b/i.test(t) || !/demo/i.test(t)) issues.push('30-minute demo offer missing');\n  if (!cal) issues.push(\"Settings 'Calendar Link' is empty\");\n  else if (!t.includes(cal)) issues.push('Calendar link missing');\n\n  // Links: only the calendar link and Texprove's own website.\n  const links = t.match(/(https?:\\/\\/|www\\.)[^\\s)>\\]]+/gi) || [];\n  const foreign = links.filter(l => !(cal && l.startsWith(cal)) && !l.toLowerCase().replace(/^https?:\\/\\//, '').replace(/^www\\./, '').startsWith(own));\n  if (foreign.length) issues.push('Link other than the calendar link and ' + own + ': ' + foreign.join(', '));\n\n  // One offer only: the demo.\n  if (/\\b15[\\s-]*(dakika|dk|min|minute)/i.test(t)) issues.push('Mentions 15 minutes (the offer is a 30-minute demo)');\n  const offers = ['görüşme', 'toplantı', 'webinar', 'video', 'deneme sürümü', 'ücretsiz deneme', 'free trial', 'pilot'].filter(w => low.includes(w));\n  if (/\\b(call|meeting)\\b/i.test(t)) offers.push('call/meeting');\n  if (offers.length) issues.push('Offer other than the demo: ' + offers.join(', '));\n  const promo = ['katalog', 'catalog', 'broşür', 'brochure', 'numune', 'paket', 'package', 'pricing', 'abonelik', 'subscription', 'lisans ücreti'].filter(w => low.includes(w));\n  if (/\\bsamples?\\b/i.test(t)) promo.push('sample');\n  if (promo.length) issues.push('Price, package, catalog or sample wording: ' + promo.join(', '));\n\n  // Claims that must not be made.\n  if (/\\btier\\b|tier[\\s-]*\\d/i.test(t)) issues.push('Mentions Tier (Tier-4 / tier depth claims are not allowed)');\n  if (/%\\s*\\d|\\d\\s*%|yüzde\\s+\\d|\\bpercent\\b|\\bper cent\\b/i.test(t)) issues.push('Contains a percentage (no savings rates: there is no measured data)');\n  if (/fewer audits|less audits|reduc\\w*\\s+(the\\s+)?(number of\\s+)?audits|daha az denetim|denetim(ler)?(in)?\\s*(sayısı)?\\w*\\s*(azal|düş)/i.test(t)) issues.push('Claims fewer audits');\n  const figures = ['rakip', 'competitor', 'araştırmaya göre', 'araştırmalara göre', 'according to a study', 'studies show', 'gartner', 'mckinsey'].filter(w => low.includes(w));\n  if (figures.length) issues.push('Competitor or vendor figures: ' + figures.join(', '));\n\n  // Regulatory dates: only 14 December 2027, \"2027\" (textile DPP, expected) and April 2028 (EPR).\n  const months = 'ocak|şubat|mart|nisan|mayıs|haziran|temmuz|ağustos|eylül|ekim|kasım|aralık|january|february|march|april|may|june|july|august|september|october|november|december';\n  const okDates = ['14 aralık 2027', '14 december 2027', 'nisan 2028', 'april 2028', '17 nisan 2028', '17 april 2028'];\n  const badDates = [];\n  for (const m of low.matchAll(new RegExp('(\\\\d{1,2}\\\\s+)?(' + months + ')\\\\s+(\\\\d{1,2},?\\\\s+)?(20\\\\d\\\\d)', 'g'))) {\n    if (Number(m[4]) >= 2027 && !okDates.includes(m[0].replace(/\\s+/g, ' ').trim())) badDates.push(m[0].trim());\n  }\n  for (const m of low.matchAll(/\\b(20\\d\\d)\\b/g)) {\n    const y = Number(m[1]);\n    if (y > 2028) badDates.push(m[1]);\n    if (y === 2028 && !/(nisan|april)\\s+$/.test(low.slice(Math.max(0, m.index - 8), m.index))) badDates.push('2028 without April');\n  }\n  if (badDates.length) issues.push('Date other than 14 December 2027, 2027 (expected) and April 2028: ' + [...new Set(badDates)].join(', '));\n\n  // Language rule: Turkish for firms in Turkey, English abroad. Judged on the text above the signature.\n  const lines = t.replace(/\\r/g, '').split('\\n');\n  const iSig = opt.senderName ? lines.findIndex(l => l.trim() === String(opt.senderName).trim()) : -1;\n  const main = ' ' + (iSig > 0 ? lines.slice(0, iSig) : lines).join(' ').toLowerCase().replace(/[.,;:!?()\"']/g, ' ') + ' ';\n  const count = (ws) => ws.reduce((n, w) => n + main.split(' ' + w + ' ').length - 1, 0);\n  const tr = count(['ve', 'bir', 'için', 'ile', 'bu', 'sayın', 'size', 'sizin']);\n  const en = count(['the', 'and', 'for', 'your', 'you', 'with', 'dear', 'is']);\n  if (opt.lang === 'tr' && tr <= en) issues.push('Wrong language: firms in Turkey get Turkish');\n  if (opt.lang === 'en' && en <= tr) issues.push('Wrong language: firms outside Turkey get English');\n  return issues;\n}\n\n// Trade-secret rule (Nil's compliance plan): no buyer names, order volumes, prices, capacities or margins in outreach text.\n// ownName: the recipient company's own name (a brand may be named in a mail to that brand).\nfunction sensitiveIssues(text, ownName) {\n  const t = String(text || '');\n  const low = t.toLowerCase();\n  const own = String(ownName || '').toLowerCase();\n  const issues = [];\n  const buyers = ['zara', 'inditex', 'h&m', 'hennes', 'primark', 'c&a', 'mango', 'marks & spencer', 'm&s', 'tesco', 'lidl', 'aldi', 'decathlon', 'hugo boss', 'adidas', 'puma', 'nike', 'esprit', 's.oliver', 'tom tailor', 'bestseller', 'zalando', 'about you', 'otto', 'benetton', 'diesel', \"levi's\", 'levis', 'kiabi', 'celio', 'promod', 'etam', 'carrefour', 'auchan', 'tchibo', 'takko', 'ernsting', 'peek & cloppenburg', 'hunkemöller', 'we fashion', 'jack & jones', 'vero moda', 'pepe jeans', 'desigual', 'el corte ingl', 'cortefiel', 'mayoral', 'g-star', 'scotch & soda', 'zeeman', 'matalan', 'river island', 'new look', 'boohoo', 'asos', 'sinsay', 'cropp', 'mohito', 'pull&bear', 'pull & bear', 'bershka', 'stradivarius', 'massimo dutti', 'oysho', 'ikea', 'jysk', 'armani', 'gucci', 'prada', 'burberry', 'ralph lauren', 'tommy hilfiger', 'calvin klein', 'uniqlo', 'lacoste', 'superdry', 'jd sports', 'intersport', 'engelbert strauss', 'koton', 'defacto', 'lc waikiki'];\n  // Whole-word match only: \"zara\" must not fire inside \"yazarak\", nor \"otto\" inside \"cotton\".\n  const esc = (s) => s.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');\n  const wordHit = (name) => new RegExp('(^|[^a-z0-9çğıöşüâîû])' + esc(name) + '(?=$|[^a-z0-9çğıöşüâîû])').test(low);\n  const named = buyers.filter(b => wordHit(b) && !(own && own.includes(b)));\n  if (named.length) issues.push('Names a buyer or brand: ' + named.join(', '));\n  if (/(€|£|₺|\\$|\\b(eur|usd|gbp|tl)\\b)/i.test(t)) issues.push('Mentions money or prices');\n  if (/\\b\\d[\\d.,]*\\s*(adet|parça|ton|tons|tonnes|kg|metre|meters|pcs|pieces|units|orders|order|sipariş)\\b/i.test(t)) issues.push('Mentions order volumes or quantities');\n  const words = ['sipariş hacmi', 'sipariş adedi', 'order volume', 'order quantity', 'minimum order', 'moq', 'fiyat', 'price', 'birim fiyat', 'tedarikçisi olduğunuz', 'supplier of', 'supplies to', 'supplier to', 'customer list', 'müşteri listesi', 'kapasite', 'capacity', 'marj', 'margin', 'ciro', 'revenue', 'turnover'];\n  const hits = words.filter(w => low.includes(w));\n  if (hits.length) issues.push('Commercially sensitive wording: ' + hits.join(', '));\n  return issues;\n}\n"
+      }
+    },
+    {
+      "id": "d744707b-508d-4b02-b1eb-8991543bafa7",
+      "name": "Translate to English",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1760,
+        -160
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "=Translate the email below into plain, natural English for an internal reviewer who does not read Turkish. Keep the meaning, paragraph structure, signature, data-source sentence and opt-out sentence exactly; do not improve, shorten or add anything. Return only the translated email text, no preface.\nIf the email is already in English, reply with exactly: n/a\n\nSubject: {{ $json.output.subject }}\n\n{{ $json.output.body }}",
+        "needsFallback": true,
+        "batching": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "d092957c-7568-4b4e-aef9-1a9a5e676d31",
+      "name": "Claude Haiku 5.5 (translate)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.6,
+      "position": [
+        1776,
+        64
+      ],
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "cachedResultName": "Claude Haiku 5.5",
+          "mode": "list",
+          "value": "claude-haiku-5-5"
+        },
+        "options": {}
+      },
+      "credentials": {
+        "anthropicApi": {
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "id": "5a83349c-dd2d-44c3-99ef-c1b880420ac6",
+      "name": "Claude Haiku 5.5 (translate, account 2)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.6,
+      "position": [
+        1904,
+        64
+      ],
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "cachedResultName": "Claude Haiku 5.5",
+          "mode": "list",
+          "value": "claude-haiku-5-5"
+        },
+        "options": {}
+      },
+      "notes": "Fallback model: used only when the first Anthropic account errors. Point this node at the second Anthropic credential.",
+      "credentials": {
+        "anthropicApi": {
+          "name": "Anthropic account 2"
+        }
+      }
+    },
+    {
+      "id": "d16f49fc-417a-4e0a-97cb-b6306638b68e",
+      "name": "Set English Draft",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1984,
+        -160
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "en",
+              "name": "draft_body_en",
+              "type": "string",
+              "value": "={{ String($json.text || '').trim().toLowerCase() === 'n/a' ? '' : String($json.text || '').trim() }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "fc192fa9-fb46-47e9-bee3-5c6b27e45e32",
       "name": "Save Draft",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
@@ -277,7 +394,8 @@
             "Last Updated": "={{ $now.toISO() }}",
             "Lead ID": "={{ $('Compliance check').item.json['Lead ID'] }}",
             "Stage": "Drafted",
-            "Subject": "={{ $('Check Draft').item.json.output.subject }}"
+            "Subject": "={{ $('Check Draft').item.json.output.subject }}",
+            "Language": "={{ $('Check Draft').item.json.draft_lang }}"
           },
           "schema": [
             {
@@ -360,6 +478,15 @@
               "id": "Last Updated",
               "required": false,
               "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Language",
+              "id": "Language",
+              "required": false,
+              "type": "string"
             }
           ]
         },
@@ -372,7 +499,100 @@
       }
     },
     {
-      "id": "e7a126ca-c218-465a-bf2e-6f9e3e3799e7",
+      "id": "70dc1a40-5faf-48bd-ab97-77e8499d8700",
+      "name": "Telegram Nil",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2432,
+        0
+      ],
+      "parameters": {
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        },
+        "chatId": "={{ $('Read Settings').first().json['Nil Telegram Chat ID'] }}",
+        "operation": "sendMessage",
+        "resource": "message",
+        "text": "=Texprove: {{ $('Check Draft').all().length }} new email drafts are waiting for your approval ({{ $('Check Draft').all().filter(i => i.json.draft_check_status === 'Needs fix').length }} marked \"Needs fix\").{{ ($('Read Settings').first().json['Dashboard URL'] ? String($('Read Settings').first().json['Dashboard URL']).replace(/\\/+$/, '') + '/queue' : ($('Read Settings').first().json['Sheet URL'] || '')) ? ' Approve, edit or reject: ' + ($('Read Settings').first().json['Dashboard URL'] ? String($('Read Settings').first().json['Dashboard URL']).replace(/\\/+$/, '') + '/queue' : ($('Read Settings').first().json['Sheet URL'] || '')) : '' }}"
+      },
+      "notes": "Needs a Telegram bot credential (token from @BotFather). Nil must start a chat with the bot once; her chat ID goes in Settings 'Nil Telegram Chat ID'.",
+      "executeOnce": true,
+      "onError": "continueRegularOutput",
+      "webhookId": "096a1bd8-ed7c-4038-b833-92707c350d01",
+      "credentials": {
+        "telegramApi": {
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "id": "3bbf788a-259e-49c1-bd4b-7cd0c936a361",
+      "name": "Use SMTP? (notify)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2320,
+        -480
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "smtp",
+              "leftValue": "={{ String($('Read Settings').first().json['Mail Provider'] || '').trim().toUpperCase() === 'SMTP' }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      },
+      "notes": "Settings 'Mail Provider' = SMTP sends through the SMTP credential; empty or Gmail uses Gmail."
+    },
+    {
+      "id": "8ba827ff-6b53-4317-b9e6-6ce1f5c628cf",
+      "name": "Notify Nil (SMTP)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        2432,
+        -480
+      ],
+      "parameters": {
+        "emailFormat": "text",
+        "fromEmail": "={{ $('Read Settings').first().json['SMTP From'] }}",
+        "options": {
+          "appendAttribution": false
+        },
+        "subject": "={{ $('Check Draft').all().length }} new Texprove drafts waiting for approval",
+        "text": "={{ $('Check Draft').all().length }} new drafts are waiting for your approval ({{ $('Check Draft').all().filter(i => i.json.draft_check_status === 'Needs fix').length }} marked \"Needs fix\", see Compliance Notes for what to correct). Approve, edit or reject them here:\n\n{{ ($('Read Settings').first().json['Dashboard URL'] ? String($('Read Settings').first().json['Dashboard URL']).replace(/\\/+$/, '') + '/queue' : ($('Read Settings').first().json['Sheet URL'] || '')) || 'open the \"Texprove Leads\" Google Sheet, tab Leads' }}",
+        "toEmail": "={{ $('Read Settings').first().json['Nil Email'] }}"
+      },
+      "disabled": false,
+      "executeOnce": true,
+      "onError": "continueRegularOutput",
+      "webhookId": "5b1ab0e6-fdfd-4e18-9276-3b2909379b6f",
+      "credentials": {
+        "smtp": {
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "id": "7ebd15e6-728d-42d7-af42-c738c73a1b2f",
       "name": "Notify Nil",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
@@ -384,382 +604,23 @@
         "sendTo": "={{ $('Read Settings').first().json['Nil Email'] }}",
         "subject": "={{ $('Check Draft').all().length }} new Texprove drafts waiting for approval",
         "emailType": "text",
-        "message": "={{ $('Check Draft').all().length }} new drafts are waiting for approval in the Texprove Leads sheet ({{ $('Check Draft').all().filter(i => i.json.draft_check_status === 'Needs fix').length }} marked \"Needs fix\" in Compliance Status, see Compliance Notes for what to correct). Set Approved to Yes, No, or edit the text and set Yes.\n\nSheet: {{ $('Read Settings').first().json['Sheet URL'] ?? 'open the \"Texprove Leads\" Google Sheet, tab Leads' }}",
+        "message": "={{ $('Check Draft').all().length }} new drafts are waiting for your approval ({{ $('Check Draft').all().filter(i => i.json.draft_check_status === 'Needs fix').length }} marked \"Needs fix\", see Compliance Notes for what to correct). Approve, edit or reject them here:\n\n{{ ($('Read Settings').first().json['Dashboard URL'] ? String($('Read Settings').first().json['Dashboard URL']).replace(/\\/+$/, '') + '/queue' : ($('Read Settings').first().json['Sheet URL'] || '')) || 'open the \"Texprove Leads\" Google Sheet, tab Leads' }}",
         "options": {
           "appendAttribution": false
         }
       },
       "executeOnce": true,
       "onError": "continueRegularOutput",
-      "webhookId": "a86023ee-7825-4695-8f5f-da97a1c62f9c",
+      "webhookId": "0df093e9-f4a2-4b21-8a05-cabc5d7eb8ff",
+      "disabled": true,
       "credentials": {
         "gmailOAuth2": {
           "name": "Gmail account"
         }
-      },
-      "disabled": true
-    },
-    {
-      "id": "f7ef5da8-8104-46ab-8b42-e527cf976d5e",
-      "name": "Mark Blocked",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        1408,
-        400
-      ],
-      "parameters": {
-        "operation": "update",
-        "documentId": {
-          "__rl": true,
-          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM",
-          "mode": "list",
-          "cachedResultName": "demoSheet",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk"
-        },
-        "sheetName": {
-          "__rl": true,
-          "mode": "name",
-          "value": "Leads"
-        },
-        "columns": {
-          "mappingMode": "defineBelow",
-          "matchingColumns": [
-            "Lead ID"
-          ],
-          "value": {
-            "Lead ID": "={{ $json[\"Lead ID\"] }}",
-            "Compliance Status": "={{ $json[\"Compliance Status\"] }}",
-            "Compliance Notes": "={{ $json[\"Compliance Notes\"] }}",
-            "Stage": "Blocked - Compliance",
-            "Last Updated": "={{ $now.toISO() }}"
-          },
-          "schema": [
-            {
-              "id": "Lead ID",
-              "displayName": "Lead ID",
-              "required": false,
-              "defaultMatch": true,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true
-            },
-            {
-              "id": "Compliance Status",
-              "displayName": "Compliance Status",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": false
-            },
-            {
-              "id": "Compliance Notes",
-              "displayName": "Compliance Notes",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": false
-            },
-            {
-              "id": "Stage",
-              "displayName": "Stage",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": false
-            },
-            {
-              "id": "Last Updated",
-              "displayName": "Last Updated",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": false
-            }
-          ]
-        },
-        "options": {}
-      },
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "name": "Google Sheets account"
-        }
       }
     },
     {
-      "id": "03a1844e-ed8d-4484-85fb-87ad6836d481",
-      "name": "Note: Compliance",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        816,
-        400
-      ],
-      "parameters": {
-        "content": "## Compliance gate\nPlain JavaScript, no AI. Blocks: empty email, free/personal domain, opted-out, email or domain on the Suppression tab (İYS \"ret\" opt-outs and manual do-not-contact entries), email domain not matching website, country not in the allowed list (Turkey). İYS itself is not queried: Nil exports İYS opt-outs into the Suppression tab. Add more rules here after Nil confirms KVKK / İYS requirements.",
-        "width": 380
-      }
-    },
-    {
-      "id": "ffdb9d0e-8347-482b-9b0c-7f40931576a5",
-      "name": "Note: Settings tab",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        816,
-        656
-      ],
-      "parameters": {
-        "content": "## Settings, Suppression and extra columns\nSettings: one row with columns Sender Name, Sender Title, Company Legal Name, Company Address, Opt-out TR, Opt-out EN, Nil Email. Optional: Sheet URL, HubSpot Monthly Limit (default 3000), HubSpot Pause Percent (default 80).\nSuppression tab: Email | Domain | Reason | Date (one row per address or domain never to contact).\nLeads needs a Draft Body EN column. Log tab: Timestamp | Workflow | Lead ID | Company | Step | Input | Output | Reason.",
-        "width": 380,
-        "height": 140
-      }
-    },
-    {
-      "id": "811914a4-2271-438d-a35a-a96f64b8f98b",
-      "name": "Check Draft",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1584,
-        0
-      ],
-      "parameters": {
-        "mode": "runOnceForEachItem",
-        "jsCode": "// Plain-code check of the generated email, no AI. Marks the draft OK or Needs fix.\nconst draft = ($input.item.json.output) || {};\nconst subject = String(draft.subject || '').trim();\nconst body = String(draft.body || '');\nconst lower = body.toLowerCase();\nconst settings = $('Read Settings').first().json || {};\nconst lead = $('Compliance check').item.json || {};\nconst isTr = String(lead.Language || '').trim().toLowerCase() === 'tr';\nconst reasons = [];\n\nconst has = (s) => s && lower.includes(String(s).toLowerCase().trim());\nconst start = (s, n) => String(s || '').trim().slice(0, n);\nconst domainOf = (u) => String(u || '').toLowerCase().replace(/^https?:\\/\\//, '').replace(/^www\\./, '').split('/')[0].split(':')[0].trim();\n\nif (!subject) reasons.push('Subject is empty');\nif (!body.trim()) reasons.push('Body is empty');\nif (!has(settings['Sender Name'])) reasons.push('Sender name missing');\nif (!has(settings['Company Legal Name'])) reasons.push('Company legal name missing');\nif (!has(start(settings['Company Address'], 12))) reasons.push('Company address missing');\n\n// Texprove's own website (Settings 'Company Website', default texprove.com) must be in the signature so prospects can check us out.\nconst ownDomain = domainOf(settings['Company Website'] || 'texprove.com') || 'texprove.com';\nif (!lower.includes(ownDomain)) reasons.push('Texprove website missing from signature');\n\nconst optOut = isTr ? settings['Opt-out TR'] : settings['Opt-out EN'];\nif (!has(start(optOut, 25))) reasons.push('Opt-out sentence missing (' + (isTr ? 'TR' : 'EN') + ')');\n\nconst sourceOk = isTr ? has('web sitesinden aldık') : has('contact details on your company');\nif (!sourceOk) reasons.push('Data-source sentence missing');\n\n// Links: only the lead's own website and Texprove's website are allowed.\nconst siteDomain = domainOf(lead.Website);\nconst allowedDomains = [siteDomain, ownDomain].filter(Boolean);\nconst links = body.match(/https?:\\/\\/[^\\s)>\\]]+/gi) || [];\nconst foreign = links.filter(l => !allowedDomains.some(d => l.toLowerCase().includes(d)));\nif (foreign.length) reasons.push('Links to other sites: ' + foreign.join(', '));\n\nconst words = body.trim().split(/\\s+/).length;\nif (words > 190) reasons.push('Too long (' + words + ' words incl. signature)');\n\nconst banned = ['garanti', 'guaranteed', '%100', '100%', 'ücretsiz', 'free trial', 'son şans', 'last chance'];\nconst hits = banned.filter(b => lower.includes(b));\nif (hits.length) reasons.push('Hype wording: ' + hits.join(', '));\n\n// Trade-secret rule: check subject and body (the signature is from Settings and should never trip it).\nfor (const r of sensitiveIssues(subject + '\\n' + body)) reasons.push(r);\n\n// Gmail turns \"<street> Sk. No: 41\" into a map link; a line break before \"No:\" stops it (tested 2026-11-14).\nconst fixedBody = body.replace(/(\\b(?:Sk|Sok|Cad|Cd|Bulv)\\.|\\bSokak|\\bSokağı|\\bCaddesi|\\bBulvarı)[ \\t]+(No\\s*[:.])/g, '$1\\n$2');\n\nreturn { json: {\n  ...$input.item.json,\n  output: { ...draft, body: fixedBody },\n  draft_check_status: reasons.length ? 'Needs fix' : 'OK',\n  draft_check_notes: reasons.join('; '),\n} };\n\n// Trade-secret rule (Nil's compliance plan): no buyer names, order volumes, prices, capacities or margins in outreach text.\nfunction sensitiveIssues(text) {\n  const t = String(text || '');\n  const low = t.toLowerCase();\n  const issues = [];\n  const buyers = ['zara', 'inditex', 'h&m', 'hennes', 'primark', 'c&a', 'mango', 'marks & spencer', 'm&s', 'tesco', 'lidl', 'aldi', 'decathlon', 'hugo boss', 'adidas', 'puma', 'nike', 'esprit', 's.oliver', 'tom tailor', 'bestseller', 'zalando', 'about you', 'otto', 'benetton', 'diesel', \"levi's\", 'levis', 'kiabi', 'celio', 'promod', 'etam', 'carrefour', 'auchan', 'tchibo', 'takko', 'ernsting', 'peek & cloppenburg', 'hunkemöller', 'we fashion', 'jack & jones', 'vero moda', 'pepe jeans', 'desigual', 'el corte ingl', 'cortefiel', 'mayoral', 'g-star', 'scotch & soda', 'zeeman', 'matalan', 'river island', 'new look', 'boohoo', 'asos', 'sinsay', 'cropp', 'mohito', 'pull&bear', 'pull & bear', 'bershka', 'stradivarius', 'massimo dutti', 'oysho', 'ikea', 'jysk', 'armani', 'gucci', 'prada', 'burberry', 'ralph lauren', 'tommy hilfiger', 'calvin klein', 'uniqlo', 'lacoste', 'superdry', 'jd sports', 'intersport', 'engelbert strauss', 'koton', 'defacto', 'lc waikiki'];\n  // Whole-word match only: \"zara\" must not fire inside \"yazarak\", nor \"otto\" inside \"cotton\".\n  const esc = (s) => s.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');\n  const wordHit = (name) => new RegExp('(^|[^a-z0-9çğıöşüâîû])' + esc(name) + '(?=$|[^a-z0-9çğıöşüâîû])').test(low);\n  const named = buyers.filter(wordHit);\n  if (named.length) issues.push('Names a buyer or brand: ' + named.join(', '));\n  if (/(€|£|₺|\\$|\\b(eur|usd|gbp|tl)\\b)/i.test(t)) issues.push('Mentions money or prices');\n  if (/\\b\\d[\\d.,]*\\s*(adet|parça|ton|tons|tonnes|kg|metre|meters|pcs|pieces|units|orders|order|sipariş)\\b/i.test(t)) issues.push('Mentions order volumes or quantities');\n  const words = ['sipariş hacmi', 'sipariş adedi', 'order volume', 'order quantity', 'minimum order', 'moq', 'fiyat', 'price', 'birim fiyat', 'tedarikçisi', 'supplier of', 'supplies to', 'supplier to', 'müşteriniz', 'your customer', 'your client', 'your buyer', 'alıcınız', 'customer list', 'müşteri listesi', 'kapasite', 'capacity', 'marj', 'margin', 'ciro', 'revenue', 'turnover'];\n  const hits = words.filter(w => low.includes(w));\n  if (hits.length) issues.push('Commercially sensitive wording: ' + hits.join(', '));\n  return issues;\n}\n"
-      }
-    },
-    {
-      "id": "f37d4510-9417-47c4-afb0-f0b15919ce85",
-      "name": "Note: Draft check",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        1760,
-        -432
-      ],
-      "parameters": {
-        "content": "## Draft check, English copy, log\nPlain code, no AI: every draft must contain the sender name, legal name, address, the opt-out sentence in its language, the data-source sentence, no links except the lead's website, no hype words, and nothing commercially sensitive (buyer or brand names, money, quantities, order/price/capacity/margin wording). Failures are saved as Compliance Status = \"Needs fix\" with reasons, for Nil to correct before approving.\n\"Translate to English\" (Claude Haiku 5.5) then writes a plain English copy of Turkish drafts to the Draft Body EN column so Nil can compare; English drafts leave it empty. The compliance decision and the draft are appended to the Log tab.",
-        "width": 420,
-        "height": 180
-      }
-    },
-    {
-      "id": "a358b1ba-d56a-497f-91c5-0bafdaa6548f",
-      "name": "Translate to English",
-      "type": "@n8n/n8n-nodes-langchain.chainLlm",
-      "typeVersion": 1.9,
-      "position": [
-        1760,
-        -160
-      ],
-      "parameters": {
-        "promptType": "define",
-        "text": "=Translate the email below into plain, natural English for an internal reviewer who does not read Turkish. Keep the meaning, paragraph structure, signature, data-source sentence and opt-out sentence exactly; do not improve, shorten or add anything. Return only the translated email text, no preface.\nIf the email is already in English, reply with exactly: n/a\n\nSubject: {{ $json.output.subject }}\n\n{{ $json.output.body }}",
-        "needsFallback": true,
-        "batching": {}
-      },
-      "onError": "continueRegularOutput"
-    },
-    {
-      "id": "e5e6549c-576d-4797-8636-c7ea2a6aa4c9",
-      "name": "Claude Haiku 5.5 (translate)",
-      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
-      "typeVersion": 1.6,
-      "position": [
-        1776,
-        64
-      ],
-      "parameters": {
-        "model": {
-          "__rl": true,
-          "cachedResultName": "Claude Haiku 5.5",
-          "mode": "list",
-          "value": "claude-haiku-5-5"
-        },
-        "options": {}
-      },
-      "credentials": {
-        "anthropicApi": {
-          "name": "Anthropic account"
-        }
-      }
-    },
-    {
-      "id": "753263ef-b420-4234-9a89-e579b6ea841d",
-      "name": "Claude Haiku 5.5 (translate, account 2)",
-      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
-      "typeVersion": 1.6,
-      "position": [
-        1904,
-        64
-      ],
-      "parameters": {
-        "model": {
-          "__rl": true,
-          "cachedResultName": "Claude Haiku 5.5",
-          "mode": "list",
-          "value": "claude-haiku-5-5"
-        },
-        "options": {}
-      },
-      "notes": "Fallback model: used only when the first Anthropic account errors. Point this node at the second Anthropic credential.",
-      "credentials": {
-        "anthropicApi": {
-          "name": "Anthropic account 2"
-        }
-      }
-    },
-    {
-      "id": "974dd7c6-d7fa-4d1f-9d51-3ffe4483936a",
-      "name": "Set English Draft",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [
-        1984,
-        -160
-      ],
-      "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "en",
-              "name": "draft_body_en",
-              "type": "string",
-              "value": "={{ String($json.text || '').trim().toLowerCase() === 'n/a' ? '' : String($json.text || '').trim() }}"
-            }
-          ]
-        },
-        "options": {}
-      }
-    },
-    {
-      "id": "d1dc52b0-889b-4906-99f6-b7f217cc0087",
-      "name": "Log Compliance",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        1248,
-        560
-      ],
-      "parameters": {
-        "operation": "append",
-        "documentId": {
-          "__rl": true,
-          "cachedResultName": "demoSheet",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk",
-          "mode": "list",
-          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM"
-        },
-        "sheetName": {
-          "__rl": true,
-          "mode": "name",
-          "value": "Log"
-        },
-        "columns": {
-          "mappingMode": "defineBelow",
-          "schema": [
-            {
-              "canBeUsedToMatch": false,
-              "defaultMatch": false,
-              "display": true,
-              "displayName": "Timestamp",
-              "id": "Timestamp",
-              "required": false,
-              "type": "string"
-            },
-            {
-              "canBeUsedToMatch": false,
-              "defaultMatch": false,
-              "display": true,
-              "displayName": "Workflow",
-              "id": "Workflow",
-              "required": false,
-              "type": "string"
-            },
-            {
-              "canBeUsedToMatch": false,
-              "defaultMatch": false,
-              "display": true,
-              "displayName": "Lead ID",
-              "id": "Lead ID",
-              "required": false,
-              "type": "string"
-            },
-            {
-              "canBeUsedToMatch": false,
-              "defaultMatch": false,
-              "display": true,
-              "displayName": "Company",
-              "id": "Company",
-              "required": false,
-              "type": "string"
-            },
-            {
-              "canBeUsedToMatch": false,
-              "defaultMatch": false,
-              "display": true,
-              "displayName": "Step",
-              "id": "Step",
-              "required": false,
-              "type": "string"
-            },
-            {
-              "canBeUsedToMatch": false,
-              "defaultMatch": false,
-              "display": true,
-              "displayName": "Input",
-              "id": "Input",
-              "required": false,
-              "type": "string"
-            },
-            {
-              "canBeUsedToMatch": false,
-              "defaultMatch": false,
-              "display": true,
-              "displayName": "Output",
-              "id": "Output",
-              "required": false,
-              "type": "string"
-            },
-            {
-              "canBeUsedToMatch": false,
-              "defaultMatch": false,
-              "display": true,
-              "displayName": "Reason",
-              "id": "Reason",
-              "required": false,
-              "type": "string"
-            }
-          ],
-          "value": {
-            "Company": "={{ $json.Company }}",
-            "Input": "={{ 'Email ' + ($json.Email || '') + '; website ' + ($json.Website || '') + '; country ' + ($json.Country || '') + '; contact ' + ($json['Contact Name'] || '') + ' (' + ($json['Contact Title'] || '') + '); opt-out ' + ($json['Opt-out'] || '') }}",
-            "Lead ID": "={{ $json['Lead ID'] }}",
-            "Output": "={{ $json['Compliance Status'] }}",
-            "Reason": "={{ $json['Compliance Notes'] || 'All rules passed' }}",
-            "Step": "Compliance check",
-            "Timestamp": "={{ $now.toISO() }}",
-            "Workflow": "WF2 Compliance check and draft"
-          }
-        },
-        "options": {
-          "cellFormat": "RAW"
-        }
-      },
-      "onError": "continueRegularOutput",
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "name": "Google Sheets account"
-        }
-      }
-    },
-    {
-      "id": "6be019a3-e484-443e-a96d-5d81993aca64",
+      "id": "7ca871c0-fd91-447c-8f51-da394bcedd41",
       "name": "Log Draft",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
@@ -880,15 +741,107 @@
       }
     },
     {
-      "id": "82a93594-7bb0-455c-a765-313a17ad13f7",
-      "name": "Read Suppression",
+      "id": "98b1ee09-910a-4cd6-8903-11bfa1c58510",
+      "name": "Mark Blocked",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        784,
-        96
+        1408,
+        400
       ],
       "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM",
+          "mode": "list",
+          "cachedResultName": "demoSheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Leads"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "Lead ID"
+          ],
+          "value": {
+            "Lead ID": "={{ $json[\"Lead ID\"] }}",
+            "Compliance Status": "={{ $json[\"Compliance Status\"] }}",
+            "Compliance Notes": "={{ $json[\"Compliance Notes\"] }}",
+            "Stage": "Blocked - Compliance",
+            "Last Updated": "={{ $now.toISO() }}"
+          },
+          "schema": [
+            {
+              "id": "Lead ID",
+              "displayName": "Lead ID",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Compliance Status",
+              "displayName": "Compliance Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Compliance Notes",
+              "displayName": "Compliance Notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Stage",
+              "displayName": "Stage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Last Updated",
+              "displayName": "Last Updated",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "387f98e1-7ede-40d5-82c7-ddcd52c3ca5f",
+      "name": "Log Compliance",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1248,
+        560
+      ],
+      "parameters": {
+        "operation": "append",
         "documentId": {
           "__rl": true,
           "cachedResultName": "demoSheet",
@@ -899,12 +852,99 @@
         "sheetName": {
           "__rl": true,
           "mode": "name",
-          "value": "Suppression"
+          "value": "Log"
         },
-        "options": {}
+        "columns": {
+          "mappingMode": "defineBelow",
+          "schema": [
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Timestamp",
+              "id": "Timestamp",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Workflow",
+              "id": "Workflow",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Lead ID",
+              "id": "Lead ID",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Company",
+              "id": "Company",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Step",
+              "id": "Step",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Input",
+              "id": "Input",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Output",
+              "id": "Output",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Reason",
+              "id": "Reason",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "Company": "={{ $json.Company }}",
+            "Input": "={{ 'Email ' + ($json.Email || '') + '; website ' + ($json.Website || '') + '; country ' + ($json.Country || '') + '; contact ' + ($json['Contact Name'] || '') + ' (' + ($json['Contact Title'] || '') + '); opt-out ' + ($json['Opt-out'] || '') }}",
+            "Lead ID": "={{ $json['Lead ID'] }}",
+            "Output": "={{ $json['Compliance Status'] }}",
+            "Reason": "={{ $json['Compliance Notes'] || 'All rules passed' }}",
+            "Step": "Compliance check",
+            "Timestamp": "={{ $now.toISO() }}",
+            "Workflow": "WF2 Compliance check and draft"
+          }
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
       },
-      "executeOnce": true,
-      "alwaysOutputData": true,
       "onError": "continueRegularOutput",
       "credentials": {
         "googleSheetsOAuth2Api": {
@@ -913,96 +953,87 @@
       }
     },
     {
-      "id": "6666be7b-abe0-4292-865a-dba8f5380084",
-      "name": "Telegram Nil",
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.2,
+      "id": "98682a94-0fbf-4686-b720-710eecaf7ac0",
+      "name": "Manual Test",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
       "position": [
-        2432,
-        0
+        0,
+        352
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "38731530-9d6d-4cc8-b421-2d14c204981f",
+      "name": "Note: Compliance",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        816,
+        400
       ],
       "parameters": {
-        "additionalFields": {
-          "appendAttribution": false,
-          "parse_mode": "HTML"
-        },
-        "chatId": "={{ $('Read Settings').first().json['Nil Telegram Chat ID'] }}",
-        "operation": "sendMessage",
-        "resource": "message",
-        "text": "=Texprove: {{ $('Check Draft').all().length }} new email drafts are waiting for your approval in the Leads tab ({{ $('Check Draft').all().filter(i => i.json.draft_check_status === 'Needs fix').length }} marked \"Needs fix\"). Set Approved to Yes, No or Edit.{{ $('Read Settings').first().json['Sheet URL'] ? ' ' + $('Read Settings').first().json['Sheet URL'] : '' }}"
-      },
-      "notes": "Needs a Telegram bot credential (token from @BotFather). Nil must start a chat with the bot once; her chat ID goes in Settings 'Nil Telegram Chat ID'.",
-      "executeOnce": true,
-      "onError": "continueRegularOutput",
-      "webhookId": "816e77b7-d925-4666-a431-6747d39b293c",
-      "credentials": {
-        "telegramApi": {
-          "name": "Telegram account"
-        }
+        "content": "## Compliance gate\nPlain JavaScript, no AI. Blocks: empty email, free/personal domain, opted-out, email or domain on the Suppression tab (İYS \"ret\" opt-outs and manual do-not-contact entries), email domain not matching website, country not in the allowed list (Turkey, Bangladesh, Vietnam, Malaysia, Brazil: the countries the dashboard can pick). İYS itself is not queried: Nil exports İYS opt-outs into the Suppression tab. Add more rules here after Nil confirms KVKK / İYS requirements.",
+        "width": 380
       }
     },
     {
-      "id": "f86627a4-c3fb-414a-9fc2-fbacdd30e322",
-      "name": "Use SMTP? (notify)",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.3,
+      "id": "7969a142-114e-43cf-8d34-3a0f2288bf37",
+      "name": "Note: Settings tab",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
       "position": [
-        2320,
-        -480
+        816,
+        656
       ],
       "parameters": {
-        "conditions": {
-          "combinator": "and",
-          "conditions": [
-            {
-              "id": "smtp",
-              "leftValue": "={{ String($('Read Settings').first().json['Mail Provider'] || '').trim().toUpperCase() === 'SMTP' }}",
-              "operator": {
-                "operation": "true",
-                "singleValue": true,
-                "type": "boolean"
-              },
-              "rightValue": ""
-            }
-          ],
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 2
-          }
-        },
-        "options": {}
-      },
-      "notes": "Settings 'Mail Provider' = SMTP sends through the SMTP credential; empty or Gmail uses Gmail."
+        "content": "## Settings, Suppression and extra columns\nSettings: one row with columns Sender Name, Sender Title, Company Legal Name, Company Address, Opt-out TR, Opt-out EN, Nil Email. Optional: Sheet URL, HubSpot Monthly Limit (default 3000), HubSpot Pause Percent (default 80).\nSuppression tab: Email | Domain | Reason | Date (one row per address or domain never to contact).\nLeads needs a Draft Body EN column. Log tab: Timestamp | Workflow | Lead ID | Company | Step | Input | Output | Reason.",
+        "width": 380,
+        "height": 140
+      }
     },
     {
-      "id": "4c127b86-25eb-4196-8dcd-94b4b3e42c01",
-      "name": "Notify Nil (SMTP)",
-      "type": "n8n-nodes-base.emailSend",
-      "typeVersion": 2.1,
+      "id": "ff6886f1-f041-4996-be01-9ca747cf3830",
+      "name": "Note: Draft check",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
       "position": [
-        2432,
-        -480
+        1760,
+        -432
       ],
       "parameters": {
-        "emailFormat": "text",
-        "fromEmail": "={{ $('Read Settings').first().json['SMTP From'] }}",
-        "options": {
-          "appendAttribution": false
-        },
-        "subject": "={{ $('Check Draft').all().length }} new Texprove drafts waiting for approval",
-        "text": "={{ $('Check Draft').all().length }} new drafts are waiting for approval in the Texprove Leads sheet ({{ $('Check Draft').all().filter(i => i.json.draft_check_status === 'Needs fix').length }} marked \"Needs fix\" in Compliance Status, see Compliance Notes for what to correct). Set Approved to Yes, No, or edit the text and set Yes.\n\nSheet: {{ $('Read Settings').first().json['Sheet URL'] ?? 'open the \"Texprove Leads\" Google Sheet, tab Leads' }}",
-        "toEmail": "={{ $('Read Settings').first().json['Nil Email'] }}"
-      },
-      "onError": "continueRegularOutput",
-      "executeOnce": true,
-      "webhookId": "84656076-b951-40ea-a786-4f388e6ee21e",
-      "credentials": {
-        "smtp": {
-          "name": "SMTP account"
-        }
+        "content": "## Draft check, English copy, log\nPlain code, no AI: every draft must contain the sender name, legal name, address, the opt-out sentence in its language, the data-source sentence, no links except the lead's website, no hype words, and nothing commercially sensitive (buyer or brand names, money, quantities, order/price/capacity/margin wording). Failures are saved as Compliance Status = \"Needs fix\" with reasons, for Nil to correct before approving.\n\"Translate to English\" (Claude Haiku 5.5) then writes a plain English copy of Turkish drafts to the Draft Body EN column so Nil can compare; English drafts leave it empty. The compliance decision and the draft are appended to the Log tab.",
+        "width": 420,
+        "height": 180
       }
+    },
+    {
+      "id": "4313df9b-d47a-40f6-80a7-2b40c83dca7a",
+      "name": "Pick leads to draft",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        336,
+        416
+      ],
+      "parameters": {
+        "jsCode": "// Chooses which leads get a first-email draft in this run (Nil's decisions of 23 Nov 2026).\n// 1. Second contacts ('Waiting - 2nd contact' rows): drafted two days after the first person was mailed, so the\n//    draft is approved in time; WF3 only sends it when three days have passed without a reply. If the first\n//    person's mail bounced, the second person is drafted straight away.\n// 2. Companies in stage 'Researched' that WF1 has classified under the new rules ('Contact Source' filled):\n//    wave 1 (EU-exporting garment makers, integrated groups) or brands, not a bespoke account.\n// Wave 2, sourcing offices and bespoke accounts get no automatic draft.\nconst all = $input.all();\nconst byId = {};\nfor (const i of all) { const id = String((i.json || {})['Lead ID'] || '').trim(); if (id) byId[id] = i.json; }\nconst today = $now.setZone('Europe/Istanbul').toISODate();\nconst isBrand = (j) => /^(marka|brand)$/i.test(String(j.Segment || '').trim());\nconst second = [];\nconst first = [];\nfor (const i of all) {\n  const j = i.json || {};\n  const stage = String(j.Stage || '').trim();\n  const pid = String(j['Parent Lead ID'] || '').trim();\n  if (stage === 'Waiting - 2nd contact' && pid) {\n    const p = byId[pid];\n    if (!p) continue;\n    if (p.Stage === 'Bounced') { second.push(i); continue; }\n    if (String(p['Reply Category'] || '').trim() || p['Opt-out'] === 'Yes') continue;\n    if (!['Sent', 'Follow-up 1', 'Follow-up 2', 'Follow-up 3'].includes(p.Stage)) continue;\n    const t = DateTime.fromISO(String(p['Sent At'] || '').trim());\n    if (t.isValid && t.setZone('Europe/Istanbul').plus({ days: 2 }).toISODate() <= today) second.push(i);\n  } else if (stage === 'Researched' && !pid) {\n    if (!String(j['Contact Source'] || '').trim()) continue;\n    if (String(j.Bespoke || '').trim().toLowerCase() === 'yes') continue;\n    if (String(j.Wave || '').trim() === '1' || isBrand(j)) first.push(i);\n  }\n}\nreturn second.concat(first);\n"
+      }
+    },
+    {
+      "id": "b7dcdc2b-6e4a-47c0-8fc1-789812ccba3a",
+      "name": "Assemble Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1472,
+        -144
+      ],
+      "parameters": {
+        "jsCode": "// Builds the first email from fixed parts (Nil's decisions of 23 Nov 2026). The model only supplies the person's name,\n// the one personal sentence, a short supporting paragraph (exporters) and the subject (exporters). Everything else is\n// fixed text: the value sentence (Settings 'Value Prop ...'), the 30-minute demo offer, the calendar link\n// (Settings 'Calendar Link'), the sign-off, the signature and the footer. Brands get Nil's full template (section 14).\n// Language follows the company's country: Turkey = Turkish, everywhere else English.\nconst lead = $('Compliance check').item.json;\nconst s = $('Read Settings').first().json || {};\nconst o = $input.item.json.output || {};\nconst clean = (x) => String(x || '').replace(/\\s+/g, ' ').trim();\nconst lang = ['turkey', 'türkiye', 'turkiye'].includes(String(lead.Country || '').trim().toLowerCase()) ? 'tr' : 'en';\nconst brand = /^(marka|brand)$/i.test(String(lead.Segment || '').trim());\nconst cal = clean(s['Calendar Link']);\nconst full = clean(o.person_full_name);\nconst first = clean(o.person_first_name) || full.split(' ')[0];\nconst co = clean(o.company_short) || clean(lead.Company);\nconst greeting = lang === 'tr' ? (full ? 'Sayın ' + full + ',' : 'Sayın ' + co + ' ekibi,') : (full ? 'Dear ' + first + ',' : 'Dear ' + co + ' team,');\nconst opening = clean(o.opening);\nconst support = clean(o.support);\nconst sig = [s['Sender Name'], s['Sender Title'], s['Company Legal Name'], String(s['Company Address'] || '').trim(), s['Company Website'] || 'https://www.texprove.com'].map(x => String(x || '').trim()).filter(Boolean).join('\\n');\nconst source = lang === 'tr' ? 'İletişim bilgilerinizi şirketinizin herkese açık web sitesinden aldık.' : \"We found your contact details on your company's public website.\";\nconst optOut = clean(lang === 'tr' ? s['Opt-out TR'] : s['Opt-out EN']);\nconst closing = lang === 'tr' ? 'Saygılarımla,' : 'Kind regards,';\nconst cta = lang === 'tr'\n  ? 'Sizin sipariş akışınıza benzer bir örnek üzerinden 30 dakikalık canlı bir demo göstermek isterim. Size uygun zamanı buradan seçebilirsiniz: ' + cal\n  : 'Could I show you this in a 30-minute live demo, built on an example close to your own order flow? You can pick a time here: ' + cal;\n\nlet subject, parts;\nif (brand && lang === 'en') {\n  subject = 'Supplier data ' + co + ' can stand behind';\n  parts = [greeting, opening,\n    'The legal responsibility sits with ' + co + '. The data sits with your suppliers. The Digital Product Passport (textile rules expected in 2027), the EU forced labour ban (from 14 December 2027) and textile EPR (national schemes due by April 2028) all ask for the same supplier data.',\n    'TexProve gives brands one platform to request and verify it:',\n    \"- One verified source instead of email and Excel.\\n- A document and an auditor's approval behind every claim.\\n- Suppliers share the evidence without opening up their network, so they join faster. Joining is free for them.\",\n    'TexProve is an official GS1 Türkiye Solution Partner.', cta];\n} else if (brand) {\n  subject = 'Arkasında durabileceğiniz tedarikçi verisi';\n  parts = [greeting, opening,\n    \"Yasal sorumluluk markada, veri ise tedarikçilerde. Dijital ürün pasaportu (tekstil düzenlemesi 2027'de bekleniyor), AB zorla çalıştırma yasağı (14 Aralık 2027'den itibaren) ve tekstilde genişletilmiş üretici sorumluluğu (ulusal sistemler Nisan 2028'e kadar) aynı tedarikçi verisini istiyor.\",\n    'TexProve, markalara bu veriyi tek platformdan talep edip doğrulama imkânı verir:',\n    '- E-posta ve Excel yerine tek doğrulanmış kaynak.\\n- Her beyanın arkasında belge ve denetçi onayı.\\n- Tedarikçiniz ağını açmadan kanıtı paylaşır, bu yüzden sisteme daha hızlı katılır. Tedarikçi katılımı ücretsizdir.',\n    'TexProve, GS1 Türkiye çözüm ortağıdır.', cta];\n} else {\n  subject = clean(o.subject);\n  parts = [greeting, opening, clean(lang === 'tr' ? s['Value Prop Exporter TR'] : s['Value Prop Exporter EN']), support, cta];\n}\nconst body = opening ? [...parts, closing, sig, source, optOut].filter(Boolean).join('\\n\\n') : '';\nreturn { json: { ...$input.item.json, output: { subject, body }, draft_lang: lang, draft_audience: brand ? 'brand' : 'exporter' } };\n",
+        "mode": "runOnceForEachItem"
+      },
+      "notes": "Puts the email together from fixed text. The model only supplies the name, one personal sentence and (for exporters) the supporting sentences and subject."
     }
   ],
   "connections": {
@@ -1017,44 +1048,22 @@
         ]
       ]
     },
-    "Get Researched Leads": {
-      "main": [
-        [
-          {
-            "node": "Limit 20",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Manual Test": {
-      "main": [
-        [
-          {
-            "node": "Get Researched Leads",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Limit 20": {
-      "main": [
-        [
-          {
-            "node": "Read Settings",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Read Settings": {
       "main": [
         [
           {
             "node": "Read Suppression",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Suppression": {
+      "main": [
+        [
+          {
+            "node": "Compliance check",
             "type": "main",
             "index": 0
           }
@@ -1095,17 +1104,6 @@
         ]
       ]
     },
-    "Draft First Email": {
-      "main": [
-        [
-          {
-            "node": "Check Draft",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Claude Sonnet 5.5": {
       "ai_languageModel": [
         [
@@ -1134,22 +1132,6 @@
           {
             "node": "Draft First Email",
             "type": "ai_outputParser",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Save Draft": {
-      "main": [
-        [
-          {
-            "node": "Telegram Nil",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Use SMTP? (notify)",
-            "type": "main",
             "index": 0
           }
         ]
@@ -1215,11 +1197,16 @@
         ]
       ]
     },
-    "Read Suppression": {
+    "Save Draft": {
       "main": [
         [
           {
-            "node": "Compliance check",
+            "node": "Telegram Nil",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Use SMTP? (notify)",
             "type": "main",
             "index": 0
           }
@@ -1243,13 +1230,80 @@
           }
         ]
       ]
+    },
+    "Manual Test": {
+      "main": [
+        [
+          {
+            "node": "Get Researched Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit 20": {
+      "main": [
+        [
+          {
+            "node": "Read Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Researched Leads": {
+      "main": [
+        [
+          {
+            "node": "Pick leads to draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pick leads to draft": {
+      "main": [
+        [
+          {
+            "node": "Limit 20",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Draft First Email": {
+      "main": [
+        [
+          {
+            "node": "Assemble Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Assemble Email": {
+      "main": [
+        [
+          {
+            "node": "Check Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
     "executionOrder": "v1",
     "availableInMCP": true,
     "timezone": "Europe/Istanbul",
-    "binaryMode": "separate"
+    "binaryMode": "separate",
+    "errorWorkflow": "sZJSgJf9658Bdip7"
   },
   "pinData": {},
   "meta": {

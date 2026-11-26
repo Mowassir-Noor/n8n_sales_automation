@@ -1,0 +1,30 @@
+# Texprove approval dashboard: changes to the server's Caddyfile.
+# After editing:  docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile
+# (or: docker compose restart caddy)
+
+# 1) NEW site block: the dashboard. Caddy gets the HTTPS certificate on the first request,
+#    once the DNS A record "dash" points at this server.
+dash.mowassirnoor.tech {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+	reverse_proxy dashboard:3000
+}
+
+# 2) CHANGED site block: n8n. The dashboard's webhooks (live and staging) must never be
+#    reachable from the internet; the dashboard calls them over the Docker network instead.
+#    Replace your existing n8n.mowassirnoor.tech block with this one (keep any extra lines
+#    you already had in it).
+n8n.mowassirnoor.tech {
+	@dashWebhooks path /webhook/dash/* /webhook-test/dash/* /webhook/dash-staging/* /webhook-test/dash-staging/*
+	respond @dashWebhooks 404
+
+	reverse_proxy n8n:5678
+}
+
+# 3) OPTIONAL: staging dashboard (only if you run the dashboard-staging service).
+# dash-staging.mowassirnoor.tech {
+# 	reverse_proxy dashboard-staging:3000
+# }

@@ -2,6 +2,14 @@
   "name": "Texprove WF0 - Company discovery",
   "nodes": [
     {
+      "id": "e70546c8-5eff-4c36-b695-45bb58a2b3dd",
+      "name": "Monday 07:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -96,
+        144
+      ],
       "parameters": {
         "rule": {
           "interval": [
@@ -11,17 +19,17 @@
             }
           ]
         }
-      },
-      "id": "c6a5b0ca-35e3-49b5-8a8f-0c2abc10c1a0",
-      "name": "Monday 07:00",
-      "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1.4,
-      "position": [
-        -96,
-        144
-      ]
+      }
     },
     {
+      "id": "1e39f8be-6357-4a2f-9bfa-61de9fead6a9",
+      "name": "Get Existing Leads",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        224,
+        240
+      ],
       "parameters": {
         "documentId": {
           "__rl": true,
@@ -37,14 +45,6 @@
         },
         "options": {}
       },
-      "id": "fcbf5377-f216-4e61-85d8-f561bf6e2315",
-      "name": "Get Existing Leads",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        224,
-        240
-      ],
       "alwaysOutputData": true,
       "credentials": {
         "googleSheetsOAuth2Api": {
@@ -53,32 +53,140 @@
       }
     },
     {
-      "parameters": {
-        "jsCode": "// Edit this list to steer discovery. One item per brief; the suggested queries guide Claude's web searches (Turkish and English).\nconst briefs = [\n  { segment: 'Knitwear', brief: 'Turkish knitwear (örme) manufacturers exporting to EU brands', queries: ['Türkiye örme konfeksiyon ihracatçı firma Avrupa', 'Turkish knitwear manufacturer exporting to Europe EU brands', 'İHKİB örme hazır giyim ihracat ödülü firma listesi'] },\n  { segment: 'Woven apparel', brief: 'Turkish woven apparel and shirt manufacturers producing for European retailers', queries: ['Türkiye dokuma gömlek üreticisi ihracat Avrupa', 'Turkish woven garment shirt manufacturer export Europe retailers', 'İHKİB dokuma konfeksiyon ihracat şampiyonları firma'] },\n  { segment: 'Denim', brief: 'Turkish denim and jeans manufacturers supplying EU brands', queries: ['Türkiye denim jean üreticisi Avrupa ihracat', 'Turkish denim jeans manufacturer supplying European brands', 'Denim Première Vision Istanbul Turkish denim exhibitor'] },\n  { segment: 'Home textile', brief: 'Turkish home textile exporters (towels, bedding) selling to the EU', queries: ['Denizli havlu bornoz ihracatçı firma Avrupa', 'Turkish home textile towel bedding manufacturer export Europe', 'Bursa ev tekstili ihracatçı üretici Avrupa'] },\n  { segment: 'Fabric mill', brief: 'Turkish fabric mills with OEKO-TEX, GOTS or GRS certification exporting to Europe', queries: ['Türkiye kumaş üreticisi GOTS OEKO-TEX ihracat Avrupa', 'Turkish fabric mill GOTS GRS certified exporting to Europe', 'Texworld Paris Turkish fabric mill exhibitor'] },\n  { segment: 'Sportswear', brief: 'Turkish sportswear and activewear manufacturers for EU brands', queries: ['Türkiye spor giyim activewear üreticisi ihracat Avrupa', 'Turkish sportswear activewear manufacturer for European brands', 'İzmir activewear manufacturer export EU'] },\n];\n\nconst existing = $input.all().map(i => i.json).filter(r => r && (r['Company'] || r['Website']));\nconst knownNames = existing.map(r => String(r['Company'] || '').trim()).filter(Boolean);\nconst excludeText = knownNames.slice(0, 200).join('; ') || '(none)';\nconst runDate = new Date().toISOString().slice(0, 10);\n\nreturn briefs.map((b, i) => ({ json: { brief_no: i + 1, segment: b.segment, brief: b.brief, queries_text: b.queries.map((q, k) => `${k + 1}. ${q}`).join('\\n'), exclude: excludeText, run_date: runDate } }));"
-      },
-      "id": "bb4e96b1-c835-417e-b027-2774c7507cbf",
+      "id": "765ba183-c0cb-41c8-9366-b5c02d96b739",
       "name": "Build Search Plan",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         464,
         240
-      ]
+      ],
+      "parameters": {
+        "jsCode": "// PHASE 1 plan. Weekly target = Settings 'Weekly New Leads' (default 25). Countries = Settings 'Target Countries' (empty = Turkey).\n// Plans about target / 4 briefs (min 6, max 18 per country) for the target countries. If they come up short,\n// 'Fallback Plan' searches the other supported countries for the rest.\nconst SUPPORTED = ['Turkey', 'Bangladesh', 'Vietnam', 'Malaysia', 'Brazil'];\nconst PER_BRIEF = 4; // expected new companies per brief after dedupe (used to size the plan)\n\n// Turkey: 3 briefs per segment (general, then two city focuses), so a big weekly target still finds fresh companies.\nconst turkeyBriefs = [\n  { segment: 'Knitwear', brief: 'Turkish knitwear (örme) manufacturers exporting to EU brands', queries: ['Türkiye örme konfeksiyon ihracatçı firma Avrupa', 'Turkish knitwear manufacturer exporting to Europe EU brands', 'İHKİB örme hazır giyim ihracat ödülü firma listesi'] },\n  { segment: 'Woven apparel', brief: 'Turkish woven apparel and shirt manufacturers producing for European retailers', queries: ['Türkiye dokuma gömlek üreticisi ihracat Avrupa', 'Turkish woven garment shirt manufacturer export Europe retailers', 'İHKİB dokuma konfeksiyon ihracat şampiyonları firma'] },\n  { segment: 'Denim', brief: 'Turkish denim and jeans manufacturers supplying EU brands', queries: ['Türkiye denim jean üreticisi Avrupa ihracat', 'Turkish denim jeans manufacturer supplying European brands', 'Denim Première Vision Istanbul Turkish denim exhibitor'] },\n  { segment: 'Home textile', brief: 'Turkish home textile exporters (towels, bedding) selling to the EU', queries: ['Denizli havlu bornoz ihracatçı firma Avrupa', 'Turkish home textile towel bedding manufacturer export Europe', 'Bursa ev tekstili ihracatçı üretici Avrupa'] },\n  { segment: 'Fabric mill', brief: 'Turkish fabric mills with OEKO-TEX, GOTS or GRS certification exporting to Europe', queries: ['Türkiye kumaş üreticisi GOTS OEKO-TEX ihracat Avrupa', 'Turkish fabric mill GOTS GRS certified exporting to Europe', 'Texworld Paris Turkish fabric mill exhibitor'] },\n  { segment: 'Sportswear', brief: 'Turkish sportswear and activewear manufacturers for EU brands', queries: ['Türkiye spor giyim activewear üreticisi ihracat Avrupa', 'Turkish sportswear activewear manufacturer for European brands', 'İzmir activewear manufacturer export EU'] },\n  { segment: 'Knitwear', brief: 'Knitwear and knitted fabric manufacturers in Istanbul and Tekirdağ (Çorlu, Çerkezköy) exporting to Europe', queries: ['İstanbul triko örme giyim üreticisi ihracat Almanya', 'Çorlu Çerkezköy örme kumaş konfeksiyon fabrikası ihracat', 'Istanbul knitwear factory exporting to Germany Netherlands'] },\n  { segment: 'Woven apparel', brief: 'Woven apparel manufacturers in İzmir and Denizli producing for European retailers', queries: ['İzmir konfeksiyon fabrikası ihracat Avrupa markaları', 'Denizli gömlek dokuma konfeksiyon ihracatçı', 'Izmir garment manufacturer export European retailers'] },\n  { segment: 'Denim', brief: 'Denim fabric and jeans producers in Adana, Kahramanmaraş and Istanbul selling to EU brands', queries: ['Kahramanmaraş denim kumaş üreticisi ihracat Avrupa', 'Adana denim jean konfeksiyon ihracat', 'Istanbul jeans manufacturer private label Europe'] },\n  { segment: 'Home textile', brief: 'Home textile manufacturers in Uşak, Denizli and Bursa (blankets, bathrobes, curtains) exporting to Europe', queries: ['Uşak battaniye ev tekstili ihracatçı Avrupa', 'Denizli bornoz nevresim üreticisi ihracat Almanya', 'Bursa perde döşemelik kumaş ihracatçı firma'] },\n  { segment: 'Fabric mill', brief: 'Fabric and yarn mills in Gaziantep, Kahramanmaraş and Kayseri exporting to Europe', queries: ['Gaziantep iplik dokuma fabrikası ihracat Avrupa', 'Kahramanmaraş iplik kumaş üreticisi GRS sertifikalı', 'Kayseri dokuma kumaş fabrikası ihracat AB'] },\n  { segment: 'Sportswear', brief: 'Sportswear, swimwear and underwear manufacturers in Istanbul and Bursa for EU brands', queries: ['İstanbul mayo iç giyim üreticisi ihracat Avrupa', 'Bursa spor giyim tekstil üreticisi ihracat', 'Turkish swimwear underwear manufacturer for European brands'] },\n  { segment: 'Knitwear', brief: 'Turkish children and baby wear manufacturers exporting to EU retailers', queries: ['Türkiye bebek çocuk giyim üreticisi ihracat Avrupa', 'Turkish babywear manufacturer GOTS organic export Europe', 'Bursa çocuk giyim ihracatçı firma'] },\n  { segment: 'Woven apparel', brief: 'Turkish outerwear, workwear and uniform manufacturers exporting to the EU', queries: ['Türkiye iş elbisesi üniforma üreticisi ihracat Avrupa', 'Turkish workwear manufacturer export Europe', 'Türkiye dış giyim mont kaban üreticisi ihracat'] },\n  { segment: 'Other', brief: 'Turkish technical textile and nonwoven manufacturers exporting to Europe', queries: ['Türkiye teknik tekstil üreticisi ihracat Avrupa', 'Turkish technical textile nonwoven manufacturer export EU', 'Gaziantep nonwoven halı tabanı üreticisi ihracat'] },\n  { segment: 'Home textile', brief: 'Turkish carpet and rug manufacturers in Gaziantep and Uşak exporting to Europe', queries: ['Gaziantep makine halısı üreticisi ihracat Avrupa', 'Turkish carpet rug manufacturer export Europe', 'Uşak halı kilim ihracatçı firma'] },\n  { segment: 'Fabric mill', brief: 'Turkish recycled and organic cotton yarn and fabric producers selling to EU brands', queries: ['Türkiye geri dönüştürülmüş iplik üreticisi GRS ihracat', 'Turkish recycled cotton yarn producer Europe brands', 'organik pamuk kumaş üreticisi Türkiye GOTS ihracat'] },\n  { segment: 'Sportswear', brief: 'Turkish socks and hosiery manufacturers exporting to Europe', queries: ['Türkiye çorap üreticisi ihracat Avrupa', 'Turkish socks hosiery manufacturer export EU', 'İstanbul çorap fabrikası ihracat Almanya'] },\n];\n\nconst hints = {\n  Bangladesh: { adj: 'Bangladeshi', hubs: ['Dhaka', 'Gazipur', 'Chattogram'], assoc: 'BGMEA BKMEA' },\n  Vietnam: { adj: 'Vietnamese', hubs: ['Ho Chi Minh City', 'Binh Duong', 'Hanoi'], assoc: 'VITAS' },\n  Malaysia: { adj: 'Malaysian', hubs: ['Penang', 'Johor', 'Selangor'], assoc: 'MTMA Malaysian Textile Manufacturers Association' },\n  Brazil: { adj: 'Brazilian', hubs: ['Santa Catarina', 'São Paulo', 'Ceará'], assoc: 'ABIT', pt: true },\n};\nconst segments = [\n  { segment: 'Knitwear', what: 'knitwear', pt: 'malharia confecção exportadora Europa' },\n  { segment: 'Woven apparel', what: 'woven garment and shirt', pt: 'confecção tecido plano camisas exportação Europa' },\n  { segment: 'Denim', what: 'denim and jeans', pt: 'fabricante denim jeans exportação Europa' },\n  { segment: 'Home textile', what: 'home textile (towels, bedding)', pt: 'cama mesa banho exportadora Europa' },\n  { segment: 'Fabric mill', what: 'fabric mill (GOTS, OEKO-TEX or GRS certified)', pt: 'tecelagem GOTS OEKO-TEX exportação Europa' },\n  { segment: 'Sportswear', what: 'sportswear and activewear', pt: 'fabricante moda fitness activewear exportação Europa' },\n];\nfunction briefsFor(country) {\n  if (country === 'Turkey') return turkeyBriefs;\n  const h = hints[country];\n  return segments.map(s => ({\n    segment: s.segment,\n    brief: h.adj + ' ' + s.what + ' manufacturers exporting to EU brands and retailers',\n    queries: [\n      h.adj + ' ' + s.what + ' manufacturer exporter Europe EU brands',\n      s.what + ' factory ' + h.hubs[0] + ' export to Europe',\n      h.pt ? s.pt : h.assoc + ' member ' + s.what + ' exporter Europe ' + h.hubs.slice(1).join(' '),\n    ],\n  }));\n}\nfunction parseCountries(raw) {\n  const list = [];\n  for (const part of String(raw || '').split(/[,;\\n]/)) {\n    const key = part.trim().toLowerCase().replace('türkiye', 'turkey').replace('turkiye', 'turkey');\n    const hit = SUPPORTED.find(c => c.toLowerCase() === key);\n    if (hit && list.indexOf(hit) === -1) list.push(hit);\n  }\n  return list;\n}\n// Round-robin over countries so each gets a fair share of briefs.\nfunction interleave(countries, n) {\n  const pools = countries.map(c => briefsFor(c).map(b => ({ ...b, country: c })));\n  const out = [];\n  for (let k = 0; out.length < n && pools.some(p => k < p.length); k++) for (const p of pools) if (k < p.length && out.length < n) out.push(p[k]);\n  return out;\n}\nfunction domainOf(url) { return String(url || '').toLowerCase().replace(/^https?:\\/\\//, '').replace(/^www\\./, '').split('/')[0].split(':')[0].trim(); }\nfunction norm(name) { return String(name || '').toLowerCase().replace(/\\b(a\\.?ş\\.?|a\\.?s\\.?|ltd\\.?|şti\\.?|sti\\.?|san\\.?|tic\\.?|ve|tekstil|textile|textiles|konfeksiyon)\\b/g, ' ').replace(/[^a-z0-9çğıöşü]+/g, ' ').trim(); }\nfunction countryKey(raw) { return String(raw || '').trim().toLowerCase().replace('türkiye', 'turkey').replace('turkiye', 'turkey').replace('viet nam', 'vietnam').replace('brasil', 'brazil'); }\n\nconst settings = $('Read Settings').first().json || {};\nconst target = Math.max(1, Math.min(200, parseInt(settings['Weekly New Leads'], 10) || 25));\nlet countries = parseCountries(settings['Target Countries']);\nif (!countries.length) countries = ['Turkey'];\nconst maxBriefs = countries.reduce((n, c) => n + briefsFor(c).length, 0);\nconst n = Math.min(maxBriefs, Math.max(6, Math.ceil(target / PER_BRIEF)));\nconst existing = $('Get Existing Leads').all().map(i => i.json).filter(r => r && (r['Company'] || r['Website']));\nconst excludeText = existing.map(r => String(r['Company'] || '').trim()).filter(Boolean).slice(-300).join('; ') || '(none)';\nconst runDate = new Date().toISOString().slice(0, 10);\nreturn interleave(countries, n).map((b, k) => ({ json: {\n  phase: 1, brief_no: k + 1, country: b.country, countries: countries.join(', '), target,\n  segment: b.segment, brief: b.brief, queries_text: b.queries.map((q, j) => `${j + 1}. ${q}`).join('\\n'),\n  exclude: excludeText, run_date: runDate,\n} }));\n"
+      }
     },
     {
+      "id": "68fd5a66-ce37-4d4b-acd0-48631527f174",
+      "name": "Find Companies with Claude",
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        704,
+        240
+      ],
       "parameters": {
-        "jsCode": "const minConfidence = 60;\nconst maxNewPerRun = 25;\n\nfunction domainOf(url) {\n  return String(url || '').toLowerCase().replace(/^https?:\\/\\//, '').replace(/^www\\./, '').split('/')[0].split(':')[0].trim();\n}\nfunction norm(name) {\n  return String(name || '').toLowerCase().replace(/\\b(a\\.?ş\\.?|a\\.?s\\.?|ltd\\.?|şti\\.?|sti\\.?|san\\.?|tic\\.?|ve|tekstil|textile|textiles|konfeksiyon)\\b/g, ' ').replace(/[^a-z0-9çğıöşü]+/g, ' ').trim();\n}\n\nconst existing = $('Get Existing Leads').all().map(i => i.json).filter(r => r && (r['Company'] || r['Website']));\nconst seenDomains = new Set(existing.map(r => domainOf(r['Website'])).filter(Boolean));\nconst seenNames = new Set(existing.map(r => norm(r['Company'])).filter(Boolean));\nlet maxId = 0;\nfor (const r of existing) {\n  const m = /^L0*(\\d+)$/i.exec(String(r['Lead ID'] || '').trim());\n  if (m) maxId = Math.max(maxId, Number(m[1]));\n}\n\nconst today = new Date().toISOString().slice(0, 10);\nconst out = [];\nconst skipped = { noSource: 0, lowConfidence: 0, duplicate: 0 };\nfor (const item of $input.all()) {\n  const c = item.json || {};\n  const domain = domainOf(c.website);\n  const name = norm(c.company);\n  if (!c.source_url || !domain || !name) { skipped.noSource++; continue; }\n  if (Number(c.confidence || 0) < minConfidence) { skipped.lowConfidence++; continue; }\n  if (seenDomains.has(domain) || seenNames.has(name)) { skipped.duplicate++; continue; }\n  if (out.length >= maxNewPerRun) break;\n  seenDomains.add(domain);\n  seenNames.add(name);\n  maxId++;\n  out.push({ json: {\n    'Lead ID': 'L' + String(maxId).padStart(3, '0'),\n    'Company': String(c.company).trim(),\n    'Website': String(c.website).trim(),\n    'Country': 'Turkey',\n    'Segment': String(c.segment || '').trim(),\n    'Source URL': String(c.source_url).trim(),\n    'Source Date': today,\n    'Confidence': String(Math.round(Number(c.confidence))),\n    'Research Notes': 'EU evidence: ' + String(c.eu_evidence || '').trim(),\n    'Stage': 'New',\n    'Last Updated': new Date().toISOString(),\n    skipped_summary: JSON.stringify(skipped),\n  } });\n}\nreturn out;"
+        "messages": {
+          "values": [
+            {
+              "content": "=Today is {{ $json.run_date }}.\nSegment: {{ $json.segment }}\nBrief: {{ $json.brief }}\nSuggested searches (run these first, then follow up on promising companies):\n{{ $json.queries_text }}\n\nAlready in our sheet, skip these companies: {{ $json.exclude }}\n\nFind up to 8 companies and return only the JSON object.",
+              "role": "user"
+            }
+          ]
+        },
+        "modelId": {
+          "__rl": true,
+          "cachedResultName": "Claude Sonnet 5.5",
+          "mode": "list",
+          "value": "claude-sonnet-5-5"
+        },
+        "operation": "message",
+        "options": {
+          "includeMergedResponse": true,
+          "maxTokens": 8192,
+          "maxToolsIterations": 15,
+          "maxUses": 10,
+          "system": "=You find candidate companies for Texprove, a Digital Product Passport SaaS for textile and apparel exporters to the EU. Use web search (at most 10 searches) to find textile or apparel MANUFACTURERS or EXPORTERS based in {{ $json.country }} that sell to European buyers, in the given segment. Start with the suggested searches, then open the company's own website to confirm it is a manufacturer based in {{ $json.country }} and to find its EU export evidence.\n\nExclude: brands and retailers (buyers), sourcing agents, directories and marketplaces (europages, kompass, alibaba, foursource, made-in-turkey, made-in-china), associations, fairs, news and magazine sites, job sites, LinkedIn pages, PDFs, and companies based outside {{ $json.country }}. Skip companies named in the skip list.\n\nFor each company give: company (official name), website (the company's own homepage as https://domain; skip the company if you cannot find its own site), source_url (the page where you saw the EU export evidence), eu_evidence (one sentence quoting or closely paraphrasing what the page says about exports to Europe, EU countries or European customers; never record order volumes, prices or buyer names), confidence (0 to 100: 90 or more when EU markets, EU countries or European brands are named as customers; 60 to 89 when it shows exporting in general without EU specifics; below 60 when the EU link is only implied), country (the country where the company is based, in English, e.g. {{ $json.country }}), segment (one of Knitwear, Woven apparel, Denim, Home textile, Fabric mill, Yarn, Sportswear, Technical textile, Other).\n\nRespond with ONLY a JSON object, no markdown fences, no commentary: {\"companies\": [ ... ]}. Return an empty array if nothing qualifies.",
+          "webSearch": true
+        },
+        "resource": "text",
+        "simplify": true
       },
-      "id": "f43d3616-5d59-48fa-950b-2d8676df2528",
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "anthropicApi": {
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "id": "21c58c25-f475-4fd2-9acf-c20f769f0caf",
+      "name": "Find Companies with Claude (account 2)",
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        704,
+        480
+      ],
+      "parameters": {
+        "messages": {
+          "values": [
+            {
+              "content": "=Today is {{ $('Wave 1 first').item.json.run_date }}.\nSegment: {{ $('Wave 1 first').item.json.segment }}\nBrief: {{ $('Wave 1 first').item.json.brief }}\nSuggested searches (run these first, then follow up on promising companies):\n{{ $('Wave 1 first').item.json.queries_text }}\n\nAlready in our sheet, skip these companies: {{ $('Wave 1 first').item.json.exclude }}\n\nFind up to 8 companies and return only the JSON object.",
+              "role": "user"
+            }
+          ]
+        },
+        "modelId": {
+          "__rl": true,
+          "cachedResultName": "Claude Sonnet 4.6",
+          "mode": "list",
+          "value": "claude-sonnet-4-6"
+        },
+        "operation": "message",
+        "options": {
+          "includeMergedResponse": true,
+          "maxTokens": 8192,
+          "maxToolsIterations": 15,
+          "maxUses": 10,
+          "system": "=You find candidate companies for Texprove, a Digital Product Passport SaaS for textile and apparel exporters to the EU. Use web search (at most 10 searches) to find textile or apparel MANUFACTURERS or EXPORTERS based in {{ $('Build Search Plan').item.json.country }} that sell to European buyers, in the given segment. Start with the suggested searches, then open the company's own website to confirm it is a manufacturer based in {{ $('Build Search Plan').item.json.country }} and to find its EU export evidence.\n\nExclude: brands and retailers (buyers), sourcing agents, directories and marketplaces (europages, kompass, alibaba, foursource, made-in-turkey, made-in-china), associations, fairs, news and magazine sites, job sites, LinkedIn pages, PDFs, and companies based outside {{ $('Build Search Plan').item.json.country }}. Skip companies named in the skip list.\n\nFor each company give: company (official name), website (the company's own homepage as https://domain; skip the company if you cannot find its own site), source_url (the page where you saw the EU export evidence), eu_evidence (one sentence quoting or closely paraphrasing what the page says about exports to Europe, EU countries or European customers; never record order volumes, prices or buyer names), confidence (0 to 100: 90 or more when EU markets, EU countries or European brands are named as customers; 60 to 89 when it shows exporting in general without EU specifics; below 60 when the EU link is only implied), country (the country where the company is based, in English, e.g. {{ $('Build Search Plan').item.json.country }}), segment (one of Knitwear, Woven apparel, Denim, Home textile, Fabric mill, Yarn, Sportswear, Technical textile, Other).\n\nRespond with ONLY a JSON object, no markdown fences, no commentary: {\"companies\": [ ... ]}. Return an empty array if nothing qualifies.",
+          "webSearch": true
+        },
+        "resource": "text",
+        "simplify": true
+      },
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "anthropicApi": {
+          "name": "Anthropic account 2"
+        }
+      }
+    },
+    {
+      "id": "cb6b7c33-b83c-4fba-b504-477325b09bf3",
+      "name": "Parse Companies",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        944,
+        240
+      ],
+      "parameters": {
+        "jsCode": "// One item per company found, in the shape Dedupe expects. Replies without JSON are skipped. Input can come from the main Claude node or the account-2 fallback, so the segment and country come from Claude's answer.\nfunction strings(v, acc) {\n  if (typeof v === 'string') acc.push(v);\n  else if (Array.isArray(v)) v.forEach(x => strings(x, acc));\n  else if (v && typeof v === 'object') Object.values(v).forEach(x => strings(x, acc));\n  return acc;\n}\nfunction extract(text) {\n  const s = text.indexOf('{'); const e = text.lastIndexOf('}');\n  if (s < 0 || e <= s) return null;\n  for (let end = e; end > s; end = text.lastIndexOf('}', end - 1)) {\n    try { const o = JSON.parse(text.slice(s, end + 1)); if (o && Array.isArray(o.companies)) return o; } catch (err) { /* try a shorter slice */ }\n  }\n  return null;\n}\nconst out = [];\n$input.all().forEach((item) => {\n  const body = item.json || {};\n  const texts = strings(body, []).filter(t => t.includes('\"companies\"'));\n  let parsed = null;\n  for (const t of texts) { parsed = extract(t); if (parsed) break; }\n  if (!parsed) return;\n  for (const c of parsed.companies) {\n    if (!c || typeof c !== 'object') continue;\n    out.push({ json: {\n      company: String(c.company || '').trim(),\n      website: String(c.website || '').trim(),\n      segment: String(c.segment || '').trim(),\n      country: String(c.country || '').trim(),\n      eu_evidence: String(c.eu_evidence || '').trim(),\n      source_url: String(c.source_url || '').trim(),\n      confidence: Number(c.confidence || 0),\n    } });\n  }\n});\nreturn out.filter(i => i.json.company && i.json.website);"
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "eeb7de79-9463-45d6-93be-c7bc440fc076",
       "name": "Dedupe and Assign IDs",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1184,
+        1744,
         272
-      ]
+      ],
+      "parameters": {
+        "jsCode": "// Combines phase 1 (target countries) and phase 2 (fallback countries) results, drops no-source, confidence < 60,\n// wrong-country and duplicate companies, and keeps up to the weekly target (Settings 'Weekly New Leads'),\n// target-country companies first.\n// Nil's decisions of 23 Nov 2026 (section 4): wave-1 firms (garment makers, integrated groups) are added as 'New'\n// and count toward the target. Wave-2 firms (fabric, yarn, dye house, home textile, workwear) are recorded as\n// 'Parked - Wave 2' (no research, no draft), on top of the target, at most a fifth of it per run.\nconst SUPPORTED = ['Turkey', 'Bangladesh', 'Vietnam', 'Malaysia', 'Brazil'];\nfunction domainOf(url) { return String(url || '').toLowerCase().replace(/^https?:\\/\\//, '').replace(/^www\\./, '').split('/')[0].split(':')[0].trim(); }\nfunction norm(name) { return String(name || '').toLowerCase().replace(/\\b(a\\.?ş\\.?|a\\.?s\\.?|ltd\\.?|şti\\.?|sti\\.?|san\\.?|tic\\.?|ve|tekstil|textile|textiles|konfeksiyon)\\b/g, ' ').replace(/[^a-z0-9çğıöşü]+/g, ' ').trim(); }\nfunction countryKey(raw) { return String(raw || '').trim().toLowerCase().replace('türkiye', 'turkey').replace('turkiye', 'turkey').replace('viet nam', 'vietnam').replace('brasil', 'brazil'); }\n\n// Old search label -> Nil's segment class and wave. Unclear labels (Denim, Other) stay open: WF1 decides after research.\nfunction classify(seg) {\n  const s = String(seg || '').toLowerCase();\n  if (/integrated|entegre/.test(s)) return ['Entegre tesis', '1'];\n  if (/home|towel|bedding|carpet|rug/.test(s)) return ['Ev tekstili', '2'];\n  if (/workwear|uniform/.test(s)) return ['İş kıyafeti', '2'];\n  if (/knitwear|woven apparel|sportswear|garment|apparel/.test(s)) return ['Hazır giyim / konfeksiyon', '1'];\n  if (/fabric|yarn|mill|dye/.test(s)) return ['Kumaş / iplik / boyahane', '2'];\n  return null;\n}\nconst minConfidence = 60;\nconst p = $('Build Search Plan').first().json;\nconst maxNewPerRun = p.target || 25;\nconst maxWave2 = Math.max(5, Math.round(maxNewPerRun / 5));\nlet wave1Count = 0;\nlet wave2Count = 0;\nconst primary = String(p.countries).split(',').map(s => s.trim()).filter(Boolean);\nconst others = SUPPORTED.filter(c => !primary.includes(c));\nfunction items(name) { try { return $(name).all().map(i => i.json || {}); } catch (e) { return []; } }\nconst phase1 = items('Parse Companies').map(c => ({ ...c, allowed: primary }));\nconst phase2 = items('Parse Companies (fallback)').map(c => ({ ...c, allowed: others }));\nfunction countryOf(raw, allowed) {\n  const key = countryKey(raw);\n  if (!key) return allowed.length === 1 ? allowed[0] : '';\n  return allowed.find(c => c.toLowerCase() === key) || '';\n}\nconst existing = $('Get Existing Leads').all().map(i => i.json).filter(r => r && (r['Company'] || r['Website']));\nconst seenDomains = new Set(existing.map(r => domainOf(r['Website'])).filter(Boolean));\nconst seenNames = new Set(existing.map(r => norm(r['Company'])).filter(Boolean));\nlet maxId = 0;\nfor (const r of existing) { const m = /^L0*(\\d+)$/i.exec(String(r['Lead ID'] || '').trim()); if (m) maxId = Math.max(maxId, Number(m[1])); }\nconst today = new Date().toISOString().slice(0, 10);\nconst out = [];\nconst skipped = { noSource: 0, lowConfidence: 0, duplicate: 0, otherCountry: 0, overTarget: 0 };\nlet parked = 0;\nfor (const c of [...phase1, ...phase2]) {\n  if (!c.company && !c.website) continue;\n  const domain = domainOf(c.website), name = norm(c.company);\n  if (!c.source_url || !domain || !name) { skipped.noSource++; continue; }\n  const country = countryOf(c.country, c.allowed);\n  if (!country) { skipped.otherCountry++; continue; }\n  if (Number(c.confidence || 0) < minConfidence) { skipped.lowConfidence++; continue; }\n  if (seenDomains.has(domain) || seenNames.has(name)) { skipped.duplicate++; continue; }\n  const cls = classify(c.segment);\n  const wave2 = !!cls && cls[1] === '2';\n  if (wave2 ? wave2Count >= maxWave2 : wave1Count >= maxNewPerRun) { skipped.overTarget++; continue; }\n  if (wave2) { wave2Count++; parked++; } else wave1Count++;\n  seenDomains.add(domain); seenNames.add(name); maxId++;\n  out.push({ json: {\n    'Lead ID': 'L' + String(maxId).padStart(3, '0'),\n    'Company': String(c.company).trim(),\n    'Website': String(c.website).trim(),\n    'Country': country,\n    'Segment': cls ? cls[0] : String(c.segment || '').trim(),\n    'Wave': cls ? cls[1] : '',\n    'Product Type': String(c.segment || '').trim(),\n    'Source URL': String(c.source_url).trim(),\n    'Source Date': today,\n    'Confidence': String(Math.round(Number(c.confidence))),\n    'Research Notes': 'EU evidence: ' + String(c.eu_evidence || '').trim(),\n    'Stage': wave2 ? 'Parked - Wave 2' : 'New',\n    'Last Updated': new Date().toISOString(),\n  } });\n}\nconst summary = 'Target ' + maxNewPerRun + '; added ' + out.length + ' (' + parked + ' parked for wave 2); skipped ' + JSON.stringify(skipped);\nreturn out.map(i => ({ json: { ...i.json, skipped_summary: summary } }));\n"
+      }
     },
     {
+      "id": "7504dbff-9a68-45ac-b4b1-f46ae656231e",
+      "name": "Append New Leads",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1984,
+        272
+      ],
       "parameters": {
         "operation": "append",
         "documentId": {
@@ -106,107 +214,127 @@
             "Confidence": "={{ $json.Confidence }}",
             "Research Notes": "={{ $json[\"Research Notes\"] }}",
             "Stage": "={{ $json.Stage }}",
-            "Last Updated": "={{ $json[\"Last Updated\"] }}"
+            "Last Updated": "={{ $json[\"Last Updated\"] }}",
+            "Wave": "={{ $json.Wave }}",
+            "Product Type": "={{ $json['Product Type'] }}"
           },
           "schema": [
             {
-              "id": "Lead ID",
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
               "displayName": "Lead ID",
+              "id": "Lead ID",
               "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true
+              "type": "string"
             },
             {
-              "id": "Company",
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
               "displayName": "Company",
+              "id": "Company",
               "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": false
+              "type": "string"
             },
             {
-              "id": "Website",
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
               "displayName": "Website",
+              "id": "Website",
               "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": false
+              "type": "string"
             },
             {
-              "id": "Country",
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
               "displayName": "Country",
+              "id": "Country",
               "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": false
+              "type": "string"
             },
             {
-              "id": "Segment",
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
               "displayName": "Segment",
+              "id": "Segment",
               "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": false
+              "type": "string"
             },
             {
-              "id": "Source URL",
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
               "displayName": "Source URL",
+              "id": "Source URL",
               "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": false
+              "type": "string"
             },
             {
-              "id": "Source Date",
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
               "displayName": "Source Date",
+              "id": "Source Date",
               "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": false
+              "type": "string"
             },
             {
-              "id": "Confidence",
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
               "displayName": "Confidence",
+              "id": "Confidence",
               "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": false
+              "type": "string"
             },
             {
-              "id": "Research Notes",
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
               "displayName": "Research Notes",
+              "id": "Research Notes",
               "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": false
+              "type": "string"
             },
             {
-              "id": "Stage",
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
               "displayName": "Stage",
+              "id": "Stage",
               "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": false
+              "type": "string"
             },
             {
-              "id": "Last Updated",
-              "displayName": "Last Updated",
-              "required": false,
+              "canBeUsedToMatch": false,
               "defaultMatch": false,
               "display": true,
-              "type": "string",
-              "canBeUsedToMatch": false
+              "displayName": "Last Updated",
+              "id": "Last Updated",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Wave",
+              "id": "Wave",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Product Type",
+              "id": "Product Type",
+              "required": false,
+              "type": "string"
             }
           ]
         },
@@ -214,14 +342,6 @@
           "cellFormat": "RAW"
         }
       },
-      "id": "2c2cc730-6550-4c04-9418-f229b8a1288a",
-      "name": "Append New Leads",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        1424,
-        272
-      ],
       "credentials": {
         "googleSheetsOAuth2Api": {
           "name": "Google Sheets account"
@@ -229,65 +349,14 @@
       }
     },
     {
-      "parameters": {},
-      "id": "69aa9a67-e496-4510-8841-c584cdc2bcb2",
-      "name": "Manual Test",
-      "type": "n8n-nodes-base.manualTrigger",
-      "typeVersion": 1,
+      "id": "970dbd82-72e8-4a08-955c-6f9241e904d3",
+      "name": "Log Discovery",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
       "position": [
-        -128,
-        368
-      ]
-    },
-    {
-      "parameters": {
-        "content": "## 1. Plan the searches\nRuns Monday 07:00 (Europe/Istanbul) or manually. Reads every existing lead (for duplicate checks and the next Lead ID), then builds one search brief per segment. Edit the briefs in \"Build Search Plan\" to steer discovery.",
-        "height": 224,
-        "width": 400,
-        "color": 4
-      },
-      "id": "a551976c-2048-4599-9421-78ffea316b09",
-      "name": "Sticky Note 549e4111",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        192,
-        -144
-      ]
-    },
-    {
-      "parameters": {
-        "content": "## 2. Find companies (Claude web search, one call per brief)\n\"Find Companies with Claude\" is the Anthropic node (Claude Sonnet 4.6) with Claude's built-in web search on (max 10 searches per brief). For each brief it runs the suggested Turkish and English searches, opens the company sites, and answers with a JSON list of up to 8 Turkish manufacturers with website, source URL, EU export evidence and a confidence score. If the call fails (credits exhausted, rate limit, outage), the error output runs the same call on \"... (account 2)\" with the second Anthropic credential. \"Parse Companies\" turns either reply into one item per company.",
-        "height": 300,
-        "width": 460,
-        "color": 5
-      },
-      "id": "7931bab6-62c1-4555-9cb3-cc2886c1a52f",
-      "name": "Sticky Note dce98e96",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        680,
-        -40
-      ]
-    },
-    {
-      "parameters": {
-        "content": "## 3. Save as New leads\nDrops companies without a source, below 60 confidence, or already in the sheet (by website domain or name). Assigns the next Lead ID and appends rows with Stage = New, so WF1 picks them up at 08:00. Each company is also appended to the Log tab (decision log).\n\nThe Leads tab needs three extra columns: Source URL, Source Date, Confidence. The sheet needs a Log tab: Timestamp | Workflow | Lead ID | Company | Step | Input | Output | Reason.",
-        "height": 224,
-        "width": 400,
-        "color": 6
-      },
-      "id": "41823b16-7994-42ee-a94d-c3cd7674a141",
-      "name": "Sticky Note c3a0b2ec",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        1168,
-        -96
-      ]
-    },
-    {
+        1984,
+        528
+      ],
       "parameters": {
         "operation": "append",
         "documentId": {
@@ -393,14 +462,6 @@
           "cellFormat": "RAW"
         }
       },
-      "id": "06d15aca-d192-4fe4-bd90-4f417e28012d",
-      "name": "Log Discovery",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        1424,
-        528
-      ],
       "onError": "continueRegularOutput",
       "credentials": {
         "googleSheetsOAuth2Api": {
@@ -409,13 +470,162 @@
       }
     },
     {
-      "id": "1072c95d-220d-4e2a-857f-81778bd27c81",
-      "name": "Find Companies with Claude",
+      "id": "98682a94-0fbf-4686-b720-710eecaf7ac0",
+      "name": "Manual Test",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -128,
+        368
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "5623e81b-9055-4da5-9566-0b3b5f748e36",
+      "name": "Sticky Note 549e4111",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        192,
+        -144
+      ],
+      "parameters": {
+        "content": "## 1. Plan the searches\nRuns Monday 07:00 (Europe/Istanbul) or manually. Reads every existing lead (for duplicate checks and the next Lead ID) and Settings 'Target Countries' (col U, picked by the admin on the dashboard; empty = Turkey), then builds one search brief per segment per country. Edit the briefs in \"Build Search Plan\" to steer discovery.",
+        "color": 4,
+        "width": 400,
+        "height": 224
+      }
+    },
+    {
+      "id": "9b14165a-aac1-424f-87ab-a12c11c9173f",
+      "name": "Sticky Note dce98e96",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        680,
+        -40
+      ],
+      "parameters": {
+        "content": "## 2. Find companies (Claude web search, one call per brief)\n\"Find Companies with Claude\" is the Anthropic node with Claude's built-in web search on (max 10 searches per brief). For each brief it runs the suggested searches, opens the company sites, and answers with a JSON list of up to 8 manufacturers in the brief's country with website, country, source URL, EU export evidence and a confidence score. If the call fails (credits exhausted, rate limit, outage), the error output runs the same call on \"... (account 2)\" with the second Anthropic credential. \"Parse Companies\" turns either reply into one item per company.",
+        "color": 5,
+        "width": 460,
+        "height": 300
+      }
+    },
+    {
+      "id": "51fcc581-e00e-4d3c-a13d-48e7598fb0de",
+      "name": "Sticky Note c3a0b2ec",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1168,
+        -96
+      ],
+      "parameters": {
+        "content": "## 3. Save as New leads\nDrops companies without a source, below 60 confidence, or already in the sheet (by website domain or name). Assigns the next Lead ID and appends rows with Stage = New, so WF1 picks them up at 08:00. Each company is also appended to the Log tab (decision log).\n\nThe Leads tab needs three extra columns: Source URL, Source Date, Confidence. The sheet needs a Log tab: Timestamp | Workflow | Lead ID | Company | Step | Input | Output | Reason.",
+        "color": 6,
+        "width": 400,
+        "height": 224
+      }
+    },
+    {
+      "id": "b5b9e90d-d976-411e-899f-72f826a2a320",
+      "name": "Read Settings",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        344,
+        400
+      ],
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "demoSheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM/edit?usp=drivesdk",
+          "mode": "list",
+          "value": "10jERabFE3D8G1W_53Y11V2ad7vc8Af1kgXCjya5jIjM"
+        },
+        "options": {},
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Settings"
+        }
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "ff6904c2-2698-4f38-b4f2-13a85b41fd93",
+      "name": "Merge Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        824,
+        240
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "7a166f9e-d7dd-4ab2-8f5d-28339eca209c",
+      "name": "Fallback Plan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        944,
+        720
+      ],
+      "parameters": {
+        "jsCode": "// PHASE 2 plan. Counts how many usable new companies phase 1 found (same rules as Dedupe). If below the weekly\n// target, plans briefs in the other supported countries (Bangladesh, Vietnam, Malaysia, Brazil order) for the gap.\n// Otherwise outputs one { skip: true } item and the run goes straight to Dedupe.\nconst SUPPORTED = ['Turkey', 'Bangladesh', 'Vietnam', 'Malaysia', 'Brazil'];\nconst PER_BRIEF = 4; // expected new companies per brief after dedupe (used to size the plan)\n\n// Turkey: 3 briefs per segment (general, then two city focuses), so a big weekly target still finds fresh companies.\nconst turkeyBriefs = [\n  { segment: 'Knitwear', brief: 'Turkish knitwear (örme) manufacturers exporting to EU brands', queries: ['Türkiye örme konfeksiyon ihracatçı firma Avrupa', 'Turkish knitwear manufacturer exporting to Europe EU brands', 'İHKİB örme hazır giyim ihracat ödülü firma listesi'] },\n  { segment: 'Woven apparel', brief: 'Turkish woven apparel and shirt manufacturers producing for European retailers', queries: ['Türkiye dokuma gömlek üreticisi ihracat Avrupa', 'Turkish woven garment shirt manufacturer export Europe retailers', 'İHKİB dokuma konfeksiyon ihracat şampiyonları firma'] },\n  { segment: 'Denim', brief: 'Turkish denim and jeans manufacturers supplying EU brands', queries: ['Türkiye denim jean üreticisi Avrupa ihracat', 'Turkish denim jeans manufacturer supplying European brands', 'Denim Première Vision Istanbul Turkish denim exhibitor'] },\n  { segment: 'Home textile', brief: 'Turkish home textile exporters (towels, bedding) selling to the EU', queries: ['Denizli havlu bornoz ihracatçı firma Avrupa', 'Turkish home textile towel bedding manufacturer export Europe', 'Bursa ev tekstili ihracatçı üretici Avrupa'] },\n  { segment: 'Fabric mill', brief: 'Turkish fabric mills with OEKO-TEX, GOTS or GRS certification exporting to Europe', queries: ['Türkiye kumaş üreticisi GOTS OEKO-TEX ihracat Avrupa', 'Turkish fabric mill GOTS GRS certified exporting to Europe', 'Texworld Paris Turkish fabric mill exhibitor'] },\n  { segment: 'Sportswear', brief: 'Turkish sportswear and activewear manufacturers for EU brands', queries: ['Türkiye spor giyim activewear üreticisi ihracat Avrupa', 'Turkish sportswear activewear manufacturer for European brands', 'İzmir activewear manufacturer export EU'] },\n  { segment: 'Knitwear', brief: 'Knitwear and knitted fabric manufacturers in Istanbul and Tekirdağ (Çorlu, Çerkezköy) exporting to Europe', queries: ['İstanbul triko örme giyim üreticisi ihracat Almanya', 'Çorlu Çerkezköy örme kumaş konfeksiyon fabrikası ihracat', 'Istanbul knitwear factory exporting to Germany Netherlands'] },\n  { segment: 'Woven apparel', brief: 'Woven apparel manufacturers in İzmir and Denizli producing for European retailers', queries: ['İzmir konfeksiyon fabrikası ihracat Avrupa markaları', 'Denizli gömlek dokuma konfeksiyon ihracatçı', 'Izmir garment manufacturer export European retailers'] },\n  { segment: 'Denim', brief: 'Denim fabric and jeans producers in Adana, Kahramanmaraş and Istanbul selling to EU brands', queries: ['Kahramanmaraş denim kumaş üreticisi ihracat Avrupa', 'Adana denim jean konfeksiyon ihracat', 'Istanbul jeans manufacturer private label Europe'] },\n  { segment: 'Home textile', brief: 'Home textile manufacturers in Uşak, Denizli and Bursa (blankets, bathrobes, curtains) exporting to Europe', queries: ['Uşak battaniye ev tekstili ihracatçı Avrupa', 'Denizli bornoz nevresim üreticisi ihracat Almanya', 'Bursa perde döşemelik kumaş ihracatçı firma'] },\n  { segment: 'Fabric mill', brief: 'Fabric and yarn mills in Gaziantep, Kahramanmaraş and Kayseri exporting to Europe', queries: ['Gaziantep iplik dokuma fabrikası ihracat Avrupa', 'Kahramanmaraş iplik kumaş üreticisi GRS sertifikalı', 'Kayseri dokuma kumaş fabrikası ihracat AB'] },\n  { segment: 'Sportswear', brief: 'Sportswear, swimwear and underwear manufacturers in Istanbul and Bursa for EU brands', queries: ['İstanbul mayo iç giyim üreticisi ihracat Avrupa', 'Bursa spor giyim tekstil üreticisi ihracat', 'Turkish swimwear underwear manufacturer for European brands'] },\n  { segment: 'Knitwear', brief: 'Turkish children and baby wear manufacturers exporting to EU retailers', queries: ['Türkiye bebek çocuk giyim üreticisi ihracat Avrupa', 'Turkish babywear manufacturer GOTS organic export Europe', 'Bursa çocuk giyim ihracatçı firma'] },\n  { segment: 'Woven apparel', brief: 'Turkish outerwear, workwear and uniform manufacturers exporting to the EU', queries: ['Türkiye iş elbisesi üniforma üreticisi ihracat Avrupa', 'Turkish workwear manufacturer export Europe', 'Türkiye dış giyim mont kaban üreticisi ihracat'] },\n  { segment: 'Other', brief: 'Turkish technical textile and nonwoven manufacturers exporting to Europe', queries: ['Türkiye teknik tekstil üreticisi ihracat Avrupa', 'Turkish technical textile nonwoven manufacturer export EU', 'Gaziantep nonwoven halı tabanı üreticisi ihracat'] },\n  { segment: 'Home textile', brief: 'Turkish carpet and rug manufacturers in Gaziantep and Uşak exporting to Europe', queries: ['Gaziantep makine halısı üreticisi ihracat Avrupa', 'Turkish carpet rug manufacturer export Europe', 'Uşak halı kilim ihracatçı firma'] },\n  { segment: 'Fabric mill', brief: 'Turkish recycled and organic cotton yarn and fabric producers selling to EU brands', queries: ['Türkiye geri dönüştürülmüş iplik üreticisi GRS ihracat', 'Turkish recycled cotton yarn producer Europe brands', 'organik pamuk kumaş üreticisi Türkiye GOTS ihracat'] },\n  { segment: 'Sportswear', brief: 'Turkish socks and hosiery manufacturers exporting to Europe', queries: ['Türkiye çorap üreticisi ihracat Avrupa', 'Turkish socks hosiery manufacturer export EU', 'İstanbul çorap fabrikası ihracat Almanya'] },\n];\n\nconst hints = {\n  Bangladesh: { adj: 'Bangladeshi', hubs: ['Dhaka', 'Gazipur', 'Chattogram'], assoc: 'BGMEA BKMEA' },\n  Vietnam: { adj: 'Vietnamese', hubs: ['Ho Chi Minh City', 'Binh Duong', 'Hanoi'], assoc: 'VITAS' },\n  Malaysia: { adj: 'Malaysian', hubs: ['Penang', 'Johor', 'Selangor'], assoc: 'MTMA Malaysian Textile Manufacturers Association' },\n  Brazil: { adj: 'Brazilian', hubs: ['Santa Catarina', 'São Paulo', 'Ceará'], assoc: 'ABIT', pt: true },\n};\nconst segments = [\n  { segment: 'Knitwear', what: 'knitwear', pt: 'malharia confecção exportadora Europa' },\n  { segment: 'Woven apparel', what: 'woven garment and shirt', pt: 'confecção tecido plano camisas exportação Europa' },\n  { segment: 'Denim', what: 'denim and jeans', pt: 'fabricante denim jeans exportação Europa' },\n  { segment: 'Home textile', what: 'home textile (towels, bedding)', pt: 'cama mesa banho exportadora Europa' },\n  { segment: 'Fabric mill', what: 'fabric mill (GOTS, OEKO-TEX or GRS certified)', pt: 'tecelagem GOTS OEKO-TEX exportação Europa' },\n  { segment: 'Sportswear', what: 'sportswear and activewear', pt: 'fabricante moda fitness activewear exportação Europa' },\n];\nfunction briefsFor(country) {\n  if (country === 'Turkey') return turkeyBriefs;\n  const h = hints[country];\n  return segments.map(s => ({\n    segment: s.segment,\n    brief: h.adj + ' ' + s.what + ' manufacturers exporting to EU brands and retailers',\n    queries: [\n      h.adj + ' ' + s.what + ' manufacturer exporter Europe EU brands',\n      s.what + ' factory ' + h.hubs[0] + ' export to Europe',\n      h.pt ? s.pt : h.assoc + ' member ' + s.what + ' exporter Europe ' + h.hubs.slice(1).join(' '),\n    ],\n  }));\n}\nfunction parseCountries(raw) {\n  const list = [];\n  for (const part of String(raw || '').split(/[,;\\n]/)) {\n    const key = part.trim().toLowerCase().replace('türkiye', 'turkey').replace('turkiye', 'turkey');\n    const hit = SUPPORTED.find(c => c.toLowerCase() === key);\n    if (hit && list.indexOf(hit) === -1) list.push(hit);\n  }\n  return list;\n}\n// Round-robin over countries so each gets a fair share of briefs.\nfunction interleave(countries, n) {\n  const pools = countries.map(c => briefsFor(c).map(b => ({ ...b, country: c })));\n  const out = [];\n  for (let k = 0; out.length < n && pools.some(p => k < p.length); k++) for (const p of pools) if (k < p.length && out.length < n) out.push(p[k]);\n  return out;\n}\nfunction domainOf(url) { return String(url || '').toLowerCase().replace(/^https?:\\/\\//, '').replace(/^www\\./, '').split('/')[0].split(':')[0].trim(); }\nfunction norm(name) { return String(name || '').toLowerCase().replace(/\\b(a\\.?ş\\.?|a\\.?s\\.?|ltd\\.?|şti\\.?|sti\\.?|san\\.?|tic\\.?|ve|tekstil|textile|textiles|konfeksiyon)\\b/g, ' ').replace(/[^a-z0-9çğıöşü]+/g, ' ').trim(); }\nfunction countryKey(raw) { return String(raw || '').trim().toLowerCase().replace('türkiye', 'turkey').replace('turkiye', 'turkey').replace('viet nam', 'vietnam').replace('brasil', 'brazil'); }\n\nconst p = $('Build Search Plan').first().json;\nconst target = p.target;\nconst primary = String(p.countries).split(',').map(s => s.trim()).filter(Boolean);\nconst existing = $('Get Existing Leads').all().map(i => i.json).filter(r => r && (r['Company'] || r['Website']));\nconst seenD = new Set(existing.map(r => domainOf(r['Website'])).filter(Boolean));\nconst seenN = new Set(existing.map(r => norm(r['Company'])).filter(Boolean));\nconst found = [];\nfor (const i of $('Parse Companies').all()) {\n  const c = i.json || {};\n  const d = domainOf(c.website), nm = norm(c.company);\n  if (!c.source_url || !d || !nm || Number(c.confidence || 0) < 60) continue;\n  const ck = countryKey(c.country);\n  if (ck && !primary.some(x => x.toLowerCase() === ck)) continue;\n  if (seenD.has(d) || seenN.has(nm)) continue;\n  seenD.add(d); seenN.add(nm); found.push(c.company);\n}\nconst gap = target - found.length;\nconst others = SUPPORTED.filter(c => !primary.includes(c));\nif (gap <= 0 || !others.length) return [{ json: { skip: true, phase1_new: found.length, target } }];\nconst n = Math.min(others.length * 6, Math.max(2, Math.ceil(gap / PER_BRIEF)));\nconst excludeText = [...existing.map(r => String(r['Company'] || '').trim()), ...found].filter(Boolean).slice(-300).join('; ');\nreturn interleave(others, n).map((b, k) => ({ json: {\n  phase: 2, brief_no: k + 1, country: b.country, countries: others.join(', '), target, phase1_new: found.length, gap,\n  segment: b.segment, brief: b.brief, queries_text: b.queries.map((q, j) => `${j + 1}. ${q}`).join('\\n'),\n  exclude: excludeText, run_date: p.run_date,\n} }));\n"
+      }
+    },
+    {
+      "id": "f63c67e5-c3d6-4eac-adc4-3a9e32c13d60",
+      "name": "Fallback needed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1104,
+        720
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "need",
+              "leftValue": "={{ $json.skip !== true }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "3a6501d1-789b-46c0-8d8d-234eb67ba6d9",
+      "name": "Find Companies (fallback)",
       "type": "@n8n/n8n-nodes-langchain.anthropic",
       "typeVersion": 1,
       "position": [
-        704,
-        240
+        1264,
+        720
       ],
       "parameters": {
         "messages": {
@@ -438,7 +648,7 @@
           "maxTokens": 8192,
           "maxToolsIterations": 15,
           "maxUses": 10,
-          "system": "You find candidate companies for Texprove, a Digital Product Passport SaaS for textile and apparel exporters to the EU. Use web search (at most 10 searches) to find textile or apparel MANUFACTURERS or EXPORTERS based in Turkey (Türkiye) that sell to European buyers, in the given segment. Start with the suggested searches, then open the company's own website to confirm it is a Turkish manufacturer and to find its EU export evidence.\n\nExclude: brands and retailers (buyers), sourcing agents, directories and marketplaces (europages, kompass, alibaba, foursource, made-in-turkey), associations, fairs, news and magazine sites, job sites, LinkedIn pages, PDFs, and companies outside Turkey. Skip companies named in the skip list.\n\nFor each company give: company (official name), website (the company's own homepage as https://domain; skip the company if you cannot find its own site), source_url (the page where you saw the EU export evidence), eu_evidence (one sentence quoting or closely paraphrasing what the page says about exports to Europe, EU countries or European customers; never record order volumes, prices or buyer names), confidence (0 to 100: 90 or more when EU markets, EU countries or European brands are named as customers; 60 to 89 when it shows exporting in general without EU specifics; below 60 when the EU link is only implied), segment (one of Knitwear, Woven apparel, Denim, Home textile, Fabric mill, Yarn, Sportswear, Technical textile, Other).\n\nRespond with ONLY a JSON object, no markdown fences, no commentary: {\"companies\": [ ... ]}. Return an empty array if nothing qualifies.",
+          "system": "=You find candidate companies for Texprove, a Digital Product Passport SaaS for textile and apparel exporters to the EU. Use web search (at most 10 searches) to find textile or apparel MANUFACTURERS or EXPORTERS based in {{ $json.country }} that sell to European buyers, in the given segment. Start with the suggested searches, then open the company's own website to confirm it is a manufacturer based in {{ $json.country }} and to find its EU export evidence.\n\nExclude: brands and retailers (buyers), sourcing agents, directories and marketplaces (europages, kompass, alibaba, foursource, made-in-turkey, made-in-china), associations, fairs, news and magazine sites, job sites, LinkedIn pages, PDFs, and companies based outside {{ $json.country }}. Skip companies named in the skip list.\n\nFor each company give: company (official name), website (the company's own homepage as https://domain; skip the company if you cannot find its own site), source_url (the page where you saw the EU export evidence), eu_evidence (one sentence quoting or closely paraphrasing what the page says about exports to Europe, EU countries or European customers; never record order volumes, prices or buyer names), confidence (0 to 100: 90 or more when EU markets, EU countries or European brands are named as customers; 60 to 89 when it shows exporting in general without EU specifics; below 60 when the EU link is only implied), country (the country where the company is based, in English, e.g. {{ $json.country }}), segment (one of Knitwear, Woven apparel, Denim, Home textile, Fabric mill, Yarn, Sportswear, Technical textile, Other).\n\nRespond with ONLY a JSON object, no markdown fences, no commentary: {\"companies\": [ ... ]}. Return an empty array if nothing qualifies.",
           "webSearch": true
         },
         "resource": "text",
@@ -452,32 +662,19 @@
       }
     },
     {
-      "id": "398707e3-eccf-424f-b845-374a16e0f95d",
-      "name": "Parse Companies",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        944,
-        240
-      ],
-      "parameters": {
-        "jsCode": "// One item per company found, in the shape Dedupe expects. Replies without JSON are skipped. Input can come from the main Claude node or the account-2 fallback, so the segment comes from Claude's answer.\nfunction strings(v, acc) {\n  if (typeof v === 'string') acc.push(v);\n  else if (Array.isArray(v)) v.forEach(x => strings(x, acc));\n  else if (v && typeof v === 'object') Object.values(v).forEach(x => strings(x, acc));\n  return acc;\n}\nfunction extract(text) {\n  const s = text.indexOf('{'); const e = text.lastIndexOf('}');\n  if (s < 0 || e <= s) return null;\n  for (let end = e; end > s; end = text.lastIndexOf('}', end - 1)) {\n    try { const o = JSON.parse(text.slice(s, end + 1)); if (o && Array.isArray(o.companies)) return o; } catch (err) { /* try a shorter slice */ }\n  }\n  return null;\n}\nconst out = [];\n$input.all().forEach((item) => {\n  const body = item.json || {};\n  const texts = strings(body, []).filter(t => t.includes('\"companies\"'));\n  let parsed = null;\n  for (const t of texts) { parsed = extract(t); if (parsed) break; }\n  if (!parsed) return;\n  for (const c of parsed.companies) {\n    if (!c || typeof c !== 'object') continue;\n    out.push({ json: {\n      company: String(c.company || '').trim(),\n      website: String(c.website || '').trim(),\n      segment: String(c.segment || '').trim(),\n      eu_evidence: String(c.eu_evidence || '').trim(),\n      source_url: String(c.source_url || '').trim(),\n      confidence: Number(c.confidence || 0),\n    } });\n  }\n});\nreturn out.filter(i => i.json.company && i.json.website);"
-      }
-    },
-    {
-      "id": "83c7119f-3f3f-4012-b503-44b84f886e2c",
-      "name": "Find Companies with Claude (account 2)",
+      "id": "560beb96-0001-4cda-bb3a-64f612f313df",
+      "name": "Find Companies (fallback, account 2)",
       "type": "@n8n/n8n-nodes-langchain.anthropic",
       "typeVersion": 1,
       "position": [
-        704,
-        480
+        1264,
+        960
       ],
       "parameters": {
         "messages": {
           "values": [
             {
-              "content": "=Today is {{ $('Build Search Plan').item.json.run_date }}.\nSegment: {{ $('Build Search Plan').item.json.segment }}\nBrief: {{ $('Build Search Plan').item.json.brief }}\nSuggested searches (run these first, then follow up on promising companies):\n{{ $('Build Search Plan').item.json.queries_text }}\n\nAlready in our sheet, skip these companies: {{ $('Build Search Plan').item.json.exclude }}\n\nFind up to 8 companies and return only the JSON object.",
+              "content": "=Today is {{ $('Fallback Plan').item.json.run_date }}.\nSegment: {{ $('Fallback Plan').item.json.segment }}\nBrief: {{ $('Fallback Plan').item.json.brief }}\nSuggested searches (run these first, then follow up on promising companies):\n{{ $('Fallback Plan').item.json.queries_text }}\n\nAlready in our sheet, skip these companies: {{ $('Fallback Plan').item.json.exclude }}\n\nFind up to 8 companies and return only the JSON object.",
               "role": "user"
             }
           ]
@@ -494,7 +691,7 @@
           "maxTokens": 8192,
           "maxToolsIterations": 15,
           "maxUses": 10,
-          "system": "You find candidate companies for Texprove, a Digital Product Passport SaaS for textile and apparel exporters to the EU. Use web search (at most 10 searches) to find textile or apparel MANUFACTURERS or EXPORTERS based in Turkey (Türkiye) that sell to European buyers, in the given segment. Start with the suggested searches, then open the company's own website to confirm it is a Turkish manufacturer and to find its EU export evidence.\n\nExclude: brands and retailers (buyers), sourcing agents, directories and marketplaces (europages, kompass, alibaba, foursource, made-in-turkey), associations, fairs, news and magazine sites, job sites, LinkedIn pages, PDFs, and companies outside Turkey. Skip companies named in the skip list.\n\nFor each company give: company (official name), website (the company's own homepage as https://domain; skip the company if you cannot find its own site), source_url (the page where you saw the EU export evidence), eu_evidence (one sentence quoting or closely paraphrasing what the page says about exports to Europe, EU countries or European customers; never record order volumes, prices or buyer names), confidence (0 to 100: 90 or more when EU markets, EU countries or European brands are named as customers; 60 to 89 when it shows exporting in general without EU specifics; below 60 when the EU link is only implied), segment (one of Knitwear, Woven apparel, Denim, Home textile, Fabric mill, Yarn, Sportswear, Technical textile, Other).\n\nRespond with ONLY a JSON object, no markdown fences, no commentary: {\"companies\": [ ... ]}. Return an empty array if nothing qualifies.",
+          "system": "=You find candidate companies for Texprove, a Digital Product Passport SaaS for textile and apparel exporters to the EU. Use web search (at most 10 searches) to find textile or apparel MANUFACTURERS or EXPORTERS based in {{ $('Fallback Plan').item.json.country }} that sell to European buyers, in the given segment. Start with the suggested searches, then open the company's own website to confirm it is a manufacturer based in {{ $('Fallback Plan').item.json.country }} and to find its EU export evidence.\n\nExclude: brands and retailers (buyers), sourcing agents, directories and marketplaces (europages, kompass, alibaba, foursource, made-in-turkey, made-in-china), associations, fairs, news and magazine sites, job sites, LinkedIn pages, PDFs, and companies based outside {{ $('Fallback Plan').item.json.country }}. Skip companies named in the skip list.\n\nFor each company give: company (official name), website (the company's own homepage as https://domain; skip the company if you cannot find its own site), source_url (the page where you saw the EU export evidence), eu_evidence (one sentence quoting or closely paraphrasing what the page says about exports to Europe, EU countries or European customers; never record order volumes, prices or buyer names), confidence (0 to 100: 90 or more when EU markets, EU countries or European brands are named as customers; 60 to 89 when it shows exporting in general without EU specifics; below 60 when the EU link is only implied), country (the country where the company is based, in English, e.g. {{ $('Fallback Plan').item.json.country }}), segment (one of Knitwear, Woven apparel, Denim, Home textile, Fabric mill, Yarn, Sportswear, Technical textile, Other).\n\nRespond with ONLY a JSON object, no markdown fences, no commentary: {\"companies\": [ ... ]}. Return an empty array if nothing qualifies.",
           "webSearch": true
         },
         "resource": "text",
@@ -505,6 +702,86 @@
         "anthropicApi": {
           "name": "Anthropic account 2"
         }
+      }
+    },
+    {
+      "id": "283805a7-248d-4ffb-a76d-0c2e29ecb8f2",
+      "name": "Merge Results (fallback)",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        1424,
+        720
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "52b67f0e-e7cb-4033-9fe4-a03d1e81d06a",
+      "name": "Parse Companies (fallback)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1584,
+        720
+      ],
+      "parameters": {
+        "jsCode": "// One item per company found, in the shape Dedupe expects. Replies without JSON are skipped. Input can come from the main Claude node or the account-2 fallback, so the segment and country come from Claude's answer.\nfunction strings(v, acc) {\n  if (typeof v === 'string') acc.push(v);\n  else if (Array.isArray(v)) v.forEach(x => strings(x, acc));\n  else if (v && typeof v === 'object') Object.values(v).forEach(x => strings(x, acc));\n  return acc;\n}\nfunction extract(text) {\n  const s = text.indexOf('{'); const e = text.lastIndexOf('}');\n  if (s < 0 || e <= s) return null;\n  for (let end = e; end > s; end = text.lastIndexOf('}', end - 1)) {\n    try { const o = JSON.parse(text.slice(s, end + 1)); if (o && Array.isArray(o.companies)) return o; } catch (err) { /* try a shorter slice */ }\n  }\n  return null;\n}\nconst out = [];\n$input.all().forEach((item) => {\n  const body = item.json || {};\n  const texts = strings(body, []).filter(t => t.includes('\"companies\"'));\n  let parsed = null;\n  for (const t of texts) { parsed = extract(t); if (parsed) break; }\n  if (!parsed) return;\n  for (const c of parsed.companies) {\n    if (!c || typeof c !== 'object') continue;\n    out.push({ json: {\n      company: String(c.company || '').trim(),\n      website: String(c.website || '').trim(),\n      segment: String(c.segment || '').trim(),\n      country: String(c.country || '').trim(),\n      eu_evidence: String(c.eu_evidence || '').trim(),\n      source_url: String(c.source_url || '').trim(),\n      confidence: Number(c.confidence || 0),\n    } });\n  }\n});\nreturn out.filter(i => i.json.company && i.json.website);"
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "3d47022a-7c1f-4a2d-93d7-0fa663e9cff8",
+      "name": "Discovery summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1984,
+        720
+      ],
+      "parameters": {
+        "jsCode": "// Telegram summary of this run (user 2026-11-16): how many new companies were added, by country, and what was skipped.\nconst esc = (t) => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst s = $('Read Settings').first().json || {};\nconst chatId = String(s['Nil Telegram Chat ID'] || '').trim();\nif (!chatId) return [];\nconst added = $input.all().map(i => i.json || {});\nconst byCountry = {};\nfor (const r of added) byCountry[r.Country || '?'] = (byCountry[r.Country || '?'] || 0) + 1;\nconst p = $('Build Search Plan').first().json || {};\nconst skipped = String((added[0] || {}).skipped_summary || '').replace(/^.*?skipped /, '');\nlet sk = {};\ntry { sk = JSON.parse(skipped); } catch (e) {}\nconst lines = ['<b>Texprove: company search done</b>', 'Added ' + added.length + ' new companies (target ' + (p.target || '?') + '): ' + Object.entries(byCountry).map(([c, n]) => esc(c) + ' ' + n).join(', ')];\nconst parkedN = added.filter(r => r.Stage === 'Parked - Wave 2').length;\nif (parkedN) lines.push(parkedN + ' of them are wave 2 (fabric, yarn, home textile, workwear): recorded only, no research and no draft.');\nconst parts = [];\nif (sk.duplicate) parts.push(sk.duplicate + ' already in the sheet');\nif (sk.lowConfidence) parts.push(sk.lowConfidence + ' low confidence');\nif (sk.noSource) parts.push(sk.noSource + ' no source');\nif (sk.otherCountry) parts.push(sk.otherCountry + ' wrong country');\nif (sk.overTarget) parts.push(sk.overTarget + ' over the target');\nif (parts.length) lines.push('Skipped: ' + parts.join(', ') + '.');\nlines.push('Research starts with the next WF1 run (15 per weekday).');\nreturn [{ json: { chatId, text: lines.join('\\n').slice(0, 4000) } }];\n"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "c664c1a0-645e-440f-887e-daf4d3f82d7f",
+      "name": "Telegram Nil (discovery)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2208,
+        720
+      ],
+      "parameters": {
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true,
+          "parse_mode": "HTML"
+        },
+        "chatId": "={{ $json.chatId }}",
+        "operation": "sendMessage",
+        "resource": "message",
+        "text": "={{ $json.text }}"
+      },
+      "onError": "continueRegularOutput",
+      "webhookId": "64f787b0-a3dc-400d-85af-789f7bd045db",
+      "credentials": {
+        "telegramApi": {
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "id": "bb6f3234-dce4-4f9b-8b54-3a3c9ee13a35",
+      "name": "Wave 1 first",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        584,
+        400
+      ],
+      "parameters": {
+        "jsCode": "// Wave 1 first (Nil's decisions of 23 Nov 2026, section 4): the weekly search goes mainly to EU-exporting garment\n// makers and integrated groups. Briefs for wave-2 segments (home textile, fabric and yarn mills, technical textile)\n// are swapped for the garment briefs below; at most two wave-2 briefs stay per run, so those firms are still recorded.\nconst WAVE2 = ['Home textile', 'Fabric mill', 'Other', 'Yarn', 'Technical textile'];\nconst KEEP_WAVE2 = 2;\nconst extra = [\n  { segment: 'Integrated', brief: 'Turkish vertically integrated textile groups (yarn or fabric and garment production in one group) exporting garments to the EU', queries: ['Türkiye entegre tekstil grubu iplik kumaş konfeksiyon ihracat Avrupa', 'Turkish vertically integrated textile group garment export Europe', 'entegre tesis hazır giyim ihracatçı İSO 500 tekstil'] },\n  { segment: 'Knitwear', brief: 'Turkish t-shirt, sweatshirt and jersey garment manufacturers in Istanbul, Izmir and Bursa exporting to EU brands', queries: ['İstanbul tişört sweatshirt üreticisi ihracat Avrupa markaları', 'Turkish t-shirt sweatshirt manufacturer GOTS export Europe', 'İzmir örme konfeksiyon ihracatçı firma Almanya'] },\n  { segment: 'Woven apparel', brief: 'Turkish womenswear and dress manufacturers producing for European fashion retailers', queries: ['Türkiye kadın giyim elbise üreticisi ihracat Avrupa', 'Turkish womenswear dress manufacturer for European retailers', 'İstanbul hazır giyim ihracatçı kadın giyim fason üretim Avrupa'] },\n  { segment: 'Sportswear', brief: 'Turkish underwear, lingerie and nightwear manufacturers exporting to the EU', queries: ['Türkiye iç giyim pijama üreticisi ihracat Avrupa', 'Turkish underwear lingerie nightwear manufacturer export Europe', 'İstanbul iç giyim ihracatçı firma Almanya Fransa'] },\n  { segment: 'Denim', brief: 'Turkish jeans and denim garment manufacturers (cut, sew and wash) producing for European brands', queries: ['Türkiye jean konfeksiyon yıkama üreticisi ihracat Avrupa', 'Turkish jeans garment manufacturer laundry export European brands', 'Tekirdağ Çorlu denim konfeksiyon ihracatçı'] },\n  { segment: 'Woven apparel', brief: 'Turkish menswear, suit and trouser manufacturers exporting to EU retailers', queries: ['Türkiye erkek giyim takım elbise pantolon üreticisi ihracat Avrupa', 'Turkish menswear suit trouser manufacturer export Europe', 'İzmir erkek giyim ihracatçı üretici Avrupa'] },\n  { segment: 'Knitwear', brief: 'Turkish garment exporters on the İHKİB and TİM top exporter lists (ready-made garments)', queries: ['İHKİB hazır giyim ihracatın yıldızları firma listesi', 'TİM ilk 1000 ihracatçı hazır giyim konfeksiyon firma', 'EHKİB hazır giyim ihracat ödülleri firma'] },\n];\n// Added to every brief: traders, wholesalers and domestic-only firms are out of scope.\nconst ONLY = '. Only companies with their own production that export to the EU: no wholesalers, no traders without production, no companies that sell only in their home market';\nlet kept = 0;\nlet k = 0;\nreturn $input.all().map((item) => {\n  const j = item.json || {};\n  if (j.country !== 'Turkey' || !WAVE2.includes(j.segment)) return { json: { ...j, brief: j.brief + ONLY } };\n  if (kept < KEEP_WAVE2) { kept++; return { json: { ...j, brief: j.brief + ONLY } }; }\n  if (k >= extra.length) return { json: { ...j, brief: j.brief + ONLY } };\n  const b = extra[k++];\n  return { json: { ...j, segment: b.segment, brief: b.brief + ONLY, queries_text: b.queries.map((q, n) => `${n + 1}. ${q}`).join('\\n') } };\n});\n"
       }
     }
   ],
@@ -520,11 +797,18 @@
         ]
       ]
     },
-    "Get Existing Leads": {
+    "Find Companies with Claude": {
       "main": [
         [
           {
-            "node": "Build Search Plan",
+            "node": "Merge Results",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Find Companies with Claude (account 2)",
             "type": "main",
             "index": 0
           }
@@ -543,6 +827,11 @@
             "node": "Log Discovery",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Discovery summary",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -558,40 +847,22 @@
         ]
       ]
     },
-    "Build Search Plan": {
+    "Get Existing Leads": {
       "main": [
         [
           {
-            "node": "Find Companies with Claude",
+            "node": "Read Settings",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Find Companies with Claude": {
+    "Read Settings": {
       "main": [
         [
           {
-            "node": "Parse Companies",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Find Companies with Claude (account 2)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Companies": {
-      "main": [
-        [
-          {
-            "node": "Dedupe and Assign IDs",
+            "node": "Build Search Plan",
             "type": "main",
             "index": 0
           }
@@ -602,7 +873,142 @@
       "main": [
         [
           {
+            "node": "Merge Results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Results": {
+      "main": [
+        [
+          {
             "node": "Parse Companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Companies": {
+      "main": [
+        [
+          {
+            "node": "Fallback Plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fallback Plan": {
+      "main": [
+        [
+          {
+            "node": "Fallback needed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fallback needed?": {
+      "main": [
+        [
+          {
+            "node": "Find Companies (fallback)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Dedupe and Assign IDs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Companies (fallback)": {
+      "main": [
+        [
+          {
+            "node": "Merge Results (fallback)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Find Companies (fallback, account 2)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Companies (fallback, account 2)": {
+      "main": [
+        [
+          {
+            "node": "Merge Results (fallback)",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Results (fallback)": {
+      "main": [
+        [
+          {
+            "node": "Parse Companies (fallback)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Companies (fallback)": {
+      "main": [
+        [
+          {
+            "node": "Dedupe and Assign IDs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Discovery summary": {
+      "main": [
+        [
+          {
+            "node": "Telegram Nil (discovery)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Search Plan": {
+      "main": [
+        [
+          {
+            "node": "Wave 1 first",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wave 1 first": {
+      "main": [
+        [
+          {
+            "node": "Find Companies with Claude",
             "type": "main",
             "index": 0
           }
@@ -614,7 +1020,8 @@
     "executionOrder": "v1",
     "availableInMCP": true,
     "timezone": "Europe/Istanbul",
-    "binaryMode": "separate"
+    "binaryMode": "separate",
+    "errorWorkflow": "sZJSgJf9658Bdip7"
   },
   "pinData": {},
   "meta": {

@@ -56,7 +56,7 @@ One header row and one data row (row 2). Every workflow reads this row at the st
 | E | Opt-out TR | Turkish opt-out sentence appended to every email |
 | F | Opt-out EN | English opt-out sentence |
 | G | Nil Email | Manager's address for approval requests, Hot alerts, summaries and reports |
-| H | Sheet URL | Link to this sheet, included in notifications |
+| H | Sheet URL | Link to this sheet; notifications use it only when `Dashboard URL` (V) is empty |
 | I | HubSpot Monthly Limit | Optional, default 3000 |
 | J | HubSpot Pause Percent | Optional, default 80. WF3 pauses first emails when the estimated month's actions reach this share of the limit |
 | K | Test Email | **Test mode switch.** While it holds an address, WF3 sends every first email (and creates the HubSpot contact) to that address instead of the lead. Clear it before going live |
@@ -69,6 +69,8 @@ One header row and one data row (row 2). Every workflow reads this row at the st
 | R | SMTP From | Sender used by the SMTP nodes, currently `Texprove <marketing@texprove.com>`. Only read when Mail Provider is `SMTP` |
 | S | Seed Email | Inbox-placement check (WF3). Every `Seed Every` first emails, an identical copy of the last one is sent here so you can see whether it lands in Inbox or Spam. Empty = off. Currently `mowassirnoor01@gmail.com` |
 | T | Seed Every | How many first emails between copies, default 12 |
+| U | Target Countries | Countries WF0 searches, comma-separated (Turkey, Bangladesh, Vietnam, Malaysia, Brazil). Empty = Turkey. The admin sets it on the dashboard's Settings page |
+| V | Dashboard URL | Base URL of the approval dashboard, currently `https://dash.mowassirnoor.tech`. Telegram and email notifications link to the matching dashboard page (First emails, Follow-ups, Replies, LinkedIn, Home). Empty = they link to `Sheet URL` instead |
 
 Columns K to T may be empty; the matching channel is then skipped or, for Test Email, real sending is enabled.
 

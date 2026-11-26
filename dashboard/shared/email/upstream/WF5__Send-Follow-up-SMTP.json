@@ -1,0 +1,4 @@
+{
+  "toEmail": "={{ $('Read Settings (mail)').first().json['Test Email'] || $('Loop Over Follow-ups').item.json.Email }}",
+  "subject": "={{ /^re:/i.test(String($('Loop Over Follow-ups').item.json.Subject || '')) ? $('Loop Over Follow-ups').item.json.Subject : 'Re: ' + $('Loop Over Follow-ups').item.json.Subject }}"
+}

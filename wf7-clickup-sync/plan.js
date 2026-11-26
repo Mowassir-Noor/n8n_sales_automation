@@ -123,7 +123,9 @@ for (const g of Object.values(groups)) {
     const rank = stageRank(s), ts = tsOf(r['Last Updated']);
     if (rank > best || (rank === best && ts > bestTs)) { stage = s; best = rank; bestTs = ts; }
   }
-  const replied = g.rows.find((r) => S(r['Reply At']) || S(r['Reply Category']));
+  // A bounce is a delivery failure, not an answer from the company.
+  const isBounce = (r) => S(r.Stage) === 'Bounced' || S(r['ClickUp Stage']) === 'Ulaşmadı' || /bounce|ulaşmadı/i.test(S(r['Reply Category']));
+  const replied = g.rows.find((r) => !isBounce(r) && (S(r['Reply At']) || S(r['Reply Category'])));
   const lastTs = Math.max(0, ...g.rows.map((r) => tsOf(r['Last Updated'])));
   const nextDates = g.rows.map((r) => dayOf(r['Next Follow-up Date'])).filter(Boolean).sort();
   const fu1 = dayOf(parent['Follow-up 1 At']);
@@ -145,7 +147,7 @@ for (const g of Object.values(groups)) {
     '2. Kişi': S(parent['Contact 2 Name']) || (second ? S(second['Contact Name']) : ''),
     '2. Kişi Unvanı': S(parent['Contact 2 Title']) || (second ? S(second['Contact Title']) : ''),
     '2. Kişi E-posta': S(parent['Contact 2 Email']) || (second ? S(second.Email) : ''),
-    'Kişi Kaynağı': S(parent['Contact Source']),
+    'Kişi Kaynağı': ({ 'basın': 'Basın / Google AI', 'google ai': 'Basın / Google AI', 'genel adres': 'Genel adres (info@)', 'info@': 'Genel adres (info@)', 'web': 'Web sitesi', 'website': 'Web sitesi' })[norm(parent['Contact Source'])] || S(parent['Contact Source']),
     'HubSpot Contact ID': S(parent['HubSpot Contact ID']),
     'Mail Konusu': S(parent.Subject),
     'Aşama': stage,

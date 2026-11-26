@@ -2,7 +2,7 @@
   "name": "Texprove WF7 - ClickUp sync",
   "nodes": [
     {
-      "id": "303d69d6-f82a-4ea0-8747-b91179ca5ddb",
+      "id": "6346b94b-dfaa-410b-8cd6-89d9c62f8266",
       "name": "Weekdays hourly 08:20-19:20",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.4,
@@ -22,7 +22,7 @@
       }
     },
     {
-      "id": "2673b30b-c29d-4364-bf1e-0a2786ee2228",
+      "id": "8d543785-d260-4553-813a-a3a034760ae8",
       "name": "Manual Test",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
@@ -33,7 +33,7 @@
       "parameters": {}
     },
     {
-      "id": "ef4997d4-5651-4b75-b7f8-7f58eab33db7",
+      "id": "1698497c-3025-49fa-a3c2-ad5f63899754",
       "name": "Config",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
@@ -80,7 +80,7 @@
       }
     },
     {
-      "id": "2e088299-67aa-4cf8-b50c-c6bb5f652621",
+      "id": "bc0943b1-9c91-4f8b-81d5-18de63bc1a4f",
       "name": "Read Leads",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
@@ -111,7 +111,7 @@
       }
     },
     {
-      "id": "da98d67d-9cfd-40af-af2a-45f5b45ff531",
+      "id": "e728ed4b-827e-46f0-9d81-812188c72904",
       "name": "Read Actions",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
@@ -143,7 +143,7 @@
       }
     },
     {
-      "id": "4d7534ba-ca80-4e49-aad8-8da77bdab442",
+      "id": "0fec132d-177e-4349-ac38-3b9737bba57b",
       "name": "Get Fields",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -166,7 +166,7 @@
       }
     },
     {
-      "id": "31e885ad-100d-4847-8ea9-7d8aed0928a7",
+      "id": "d11b33c7-8018-417b-bd17-ef3d88821fb6",
       "name": "Get Tasks",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -223,7 +223,7 @@
       }
     },
     {
-      "id": "c2978a5e-8aa6-4387-b878-8e7a51d175d0",
+      "id": "c2d5829b-a37e-4949-be66-5b1508b5e184",
       "name": "Plan sync",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -234,11 +234,11 @@
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "// Plan the ClickUp sync: match companies to tasks, work out which fields to write,\n// which tasks to create and which Actions rows to post as comments. Writes nothing itself.\nconst cfg = $('Config').first().json;\nconst dryRun = cfg.dry_run !== false && String(cfg.dry_run) !== 'false';\nconst overwrite = cfg.overwrite_hand_filled === true || String(cfg.overwrite_hand_filled) === 'true';\nconst only = String(cfg.only_lead_ids || '').split(',').map((s) => s.trim().toUpperCase()).filter(Boolean);\nconst maxComments = Number(cfg.max_comments_per_run) || 80;\n\nconst S = (v) => (v === null || v === undefined ? '' : String(v).trim());\nconst norm = (v) => S(v).toLocaleLowerCase('tr').replace(/[–—]/g, '-').replace(/\\s+/g, ' ').replace(/[.:;,!]+$/g, '').trim();\nconst normName = (v) => norm(v).replace(/\\b(a\\.?\\s?ş\\.?|ltd\\.?|şti\\.?|san\\.?|tic\\.?|ve|tekstil|textile|group|grup)\\b/g, ' ').replace(/[^a-z0-9çğıöşü]+/g, '');\n\n// Dates: ISO timestamps, yyyy-mm-dd, dd.mm.yyyy and sheet serial numbers. Result = the Istanbul calendar day.\nconst dayOf = (v) => {\n  const s = S(v);\n  if (!s) return '';\n  let m = s.match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);\n  if (m) return s;\n  m = s.match(/^(\\d{1,2})[./](\\d{1,2})[./](\\d{4})/);\n  if (m) return m[3] + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0');\n  let ms;\n  if (/^\\d+(\\.\\d+)?$/.test(s)) {\n    const n = Number(s);\n    ms = n > 1e11 ? n : Math.round((n - 25569) * 86400000) - 3 * 3600000;\n  } else ms = Date.parse(s);\n  if (!Number.isFinite(ms)) return '';\n  return new Date(ms + 3 * 3600000).toISOString().slice(0, 10);\n};\nconst dayToMs = (d) => Date.parse(d + 'T12:00:00+03:00');\nconst tsOf = (v) => {\n  const s = S(v);\n  if (!s) return 0;\n  const ms = Date.parse(s);\n  if (Number.isFinite(ms)) return ms;\n  const d = dayOf(s);\n  return d ? dayToMs(d) : 0;\n};\n\n// ---------- ClickUp side ----------\nconst fieldList = ($('Get Fields').first().json.fields || []);\nconst fieldByName = {};\nfor (const f of fieldList) fieldByName[norm(f.name)] = f;\nconst tasks = [];\nfor (const it of $('Get Tasks').all()) for (const t of (it.json.tasks || [])) tasks.push(t);\n\nconst optionsOf = (f) => ((f.type_config || {}).options || []);\nconst optLabel = (o) => S(o.name !== undefined ? o.name : o.label);\n// Current value of a field on a task, as comparable text.\nconst currentValue = (task, f) => {\n  const cf = (task.custom_fields || []).find((x) => x.id === f.id);\n  if (!cf || cf.value === undefined || cf.value === null || cf.value === '') return '';\n  const v = cf.value;\n  if (f.type === 'drop_down') {\n    const opts = optionsOf(cf.type_config ? cf : f);\n    const o = opts.find((x) => x.id === v || String(x.orderindex) === String(v));\n    return o ? optLabel(o) : S(v);\n  }\n  if (f.type === 'labels') {\n    const opts = optionsOf(cf.type_config ? cf : f);\n    return (Array.isArray(v) ? v : [v]).map((id) => { const o = opts.find((x) => x.id === id); return o ? optLabel(o) : S(id); }).join(', ');\n  }\n  if (f.type === 'date') return dayOf(v);\n  if (f.type === 'checkbox') return (v === true || v === 'true') ? 'true' : '';\n  return S(v);\n};\n\n// ---------- Sheet side: one company = parent row + its second-contact rows ----------\nconst groups = {};\nfor (const it of $('Read Leads').all()) {\n  const r = it.json;\n  const id = S(r['Lead ID']).toUpperCase();\n  if (!id) continue;\n  const m = id.match(/^(.+)-B$/);\n  const key = S(r['Parent Lead ID']).toUpperCase() || (m ? m[1] : id);\n  if (!groups[key]) groups[key] = { key, rows: [] };\n  groups[key].rows.push(r);\n}\n\nconst derivedStage = (r) => {\n  const cu = S(r['ClickUp Stage']);\n  if (cu) return cu;\n  const st = S(r.Stage);\n  const cat = norm(r['Reply Category']);\n  if (/^(yes|true|evet|1)$/i.test(S(r['Opt-out']))) return 'Opt-out';\n  if (cat === 'hot') return 'Yanıt: demo istiyor';\n  if (cat === 'warm') return 'Yanıt: ilgili, bilgi istiyor';\n  if (cat === 'cold' || cat === 'not interested') return 'Yanıt: olumsuz';\n  if (st === 'Bounced') return 'Ulaşmadı';\n  if (st === 'Closed - No reply') return 'Kapandı – yanıt yok';\n  const fu = st.match(/^Follow-up (\\d)/);\n  if (fu) return fu[1] + '. takip atıldı';\n  if (S(r['Sent At'])) {\n    const n = Number(r['Follow-up Count']) || 0;\n    if (n >= 1 && n <= 3) return n + '. takip atıldı';\n    return /-B$/i.test(S(r['Lead ID'])) || S(r['Parent Lead ID']) ? '2. kişiye ilk mail atıldı' : 'İlk mail atıldı';\n  }\n  return '';\n};\nconst stageRank = (s) => {\n  const n = norm(s);\n  if (n === norm('Demo planlandı')) return 100;\n  if (n === norm('Yanıt: demo istiyor')) return 90;\n  if (n === norm('Yanıt: ilgili, bilgi istiyor')) return 85;\n  if (n === 'opt-out') return 80;\n  if (n === norm('Yanıt: olumsuz')) return 75;\n  return 0;\n};\n\nconst HAND_FILLED = ['Mail Tarihi', 'E-posta', 'İlgili Kişi', 'Mail Konusu', 'Geri Dönüş', 'Geri Dönüş Notu', '2. Mail (Takip)', '2. Mail Tarihi'].map(norm);\n\nconst companies = [];\nfor (const g of Object.values(groups)) {\n  const parent = g.rows.find((r) => S(r['Lead ID']).toUpperCase() === g.key) || g.rows[0];\n  const second = g.rows.find((r) => r !== parent);\n  const mailed = g.rows.some((r) => S(r['Sent At']) || S(r['ClickUp Stage']));\n  if (!mailed) continue;\n  if (only.length && !only.includes(g.key)) continue;\n\n  let stage = '', best = -1, bestTs = -1;\n  for (const r of g.rows) {\n    const s = derivedStage(r);\n    if (!s) continue;\n    const rank = stageRank(s), ts = tsOf(r['Last Updated']);\n    if (rank > best || (rank === best && ts > bestTs)) { stage = s; best = rank; bestTs = ts; }\n  }\n  // A bounce is a delivery failure, not an answer from the company.\n  const isBounce = (r) => S(r.Stage) === 'Bounced' || S(r['ClickUp Stage']) === 'Ulaşmadı' || /bounce|ulaşmadı/i.test(S(r['Reply Category']));\n  const replied = g.rows.find((r) => !isBounce(r) && (S(r['Reply At']) || S(r['Reply Category'])));\n  const lastTs = Math.max(0, ...g.rows.map((r) => tsOf(r['Last Updated'])));\n  const nextDates = g.rows.map((r) => dayOf(r['Next Follow-up Date'])).filter(Boolean).sort();\n  const fu1 = dayOf(parent['Follow-up 1 At']);\n  const followedUp = !!fu1 || (Number(parent['Follow-up Count']) || 0) >= 1;\n\n  // ClickUp field name -> value from the sheet ('' = nothing to write)\n  const want = {\n    'Lead ID': g.key,\n    'Web Sitesi': S(parent.Website),\n    'Segment': norm(parent.Segment) === 'hariç' ? 'Diğer' : S(parent.Segment),\n    'Dalga': ({ '1': '1. dalga', '2': '2. dalga', 'ayrı liste': 'Sourcing ofisi' })[norm(parent.Wave)] || S(parent.Wave),\n    'Çalışan Sayısı': S(parent.Employees),\n    'İhracat / Ciro': S(parent['Export Volume']),\n    'Kriter Uygunluğu': S(parent['Criteria Fit']),\n    'İlgili Kişi': S(parent['Contact Name']),\n    'İlgili Kişi Unvanı': S(parent['Contact Title']),\n    'E-posta': S(parent.Email),\n    'LinkedIn': S(parent.LinkedIn),\n    '2. Kişi': S(parent['Contact 2 Name']) || (second ? S(second['Contact Name']) : ''),\n    '2. Kişi Unvanı': S(parent['Contact 2 Title']) || (second ? S(second['Contact Title']) : ''),\n    '2. Kişi E-posta': S(parent['Contact 2 Email']) || (second ? S(second.Email) : ''),\n    'Kişi Kaynağı': ({ 'basın': 'Basın / Google AI', 'google ai': 'Basın / Google AI', 'genel adres': 'Genel adres (info@)', 'info@': 'Genel adres (info@)', 'web': 'Web sitesi', 'website': 'Web sitesi' })[norm(parent['Contact Source'])] || S(parent['Contact Source']),\n    'HubSpot Contact ID': S(parent['HubSpot Contact ID']),\n    'Mail Konusu': S(parent.Subject),\n    'Aşama': stage,\n    'Mail Tarihi': dayOf(parent['Sent At']),\n    '2. Kişi İlk Mail Tarihi': dayOf(parent['Contact 2 First Email At']) || (second ? dayOf(second['Sent At']) : ''),\n    '2. Mail (Takip)': followedUp ? '__SENT__' : '',\n    '2. Mail Tarihi': fu1,\n    '2. Takip Tarihi': dayOf(parent['Follow-up 2 At']),\n    '3. Takip Tarihi': dayOf(parent['Follow-up 3 At']),\n    'Yanıt Tarihi': replied ? dayOf(replied['Reply At']) : '',\n    'Geri Dönüş': replied ? 'Oldu' : 'Olmadı',\n    'Geri Dönüş Notu': replied ? [S(replied['Reply Category']), S(replied['Reply Summary'])].filter(Boolean).join(': ') : '',\n    'Son Aksiyon Tarihi': lastTs ? dayOf(new Date(lastTs).toISOString()) : '',\n    'Sonraki Aksiyon Tarihi': nextDates[0] || '',\n  };\n  const emails = [];\n  for (const r of g.rows) for (const k of ['Email', 'Contact 2 Email', 'General Email']) { const e = S(r[k]).toLowerCase(); if (e && !emails.includes(e)) emails.push(e); }\n  companies.push({ key: g.key, name: S(parent.Company), want, emails, lead_ids: g.rows.map((r) => S(r['Lead ID']).toUpperCase()) });\n}\n\n// ---------- Match companies to tasks: Lead ID, then email, then exact company name ----------\nconst fLead = fieldByName[norm('Lead ID')], fMail = fieldByName[norm('E-posta')], fMail2 = fieldByName[norm('2. Kişi E-posta')];\nconst byLead = {}, byEmail = {}, byName = {};\nfor (const t of tasks) {\n  if (fLead) { const v = currentValue(t, fLead).toUpperCase(); if (v) byLead[v] = t; }\n  for (const f of [fMail, fMail2]) if (f) { const v = currentValue(t, f).toLowerCase(); if (v && !byEmail[v]) byEmail[v] = t; }\n  const n = normName(t.name); if (n && !byName[n]) byName[n] = t;\n}\nconst claimed = {};\nconst notes = [], conflicts = [], creates = [], fieldWrites = [], taskByCompany = {}, matched = [];\n\n// Turn a sheet value into what the ClickUp API wants for this field type. Returns {ok, value, options, shown}.\nconst toApi = (f, name, v) => {\n  if (v === '__SENT__') {\n    if (f.type === 'checkbox') return { ok: true, value: true, shown: 'true' };\n    if (f.type === 'drop_down') {\n      const o = optionsOf(f).find((x) => /^(at[ıi]ld[ıi]|g[öo]nderildi|evet|yap[ıi]ld[ıi]|var)$/.test(norm(optLabel(x))));\n      return o ? { ok: true, value: o.id, shown: optLabel(o) } : { ok: false, why: 'no \"sent\" option among: ' + optionsOf(f).map(optLabel).join(' | ') };\n    }\n    return { ok: true, value: 'Atıldı', shown: 'Atıldı' };\n  }\n  if (f.type === 'drop_down') {\n    const o = optionsOf(f).find((x) => norm(optLabel(x)) === norm(v));\n    return o ? { ok: true, value: o.id, shown: optLabel(o) } : { ok: false, why: 'no option \"' + v + '\" among: ' + optionsOf(f).map(optLabel).join(' | ') };\n  }\n  if (f.type === 'labels') {\n    const o = optionsOf(f).find((x) => norm(optLabel(x)) === norm(v));\n    return o ? { ok: true, value: [o.id], shown: optLabel(o) } : { ok: false, why: 'no label \"' + v + '\"' };\n  }\n  if (f.type === 'date') {\n    const d = dayOf(v);\n    return d ? { ok: true, value: dayToMs(d), options: { time: false }, shown: d } : { ok: false, why: 'not a date: ' + v };\n  }\n  if (f.type === 'number' || f.type === 'currency') {\n    const n = Number(String(v).replace(/[^\\d.,-]/g, '').replace(/\\.(?=\\d{3}\\b)/g, '').replace(',', '.'));\n    return Number.isFinite(n) && String(v).match(/\\d/) ? { ok: true, value: n, shown: String(n) } : { ok: false, why: 'not a number: ' + v };\n  }\n  if (f.type === 'checkbox') return { ok: true, value: /^(true|yes|evet|1|oldu)$/i.test(v), shown: String(/^(true|yes|evet|1|oldu)$/i.test(v)) };\n  if (f.type === 'url') return /^https?:\\/\\//i.test(v) ? { ok: true, value: v, shown: v } : { ok: true, value: 'https://' + v, shown: 'https://' + v };\n  if (f.type === 'email') return /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(v) ? { ok: true, value: v, shown: v } : { ok: false, why: 'not an email: ' + v };\n  return { ok: true, value: String(v).slice(0, 2000), shown: String(v).slice(0, 2000) };\n};\nconst same = (f, cur, shown) => (f.type === 'date' ? cur === shown : f.type === 'url' ? norm(cur).replace(/\\/$/, '') === norm(shown).replace(/\\/$/, '') : norm(cur) === norm(shown));\n\nconst missingFields = {};\nfor (const c of companies) {\n  let task = null, how = '';\n  for (const id of [c.key]) if (byLead[id]) { task = byLead[id]; how = 'Lead ID'; }\n  if (!task) for (const e of c.emails) if (byEmail[e]) { task = byEmail[e]; how = 'email'; break; }\n  if (!task && byName[normName(c.name)]) { task = byName[normName(c.name)]; how = 'name'; }\n  if (task && claimed[task.id]) {\n    notes.push(c.key + ' ' + c.name + ': matches task \"' + task.name + '\" by ' + how + ', but ' + claimed[task.id] + ' already uses it. Skipped.');\n    continue;\n  }\n  const writes = [];\n  for (const [name, v] of Object.entries(c.want)) {\n    if (!v) continue;\n    const f = fieldByName[norm(name)];\n    if (!f) { missingFields[name] = true; continue; }\n    const api = toApi(f, name, v);\n    if (!api.ok) { notes.push(c.key + ' ' + c.name + ': field \"' + name + '\" not set (' + api.why + ').'); continue; }\n    if (task) {\n      const cur = currentValue(task, f);\n      if (same(f, cur, api.shown)) continue;\n      if (cur && HAND_FILLED.includes(norm(name)) && !overwrite) {\n        conflicts.push({ lead_id: c.key, company: c.name, task: task.name, field: name, clickup: cur, sheet: api.shown });\n        continue;\n      }\n      if (norm(name) === norm('Aşama') && norm(cur) === norm('Demo planlandı') && stageRank(api.shown) < 100) continue; // set by hand, keep\n      writes.push({ field: name, from: cur, to: api.shown });\n      fieldWrites.push({ task_id: task.id, field_id: f.id, field: name, lead_id: c.key, company: c.name, body: api.options ? { value: api.value, value_options: api.options } : { value: api.value } });\n    } else {\n      writes.push({ field_id: f.id, value: api.value, options: api.options, field: name, to: api.shown });\n    }\n  }\n  if (task) {\n    claimed[task.id] = c.key;\n    taskByCompany[c.key] = task.id;\n    matched.push({ lead_id: c.key, company: c.name, task: task.name, task_id: task.id, matched_by: how, changes: writes });\n  } else {\n    creates.push({ lead_id: c.key, company: c.name, fields_shown: writes.map((w) => w.field + ' = ' + w.to), body: { name: c.name, custom_fields: writes.map((w) => (w.options ? { id: w.field_id, value: w.value, value_options: w.options } : { id: w.field_id, value: w.value })) } });\n  }\n}\nfor (const n of Object.keys(missingFields)) notes.push('ClickUp list has no field named \"' + n + '\"; it is not synced.');\nconst tasksWithoutLead = tasks.filter((t) => !claimed[t.id]).map((t) => t.name);\n\n// ---------- Actions rows that are not in ClickUp yet ----------\nconst companyOfLead = {};\nfor (const c of companies) for (const id of c.lead_ids) companyOfLead[id] = c.key;\nconst LABEL = { 'first email': 'İlk mail', 'first email (2nd contact)': '2. kişiye ilk mail', 'reply': 'Yanıt', 'opt-out': 'Opt-out', 'bounce': 'Ulaşmadı', 'bounced': 'Ulaşmadı', 'closed - no reply': 'Kapandı – yanıt yok', 'approved': 'Onay', 'approval': 'Onay', 'demo planned': 'Demo planlandı' };\nconst comments = [];\nlet waiting = 0;\nfor (const it of $('Read Actions').all()) {\n  const a = it.json;\n  const lead = S(a['Lead ID']).toUpperCase();\n  if (!lead || S(a['ClickUp Comment ID'])) continue;\n  const key = companyOfLead[lead];\n  if (!key) { if (!only.length) waiting++; continue; }\n  if (comments.length >= maxComments) { waiting++; continue; }\n  const act = S(a.Action);\n  const fu = act.match(/^Follow-up (\\d)/i);\n  const label = fu ? fu[1] + '. takip' : (LABEL[act.toLowerCase()] || act);\n  const incoming = /^(reply|opt-out|bounce)/i.test(act);\n  const ms = tsOf(a.Timestamp);\n  const when = ms ? new Date(ms + 3 * 3600000).toISOString().replace(/^(\\d{4})-(\\d{2})-(\\d{2})T(\\d{2}:\\d{2}).*/, '$3.$2.$1 $4') : S(a.Timestamp);\n  const who = [S(a.Person), S(a.Email) ? '<' + S(a.Email) + '>' : ''].filter(Boolean).join(' ');\n  const lines = ['[n8n] ' + when + ' · ' + label];\n  if (who) lines.push((incoming ? 'Kimden: ' : 'Kime: ') + who);\n  if (S(a.Subject)) lines.push('Konu: ' + S(a.Subject));\n  if (S(a.Summary)) lines.push('Özet: ' + S(a.Summary).slice(0, 1500));\n  if (S(a['Approved By'])) lines.push('Onaylayan: ' + S(a['Approved By']));\n  if (S(a.Result)) lines.push('Sonuç: ' + S(a.Result));\n  if (lead !== key) lines.push('Kayıt: ' + lead + ' (2. kişi)');\n  comments.push({ row_number: a.row_number, lead_id: lead, company_key: key, action: act, comment_text: lines.join('\\n') });\n}\n\nreturn [{ json: {\n  dry_run: dryRun, overwrite_hand_filled: overwrite, only_lead_ids: only,\n  stats: { companies_mailed: companies.length, clickup_tasks: tasks.length, matched: matched.length, to_create: creates.length, field_writes: fieldWrites.length, hand_filled_differences: conflicts.length, comments: comments.length, actions_waiting: waiting },\n  creates, field_writes: fieldWrites, comments, task_by_company: taskByCompany,\n  matched, conflicts, notes, tasks_without_lead: tasksWithoutLead,\n} }];\n"
+        "jsCode": "// Plan the ClickUp sync: match companies to tasks, work out which fields to write,\n// which tasks to create and which Actions rows to post as comments. Writes nothing itself.\nconst cfg = $('Config').first().json;\nconst dryRun = cfg.dry_run !== false && String(cfg.dry_run) !== 'false';\nconst overwrite = cfg.overwrite_hand_filled === true || String(cfg.overwrite_hand_filled) === 'true';\nconst only = String(cfg.only_lead_ids || '').split(',').map((s) => s.trim().toUpperCase()).filter(Boolean);\nconst maxComments = Number(cfg.max_comments_per_run) || 80;\n\nconst S = (v) => (v === null || v === undefined ? '' : String(v).trim());\nconst norm = (v) => S(v).toLocaleLowerCase('tr').replace(/[–—]/g, '-').replace(/\\s+/g, ' ').replace(/[.:;,!]+$/g, '').trim();\nconst normName = (v) => norm(v).replace(/\\b(a\\.?\\s?ş\\.?|ltd\\.?|şti\\.?|san\\.?|tic\\.?|ve|tekstil|textile|group|grup)\\b/g, ' ').replace(/[^a-z0-9çğıöşü]+/g, '');\n\n// Dates: ISO timestamps, yyyy-mm-dd, dd.mm.yyyy and sheet serial numbers. Result = the Istanbul calendar day.\nconst dayOf = (v) => {\n  const s = S(v);\n  if (!s) return '';\n  let m = s.match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);\n  if (m) return s;\n  m = s.match(/^(\\d{1,2})[./](\\d{1,2})[./](\\d{4})/);\n  if (m) return m[3] + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0');\n  let ms;\n  if (/^\\d+(\\.\\d+)?$/.test(s)) {\n    const n = Number(s);\n    ms = n > 1e11 ? n : Math.round((n - 25569) * 86400000) - 3 * 3600000;\n  } else ms = Date.parse(s);\n  if (!Number.isFinite(ms)) return '';\n  return new Date(ms + 3 * 3600000).toISOString().slice(0, 10);\n};\nconst dayToMs = (d) => Date.parse(d + 'T12:00:00+03:00');\nconst tsOf = (v) => {\n  const s = S(v);\n  if (!s) return 0;\n  const ms = Date.parse(s);\n  if (Number.isFinite(ms)) return ms;\n  const d = dayOf(s);\n  return d ? dayToMs(d) : 0;\n};\n\n// ---------- ClickUp side ----------\nconst fieldList = ($('Get Fields').first().json.fields || []);\nconst fieldByName = {};\nfor (const f of fieldList) fieldByName[norm(f.name)] = f;\nconst tasks = [];\nfor (const it of $('Get Tasks').all()) for (const t of (it.json.tasks || [])) tasks.push(t);\n\nconst optionsOf = (f) => ((f.type_config || {}).options || []);\nconst optLabel = (o) => S(o.name !== undefined ? o.name : o.label);\n// Current value of a field on a task, as comparable text.\nconst currentValue = (task, f) => {\n  const cf = (task.custom_fields || []).find((x) => x.id === f.id);\n  if (!cf || cf.value === undefined || cf.value === null || cf.value === '') return '';\n  const v = cf.value;\n  if (f.type === 'drop_down') {\n    const opts = optionsOf(cf.type_config ? cf : f);\n    const o = opts.find((x) => x.id === v || String(x.orderindex) === String(v));\n    return o ? optLabel(o) : S(v);\n  }\n  if (f.type === 'labels') {\n    const opts = optionsOf(cf.type_config ? cf : f);\n    return (Array.isArray(v) ? v : [v]).map((id) => { const o = opts.find((x) => x.id === id); return o ? optLabel(o) : S(id); }).join(', ');\n  }\n  if (f.type === 'date') return dayOf(v);\n  if (f.type === 'checkbox') return (v === true || v === 'true') ? 'true' : '';\n  return S(v);\n};\n\n// ---------- Sheet side: one company = parent row + its second-contact rows ----------\nconst groups = {};\nfor (const it of $('Read Leads').all()) {\n  const r = it.json;\n  const id = S(r['Lead ID']).toUpperCase();\n  if (!id) continue;\n  const m = id.match(/^(.+)-B$/);\n  const key = S(r['Parent Lead ID']).toUpperCase() || (m ? m[1] : id);\n  if (!groups[key]) groups[key] = { key, rows: [] };\n  groups[key].rows.push(r);\n}\n\nconst derivedStage = (r) => {\n  const cu = S(r['ClickUp Stage']);\n  if (cu) return cu;\n  const st = S(r.Stage);\n  const cat = norm(r['Reply Category']);\n  if (/^(yes|true|evet|1)$/i.test(S(r['Opt-out']))) return 'Opt-out';\n  if (cat === 'hot') return 'Yanıt: demo istiyor';\n  if (cat === 'warm') return 'Yanıt: ilgili, bilgi istiyor';\n  if (cat === 'cold' || cat === 'not interested') return 'Yanıt: olumsuz';\n  if (st === 'Bounced') return 'Ulaşmadı';\n  if (st === 'Closed - No reply') return 'Kapandı – yanıt yok';\n  const fu = st.match(/^Follow-up (\\d)/);\n  if (fu) return fu[1] + '. takip atıldı';\n  if (S(r['Sent At'])) {\n    const n = Number(r['Follow-up Count']) || 0;\n    if (n >= 1 && n <= 3) return n + '. takip atıldı';\n    return /-B$/i.test(S(r['Lead ID'])) || S(r['Parent Lead ID']) ? '2. kişiye ilk mail atıldı' : 'İlk mail atıldı';\n  }\n  return '';\n};\nconst stageRank = (s) => {\n  const n = norm(s);\n  if (n === norm('Demo planlandı')) return 100;\n  if (n === norm('Yanıt: demo istiyor')) return 90;\n  if (n === norm('Yanıt: ilgili, bilgi istiyor')) return 85;\n  if (n === 'opt-out') return 80;\n  if (n === norm('Yanıt: olumsuz')) return 75;\n  return 0;\n};\n\nconst HAND_FILLED = ['Mail Tarihi', 'E-posta', 'İlgili Kişi', 'Mail Konusu', 'Geri Dönüş', 'Geri Dönüş Notu', '2. Mail (Takip)', '2. Mail Tarihi'].map(norm);\n\nconst companies = [];\nfor (const g of Object.values(groups)) {\n  const parent = g.rows.find((r) => S(r['Lead ID']).toUpperCase() === g.key) || g.rows[0];\n  const second = g.rows.find((r) => r !== parent);\n  const mailed = g.rows.some((r) => S(r['Sent At']) || S(r['ClickUp Stage']));\n  if (!mailed) continue;\n  if (only.length && !only.includes(g.key)) continue;\n\n  let stage = '', best = -1, bestTs = -1;\n  for (const r of g.rows) {\n    const s = derivedStage(r);\n    if (!s) continue;\n    const rank = stageRank(s), ts = tsOf(r['Last Updated']);\n    if (rank > best || (rank === best && ts > bestTs)) { stage = s; best = rank; bestTs = ts; }\n  }\n  // A bounce is a delivery failure, not an answer from the company.\n  const isBounce = (r) => S(r.Stage) === 'Bounced' || S(r['ClickUp Stage']) === 'Ulaşmadı' || /bounce|ulaşmadı/i.test(S(r['Reply Category']));\n  const replied = g.rows.find((r) => !isBounce(r) && (S(r['Reply At']) || S(r['Reply Category'])));\n  const lastTs = Math.max(0, ...g.rows.map((r) => tsOf(r['Last Updated'])));\n  const nextDates = g.rows.map((r) => dayOf(r['Next Follow-up Date'])).filter(Boolean).sort();\n  const fu1 = dayOf(parent['Follow-up 1 At']);\n  const followedUp = !!fu1 || (Number(parent['Follow-up Count']) || 0) >= 1;\n\n  // ClickUp field name -> value from the sheet ('' = nothing to write)\n  const want = {\n    'Lead ID': g.key,\n    'Web Sitesi': S(parent.Website),\n    'Segment': norm(parent.Segment) === 'hariç' ? 'Diğer' : S(parent.Segment),\n    'Dalga': ({ '1': '1. dalga', '2': '2. dalga', 'ayrı liste': 'Sourcing ofisi' })[norm(parent.Wave)] || S(parent.Wave),\n    'Çalışan Sayısı': S(parent.Employees),\n    'İhracat / Ciro': S(parent['Export Volume']),\n    'Kriter Uygunluğu': S(parent['Criteria Fit']),\n    'İlgili Kişi': S(parent['Contact Name']),\n    'İlgili Kişi Unvanı': S(parent['Contact Title']),\n    'E-posta': S(parent.Email),\n    'LinkedIn': S(parent.LinkedIn),\n    '2. Kişi': S(parent['Contact 2 Name']) || (second ? S(second['Contact Name']) : ''),\n    '2. Kişi Unvanı': S(parent['Contact 2 Title']) || (second ? S(second['Contact Title']) : ''),\n    '2. Kişi E-posta': S(parent['Contact 2 Email']) || (second ? S(second.Email) : ''),\n    'Kişi Kaynağı': ({ 'basın': 'Basın / Google AI', 'google ai': 'Basın / Google AI', 'genel adres': 'Genel adres (info@)', 'info@': 'Genel adres (info@)', 'web': 'Web sitesi', 'website': 'Web sitesi' })[norm(parent['Contact Source'])] || S(parent['Contact Source']),\n    'HubSpot Contact ID': S(parent['HubSpot Contact ID']),\n    'Mail Konusu': S(parent.Subject),\n    'Aşama': stage,\n    'Mail Tarihi': dayOf(parent['Sent At']),\n    '2. Kişi İlk Mail Tarihi': dayOf(parent['Contact 2 First Email At']) || (second ? dayOf(second['Sent At']) : ''),\n    '2. Mail (Takip)': followedUp ? '__SENT__' : '',\n    '2. Mail Tarihi': fu1,\n    '2. Takip Tarihi': dayOf(parent['Follow-up 2 At']),\n    '3. Takip Tarihi': dayOf(parent['Follow-up 3 At']),\n    'Yanıt Tarihi': replied ? dayOf(replied['Reply At']) : '',\n    'Geri Dönüş': replied ? 'Oldu' : 'Olmadı',\n    'Geri Dönüş Notu': replied ? [S(replied['Reply Category']), S(replied['Reply Summary'])].filter(Boolean).join(': ') : '',\n    'Son Aksiyon Tarihi': lastTs ? dayOf(new Date(lastTs).toISOString()) : '',\n    'Sonraki Aksiyon Tarihi': nextDates[0] || '',\n  };\n  const emails = [];\n  for (const r of g.rows) for (const k of ['Email', 'Contact 2 Email', 'General Email']) { const e = S(r[k]).toLowerCase(); if (e && !emails.includes(e)) emails.push(e); }\n  companies.push({ key: g.key, name: S(parent.Company), want, emails, lead_ids: g.rows.map((r) => S(r['Lead ID']).toUpperCase()) });\n}\n\n// ---------- Match companies to tasks: Lead ID, then email, then exact company name ----------\nconst fLead = fieldByName[norm('Lead ID')], fMail = fieldByName[norm('E-posta')], fMail2 = fieldByName[norm('2. Kişi E-posta')];\nconst byLead = {}, byEmail = {}, byName = {};\nfor (const t of tasks) {\n  if (fLead) { const v = currentValue(t, fLead).toUpperCase(); if (v) byLead[v] = t; }\n  for (const f of [fMail, fMail2]) if (f) { const v = currentValue(t, f).toLowerCase(); if (v && !byEmail[v]) byEmail[v] = t; }\n  const n = normName(t.name); if (n && !byName[n]) byName[n] = t;\n}\nconst claimed = {};\nconst notes = [], conflicts = [], creates = [], fieldWrites = [], taskByCompany = {}, matched = [];\n\n// Turn a sheet value into what the ClickUp API wants for this field type. Returns {ok, value, options, shown}.\nconst toApi = (f, name, v) => {\n  if (v === '__SENT__') {\n    if (f.type === 'checkbox') return { ok: true, value: true, shown: 'true' };\n    if (f.type === 'drop_down') {\n      const o = optionsOf(f).find((x) => /^(at[ıi]ld[ıi]|g[öo]nderildi|evet|yap[ıi]ld[ıi]|var)$/.test(norm(optLabel(x))));\n      return o ? { ok: true, value: o.id, shown: optLabel(o) } : { ok: false, why: 'no \"sent\" option among: ' + optionsOf(f).map(optLabel).join(' | ') };\n    }\n    return { ok: true, value: 'Atıldı', shown: 'Atıldı' };\n  }\n  if (f.type === 'drop_down') {\n    const o = optionsOf(f).find((x) => norm(optLabel(x)) === norm(v));\n    return o ? { ok: true, value: o.id, shown: optLabel(o) } : { ok: false, why: 'no option \"' + v + '\" among: ' + optionsOf(f).map(optLabel).join(' | ') };\n  }\n  if (f.type === 'labels') {\n    const o = optionsOf(f).find((x) => norm(optLabel(x)) === norm(v));\n    return o ? { ok: true, value: [o.id], shown: optLabel(o) } : { ok: false, why: 'no label \"' + v + '\"' };\n  }\n  if (f.type === 'date') {\n    const d = dayOf(v);\n    return d ? { ok: true, value: dayToMs(d), options: { time: false }, shown: d } : { ok: false, why: 'not a date: ' + v };\n  }\n  if (f.type === 'number' || f.type === 'currency') {\n    const n = Number(String(v).replace(/[^\\d.,-]/g, '').replace(/\\.(?=\\d{3}\\b)/g, '').replace(',', '.'));\n    return Number.isFinite(n) && String(v).match(/\\d/) ? { ok: true, value: n, shown: String(n) } : { ok: false, why: 'not a number: ' + v };\n  }\n  if (f.type === 'checkbox') return { ok: true, value: /^(true|yes|evet|1|oldu)$/i.test(v), shown: String(/^(true|yes|evet|1|oldu)$/i.test(v)) };\n  if (f.type === 'url') return /^https?:\\/\\//i.test(v) ? { ok: true, value: v, shown: v } : { ok: true, value: 'https://' + v, shown: 'https://' + v };\n  if (f.type === 'email') return /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(v) ? { ok: true, value: v, shown: v } : { ok: false, why: 'not an email: ' + v };\n  return { ok: true, value: String(v).slice(0, 2000), shown: String(v).slice(0, 2000) };\n};\nconst same = (f, cur, shown) => (f.type === 'date' ? cur === shown : f.type === 'url' ? norm(cur).replace(/\\/$/, '') === norm(shown).replace(/\\/$/, '') : norm(cur) === norm(shown));\n\nconst missingFields = {};\nfor (const c of companies) {\n  let task = null, how = '';\n  for (const id of [c.key]) if (byLead[id]) { task = byLead[id]; how = 'Lead ID'; }\n  if (!task) for (const e of c.emails) if (byEmail[e]) { task = byEmail[e]; how = 'email'; break; }\n  if (!task && byName[normName(c.name)]) { task = byName[normName(c.name)]; how = 'name'; }\n  if (task && claimed[task.id]) {\n    notes.push(c.key + ' ' + c.name + ': matches task \"' + task.name + '\" by ' + how + ', but ' + claimed[task.id] + ' already uses it. Skipped.');\n    continue;\n  }\n  const writes = [];\n  for (const [name, v] of Object.entries(c.want)) {\n    if (!v) continue;\n    const f = fieldByName[norm(name)];\n    if (!f) { missingFields[name] = true; continue; }\n    const api = toApi(f, name, v);\n    if (!api.ok) { notes.push(c.key + ' ' + c.name + ': field \"' + name + '\" not set (' + api.why + ').'); continue; }\n    if (task) {\n      const cur = currentValue(task, f);\n      if (same(f, cur, api.shown)) continue;\n      // A reply note someone typed is never replaced, even when the sync owns the other hand-filled fields.\n      if (cur && HAND_FILLED.includes(norm(name)) && (!overwrite || norm(name) === norm('Geri Dönüş Notu'))) {\n        conflicts.push({ lead_id: c.key, company: c.name, task: task.name, field: name, clickup: cur, sheet: api.shown });\n        continue;\n      }\n      if (norm(name) === norm('Aşama') && norm(cur) === norm('Demo planlandı') && stageRank(api.shown) < 100) continue; // set by hand, keep\n      writes.push({ field: name, from: cur, to: api.shown });\n      fieldWrites.push({ task_id: task.id, field_id: f.id, field: name, lead_id: c.key, company: c.name, body: api.options ? { value: api.value, value_options: api.options } : { value: api.value } });\n    } else {\n      writes.push({ field_id: f.id, value: api.value, options: api.options, field: name, to: api.shown });\n    }\n  }\n  if (task) {\n    claimed[task.id] = c.key;\n    taskByCompany[c.key] = task.id;\n    matched.push({ lead_id: c.key, company: c.name, task: task.name, task_id: task.id, matched_by: how, changes: writes });\n  } else {\n    creates.push({ lead_id: c.key, company: c.name, fields_shown: writes.map((w) => w.field + ' = ' + w.to), body: { name: c.name, custom_fields: writes.map((w) => (w.options ? { id: w.field_id, value: w.value, value_options: w.options } : { id: w.field_id, value: w.value })) } });\n  }\n}\nfor (const n of Object.keys(missingFields)) notes.push('ClickUp list has no field named \"' + n + '\"; it is not synced.');\nconst tasksWithoutLead = tasks.filter((t) => !claimed[t.id]).map((t) => t.name);\n\n// ---------- Actions rows that are not in ClickUp yet ----------\nconst companyOfLead = {};\nfor (const c of companies) for (const id of c.lead_ids) companyOfLead[id] = c.key;\nconst LABEL = { 'first email': 'İlk mail', 'first email (2nd contact)': '2. kişiye ilk mail', 'reply': 'Yanıt', 'opt-out': 'Opt-out', 'bounce': 'Ulaşmadı', 'bounced': 'Ulaşmadı', 'closed - no reply': 'Kapandı – yanıt yok', 'approved': 'Onay', 'approval': 'Onay', 'demo planned': 'Demo planlandı' };\nconst comments = [];\nlet waiting = 0;\nfor (const it of $('Read Actions').all()) {\n  const a = it.json;\n  const lead = S(a['Lead ID']).toUpperCase();\n  if (!lead || S(a['ClickUp Comment ID'])) continue;\n  const key = companyOfLead[lead];\n  if (!key) { if (!only.length) waiting++; continue; }\n  if (comments.length >= maxComments) { waiting++; continue; }\n  const act = S(a.Action);\n  const fu = act.match(/^Follow-up (\\d)/i);\n  const label = fu ? fu[1] + '. takip' : (LABEL[act.toLowerCase()] || act);\n  const incoming = /^(reply|opt-out|bounce)/i.test(act);\n  const ms = tsOf(a.Timestamp);\n  const when = ms ? new Date(ms + 3 * 3600000).toISOString().replace(/^(\\d{4})-(\\d{2})-(\\d{2})T(\\d{2}:\\d{2}).*/, '$3.$2.$1 $4') : S(a.Timestamp);\n  const who = [S(a.Person), S(a.Email) ? '<' + S(a.Email) + '>' : ''].filter(Boolean).join(' ');\n  const lines = ['[n8n] ' + when + ' · ' + label];\n  if (who) lines.push((incoming ? 'Kimden: ' : 'Kime: ') + who);\n  if (S(a.Subject)) lines.push('Konu: ' + S(a.Subject));\n  if (S(a.Summary)) lines.push('Özet: ' + S(a.Summary).slice(0, 1500));\n  if (S(a['Approved By'])) lines.push('Onaylayan: ' + S(a['Approved By']));\n  if (S(a.Result)) lines.push('Sonuç: ' + S(a.Result));\n  if (lead !== key) lines.push('Kayıt: ' + lead + ' (2. kişi)');\n  comments.push({ row_number: a.row_number, lead_id: lead, company_key: key, action: act, comment_text: lines.join('\\n') });\n}\n\nreturn [{ json: {\n  dry_run: dryRun, overwrite_hand_filled: overwrite, only_lead_ids: only,\n  stats: { companies_mailed: companies.length, clickup_tasks: tasks.length, matched: matched.length, to_create: creates.length, field_writes: fieldWrites.length, hand_filled_differences: conflicts.length, comments: comments.length, actions_waiting: waiting },\n  creates, field_writes: fieldWrites, comments, task_by_company: taskByCompany,\n  matched, conflicts, notes, tasks_without_lead: tasksWithoutLead,\n} }];\n"
       }
     },
     {
-      "id": "d67e8fa2-6f68-4feb-bd29-edc3e98d85d5",
+      "id": "81fbfe85-eac1-44b9-9552-3ab4d0db2c83",
       "name": "New tasks",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -253,7 +253,7 @@
       }
     },
     {
-      "id": "a511f057-d483-4ab0-96ea-976f20b20845",
+      "id": "a4c18e47-34a8-4c80-85fc-3c3f96e35a3a",
       "name": "Nothing to create?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -284,7 +284,7 @@
       }
     },
     {
-      "id": "395bb3d8-1947-4de7-b9b5-f8efdad9dc6e",
+      "id": "04b8ac33-ff84-4063-a864-3d27089e9686",
       "name": "Create task",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -321,7 +321,7 @@
       }
     },
     {
-      "id": "c608fcf3-a606-407b-85ae-c3419750177a",
+      "id": "6cb6f54e-006e-4e2e-aa14-f495deddd544",
       "name": "Field changes",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -336,7 +336,7 @@
       }
     },
     {
-      "id": "9c11f1e7-031b-4853-a138-ebe63cb9889e",
+      "id": "3c8bf50e-9ef7-4ed0-9626-a3427a702fe5",
       "name": "No field changes?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -367,7 +367,7 @@
       }
     },
     {
-      "id": "a15e9d57-5353-42f2-8c77-8ff1d65cfc53",
+      "id": "f0315e2d-75d8-438c-a921-87d1f22a31a9",
       "name": "Set field",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -404,7 +404,7 @@
       }
     },
     {
-      "id": "6553524d-505b-41ad-a6be-d43c30261ef4",
+      "id": "deea8761-749e-4a2b-81a1-497477455e02",
       "name": "Comments to post",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -419,7 +419,7 @@
       }
     },
     {
-      "id": "64a5512d-c8d1-403a-a094-809b75ba9673",
+      "id": "dca777e3-2bd5-42d5-bb74-ece0e9a13fe7",
       "name": "No comments?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -450,7 +450,7 @@
       }
     },
     {
-      "id": "05a9f9a4-9814-41e0-a501-9dde6c9d74ae",
+      "id": "66862b6c-07cd-48e3-83af-47d241f69e1e",
       "name": "Post comment",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -487,7 +487,7 @@
       }
     },
     {
-      "id": "b8fb8a8e-4305-4f5a-a5c6-a2822bfa703f",
+      "id": "185cfbc3-0b2b-4116-a8cc-92fc029eb1ca",
       "name": "Synced rows",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -502,7 +502,7 @@
       }
     },
     {
-      "id": "ae308f20-d141-46d7-8566-b00785c9a7e9",
+      "id": "0c7debbf-eb82-45e7-a2da-2fbe453c38b5",
       "name": "Nothing to mark?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -533,7 +533,7 @@
       }
     },
     {
-      "id": "32b0cc07-1c2d-4467-a3ac-721e7295f82c",
+      "id": "3a1788e3-83ab-40ff-9e3f-01f4e1f32baa",
       "name": "Mark action synced",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
@@ -575,7 +575,7 @@
       }
     },
     {
-      "id": "ff980891-167d-41d3-b154-85736620c74c",
+      "id": "aedbdc2f-d869-4339-810f-c21c140f59c7",
       "name": "Run summary",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -590,7 +590,7 @@
       }
     },
     {
-      "id": "f3ebb596-298a-486d-836c-00e2d48a408c",
+      "id": "2eb90437-bb76-44be-8074-9ae98f662eaa",
       "name": "Worth logging?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -621,7 +621,7 @@
       }
     },
     {
-      "id": "842fec4e-384f-43db-a39c-833e482dc60a",
+      "id": "f689a915-27d6-4b38-bc61-1176643471e6",
       "name": "Log run",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
@@ -741,7 +741,7 @@
       }
     },
     {
-      "id": "c23f062a-6f4c-4fe5-996e-56be6fce0af5",
+      "id": "a0142fa0-cce8-4da2-8002-812ec6de6b5c",
       "name": "Any write failed?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -771,7 +771,7 @@
       }
     },
     {
-      "id": "48537dac-22b5-478f-bd66-c6e15f582477",
+      "id": "c150179a-27b0-46ee-9e09-8af1c3875aa8",
       "name": "Stop: ClickUp writes failed",
       "type": "n8n-nodes-base.stopAndError",
       "typeVersion": 1,
@@ -784,7 +784,7 @@
       }
     },
     {
-      "id": "e40a59dc-cb87-43b2-b31a-b45f90ae1a8e",
+      "id": "728971aa-3df6-488c-a0da-904eab4a95f0",
       "name": "Note: ClickUp sync",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,

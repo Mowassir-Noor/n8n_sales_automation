@@ -232,7 +232,8 @@ for (const c of companies) {
     if (task) {
       const cur = currentValue(task, f);
       if (same(f, cur, api.shown)) continue;
-      if (cur && HAND_FILLED.includes(norm(name)) && !overwrite) {
+      // A reply note someone typed is never replaced, even when the sync owns the other hand-filled fields.
+      if (cur && HAND_FILLED.includes(norm(name)) && (!overwrite || norm(name) === norm('Geri Dönüş Notu'))) {
         conflicts.push({ lead_id: c.key, company: c.name, task: task.name, field: name, clickup: cur, sheet: api.shown });
         continue;
       }

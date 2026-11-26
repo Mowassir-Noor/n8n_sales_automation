@@ -1179,8 +1179,8 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        672,
-        960
+        896,
+        1760
       ],
       "parameters": {
         "columns": {
@@ -2047,6 +2047,20 @@
           "name": "Google Sheets account"
         }
       }
+    },
+    {
+      "name": "Bounce: wait for sender's write",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        672,
+        1760
+      ],
+      "parameters": {
+        "amount": 45,
+        "unit": "seconds"
+      },
+      "notes": "A bounce can come back seconds after a send. WF3 and WF5 write the lead row a few seconds after sending; waiting here makes sure 'Bounced' is written after them and is not overwritten."
     }
   ],
   "connections": {
@@ -2396,11 +2410,6 @@
       "main": [
         [
           {
-            "node": "Bounce: update lead",
-            "type": "main",
-            "index": 0
-          },
-          {
             "node": "Bounce: suppress address",
             "type": "main",
             "index": 0
@@ -2417,6 +2426,11 @@
           },
           {
             "node": "Read Settings (bounce)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Bounce: wait for sender's write",
             "type": "main",
             "index": 0
           }
@@ -2457,6 +2471,17 @@
         [
           {
             "node": "Close other contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bounce: wait for sender's write": {
+      "main": [
+        [
+          {
+            "node": "Bounce: update lead",
             "type": "main",
             "index": 0
           }

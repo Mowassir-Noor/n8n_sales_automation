@@ -77,6 +77,7 @@ for (const it of $('Read Leads').all()) {
 }
 
 const derivedStage = (r) => {
+  if (/^delivery failed/i.test(S(r['Reply Summary']))) return 'Ulaşmadı';
   const cu = S(r['ClickUp Stage']);
   if (cu) return cu;
   const st = S(r.Stage);
@@ -124,7 +125,7 @@ for (const g of Object.values(groups)) {
     if (rank > best || (rank === best && ts > bestTs)) { stage = s; best = rank; bestTs = ts; }
   }
   // A bounce is a delivery failure, not an answer from the company.
-  const isBounce = (r) => S(r.Stage) === 'Bounced' || S(r['ClickUp Stage']) === 'Ulaşmadı' || /bounce|ulaşmadı/i.test(S(r['Reply Category']));
+  const isBounce = (r) => S(r.Stage) === 'Bounced' || S(r['ClickUp Stage']) === 'Ulaşmadı' || /bounce|ulaşmadı/i.test(S(r['Reply Category'])) || /^delivery failed/i.test(S(r['Reply Summary']));
   const replied = g.rows.find((r) => !isBounce(r) && (S(r['Reply At']) || S(r['Reply Category'])));
   const lastTs = Math.max(0, ...g.rows.map((r) => tsOf(r['Last Updated'])));
   const nextDates = g.rows.map((r) => dayOf(r['Next Follow-up Date'])).filter(Boolean).sort();
@@ -232,7 +233,8 @@ for (const c of companies) {
     if (task) {
       const cur = currentValue(task, f);
       if (same(f, cur, api.shown)) continue;
-      if (cur && HAND_FILLED.includes(norm(name)) && !overwrite) {
+      // A reply note someone typed is never replaced, even when the sync owns the other hand-filled fields.
+      if (cur && HAND_FILLED.includes(norm(name)) && (!overwrite || norm(name) === norm('Geri Dönüş Notu'))) {
         conflicts.push({ lead_id: c.key, company: c.name, task: task.name, field: name, clickup: cur, sheet: api.shown });
         continue;
       }

@@ -49,7 +49,7 @@ A value that has no matching dropdown option (for example an old `Segment` such 
 | Setting | Meaning |
 |---|---|
 | `dry_run` | `true`: plan only, nothing is written. The plan is in the output of the `Run summary` node (`matched`, `would_create`, `conflicts`, `notes`). |
-| `overwrite_hand_filled` | `false`: the eight fields Nil filled by hand (Mail Tarihi, E-posta, İlgili Kişi, Mail Konusu, Geri Dönüş, Geri Dönüş Notu, 2. Mail (Takip), 2. Mail Tarihi) are only filled where empty. A different value is listed under `conflicts` and left alone. |
+| `overwrite_hand_filled` | `false`: the eight fields Nil filled by hand (Mail Tarihi, E-posta, İlgili Kişi, Mail Konusu, Geri Dönüş, Geri Dönüş Notu, 2. Mail (Takip), 2. Mail Tarihi) are only filled where empty. A different value is listed under `conflicts` and left alone. `true` (live setting since 26 Nov 2026): the sheet wins for seven of them. A reply note (Geri Dönüş Notu) that someone typed is never replaced in either mode. |
 | `only_lead_ids` | Comma list of lead IDs to limit a run to, for testing. Empty = all. |
 | `max_comments_per_run` | Upper limit of comments per run (80). |
 | `list_id` | The ClickUp list. |
